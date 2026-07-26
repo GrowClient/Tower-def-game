@@ -76,8 +76,23 @@ attachInput(
     restart,
     placeTower: (kind, cx, cy) => queueIntent(state, { type: 'placeTower', kind, cx, cy }),
     upgradeTower: (towerId) => queueIntent(state, { type: 'upgradeTower', towerId }),
+    cycleTargetMode: (towerId) => queueIntent(state, { type: 'cycleTargetMode', towerId }),
   },
 );
+
+/**
+ * Dev-only inspection hook. `import.meta.env.DEV` is false in a production
+ * build, so this whole block is dead-code-eliminated from the shipped bundle.
+ * It exists so tooling and manual debugging can read the live run without the
+ * simulation having to export mutable module state.
+ */
+if (import.meta.env.DEV) {
+  (window as unknown as { __td: unknown }).__td = {
+    state: () => state,
+    ui: () => ui,
+    queue: (intent: Parameters<typeof queueIntent>[1]) => queueIntent(state, intent),
+  };
+}
 
 let lastMs = performance.now();
 /** Leftover real time not yet consumed by a whole sim step. */

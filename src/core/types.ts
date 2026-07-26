@@ -5,10 +5,10 @@
  * no `window`, no `Date`, no `Math.random`.
  */
 
-import type { EnemyKind, TowerKind } from '../config/balance';
+import type { BossMechanic, EnemyKind, TargetMode, TowerKind } from '../config/balance';
 import type { Rng } from './rng';
 
-export type { EnemyKind, TowerKind };
+export type { BossMechanic, EnemyKind, TargetMode, TowerKind };
 
 // --- Geometry ---------------------------------------------------------------
 
@@ -102,6 +102,32 @@ export interface Enemy {
   /** Active movement multiplier, and how long it lasts. Refreshed by auras. */
   slowFactor: number;
   slowTimer: number;
+  /** Slows simply don't apply — used by the Warlord boss. */
+  slowImmune: boolean;
+
+  /**
+   * Whole hits still absorbed. Each hit costs exactly one, no matter its size,
+   * which is what makes fire rate rather than damage the answer.
+   */
+  shield: number;
+  maxShield: number;
+
+  /** Healer aura: HP/sec restored to OTHER enemies within healRadius. */
+  healPerSecond: number;
+  healRadius: number;
+
+  /** Armor granted to nearby enemies, and armor currently received from auras.
+   *  `auraArmor` is recomputed from scratch every step, never accumulated. */
+  armorAura: number;
+  armorAuraRadius: number;
+  auraArmor: number;
+
+  /** Boss state. `mechanic` is null for ordinary units. */
+  mechanic: BossMechanic | null;
+  /** summoner: how many HP thresholds have already fired. */
+  summonsFired: number;
+  /** regenerator: seconds until the next self-repair. */
+  regenTimer: number;
 
   /** Counts down after taking damage; drives the renderer's hit flash. */
   flash: number;
@@ -128,6 +154,8 @@ export interface Tower {
   aim: number;
   /** Counts down after firing; drives the renderer's recoil. */
   recoil: number;
+  /** Which enemy this tower prefers to shoot. */
+  targetMode: TargetMode;
 }
 
 export interface Projectile {
@@ -177,6 +205,7 @@ export interface WaveState {
 export type Intent =
   | { type: 'placeTower'; kind: TowerKind; cx: number; cy: number }
   | { type: 'upgradeTower'; towerId: number }
+  | { type: 'cycleTargetMode'; towerId: number }
   | { type: 'sellTower'; towerId: number };
 
 // --- Run state --------------------------------------------------------------
@@ -226,6 +255,10 @@ export interface GameState {
 export type SimEvent =
   | { type: 'enemySpawned'; at: Vec2 }
   | { type: 'enemyHit'; at: Vec2; damage: number }
+  | { type: 'shieldAbsorbed'; at: Vec2; remaining: number }
+  | { type: 'enemyHealed'; at: Vec2 }
+  | { type: 'bossSpawned'; at: Vec2; kind: EnemyKind }
+  | { type: 'bossKilled'; at: Vec2; kind: EnemyKind }
   | { type: 'enemyKilled'; at: Vec2; kind: EnemyKind; bounty: number }
   | { type: 'enemyLeaked'; at: Vec2; livesLost: number }
   | { type: 'towerPlaced'; at: Vec2; kind: TowerKind }

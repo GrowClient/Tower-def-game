@@ -11,7 +11,7 @@
  */
 
 import { emit } from './events';
-import { placeTower, upgradeTower } from './towers';
+import { cycleTargetMode, placeTower, upgradeTower } from './towers';
 import type { GameState, Intent } from './types';
 
 export function queueIntent(state: GameState, intent: Intent): void {
@@ -28,6 +28,9 @@ export function applyIntents(state: GameState): void {
         break;
       case 'upgradeTower':
         upgradeTower(state, intent.towerId);
+        break;
+      case 'cycleTargetMode':
+        cycleTargetMode(state, intent.towerId);
         break;
       case 'sellTower':
         // Selling isn't in the design yet. Swallow it rather than crash, and

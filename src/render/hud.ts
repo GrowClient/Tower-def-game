@@ -10,7 +10,14 @@
  * button can never be somewhere other than where it looks.
  */
 
-import { BUILD_ORDER, TOWERS, WAVES, WORLD, type TowerKind } from '../config/balance';
+import {
+  BUILD_ORDER,
+  TARGET_MODE_LABELS,
+  TOWERS,
+  WAVES,
+  WORLD,
+  type TowerKind,
+} from '../config/balance';
 import { upgradeCost } from '../core/economy';
 import { towerDamage, towerRange } from '../core/towers';
 import type { GameState, Tower } from '../core/types';
@@ -68,9 +75,10 @@ export const BUILD_BUTTONS: BuildButton[] = BUILD_ORDER.map((kind, i) => {
   };
 });
 
-/** Upgrade button inside the selected-tower panel. */
-export const UPGRADE_BUTTON: Rect = { x: WORLD.width - 268, y: WORLD.hudTop + 128, w: 244, h: 54 };
-export const PANEL: Rect = { x: WORLD.width - 288, y: WORLD.hudTop + 16, w: 264, h: 178 };
+/** Buttons inside the selected-tower panel. */
+export const UPGRADE_BUTTON: Rect = { x: WORLD.width - 268, y: WORLD.hudTop + 126, w: 244, h: 50 };
+export const TARGET_BUTTON: Rect = { x: WORLD.width - 268, y: WORLD.hudTop + 182, w: 244, h: 42 };
+export const PANEL: Rect = { x: WORLD.width - 288, y: WORLD.hudTop + 16, w: 264, h: 222 };
 
 export function drawHud(
   ctx: CanvasRenderingContext2D,
@@ -224,27 +232,43 @@ function drawSelectionPanel(
     ctx.fillStyle = COLORS.textDim;
     ctx.font = font(17);
     ctx.textAlign = 'center';
-    ctx.fillText('MAX LEVEL', UPGRADE_BUTTON.x + UPGRADE_BUTTON.w / 2, UPGRADE_BUTTON.y + 34);
+    ctx.fillText('MAX LEVEL', UPGRADE_BUTTON.x + UPGRADE_BUTTON.w / 2, UPGRADE_BUTTON.y + 32);
     ctx.textAlign = 'left';
-    return;
+  } else {
+    const affordable = state.gold >= cost;
+    panel(
+      ctx,
+      UPGRADE_BUTTON,
+      affordable ? '#4A3D24' : '#2A2519',
+      affordable ? accent : 'rgba(0,0,0,0.5)',
+      2,
+    );
+    ctx.textAlign = 'center';
+    ctx.fillStyle = affordable ? COLORS.text : '#7A705F';
+    ctx.font = font(19);
+    ctx.fillText(
+      `UPGRADE  ${cost}g`,
+      UPGRADE_BUTTON.x + UPGRADE_BUTTON.w / 2,
+      UPGRADE_BUTTON.y + 33,
+    );
   }
 
-  const affordable = state.gold >= cost;
-  panel(
-    ctx,
-    UPGRADE_BUTTON,
-    affordable ? '#4A3D24' : '#2A2519',
-    affordable ? accent : 'rgba(0,0,0,0.5)',
-    2,
-  );
-  ctx.textAlign = 'center';
-  ctx.fillStyle = affordable ? COLORS.text : '#7A705F';
-  ctx.font = font(19);
-  ctx.fillText(
-    `UPGRADE  ${cost}g`,
-    UPGRADE_BUTTON.x + UPGRADE_BUTTON.w / 2,
-    UPGRADE_BUTTON.y + 35,
-  );
+  // Targeting mode. Slowers have no target — showing them a mode selector
+  // would imply a choice that does nothing.
+  if (def.slowFactor >= 1) {
+    panel(ctx, TARGET_BUTTON, '#2C2519', 'rgba(0,0,0,0.5)', 2);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = COLORS.textDim;
+    ctx.font = font(13);
+    ctx.fillText('TARGET', TARGET_BUTTON.x + 44, TARGET_BUTTON.y + 27);
+    ctx.fillStyle = accent;
+    ctx.font = font(17);
+    ctx.fillText(
+      TARGET_MODE_LABELS[tower.targetMode],
+      TARGET_BUTTON.x + TARGET_BUTTON.w / 2 + 34,
+      TARGET_BUTTON.y + 27,
+    );
+  }
   ctx.textAlign = 'left';
 }
 

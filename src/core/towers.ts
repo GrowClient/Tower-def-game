@@ -8,7 +8,7 @@
  *   heavy   — huge hit, punishing reload, shrugs off armor
  */
 
-import { TOWERS, UPGRADES } from '../config/balance';
+import { TARGET_MODES, TOWERS, UPGRADES } from '../config/balance';
 import { cellCenter, cellIndex, inBounds, kindAt } from './grid';
 import { applySlow, damageEnemy } from './enemies';
 import { emit } from './events';
@@ -98,6 +98,7 @@ export function placeTower(
     kills: 0,
     aim: 0,
     recoil: 0,
+    targetMode: 'first',
   };
   state.towers.push(tower);
   state.occupancy[cellIndex(state.map, cx, cy)] = tower.id;
@@ -125,15 +126,30 @@ export function upgradeTower(state: GameState, towerId: number): boolean {
 // Targeting
 // ---------------------------------------------------------------------------
 
+export function cycleTargetMode(state: GameState, towerId: number): boolean {
+  const tower = state.towers.find((t) => t.id === towerId);
+  if (!tower) return false;
+  const i = TARGET_MODES.indexOf(tower.targetMode);
+  tower.targetMode = TARGET_MODES[(i + 1) % TARGET_MODES.length]!;
+  return true;
+}
+
 /**
- * Default targeting: the enemy furthest along the path that is in range —
- * i.e. the one closest to leaking. Because every enemy stores its progress as
- * a single scalar, "furthest along" is one comparison rather than a path walk.
+ * Target selection.
  *
- * Ties break on id so the choice is deterministic regardless of array order.
+ * `first` — furthest along the path, i.e. closest to leaking. The safe default.
+ * `strongest` — most current HP; points slow heavy hitters at the thing worth
+ *   hitting instead of whichever runner happened to get ahead.
+ * `healers` — prefers anything with a heal aura, falling back to `first`.
+ *   This mode is the reason healers are answerable at all: without it, towers
+ *   shoot the front of the pack while the healer at the back undoes it.
+ *
+ * Every comparison ends in an id tiebreak so selection is deterministic
+ * regardless of array order.
  */
 function findTarget(state: GameState, tower: Tower, range: number): Enemy | null {
   let best: Enemy | null = null;
+  let bestScore = -Infinity;
   const rangeSq = range * range;
 
   for (const e of state.enemies) {
@@ -142,12 +158,31 @@ function findTarget(state: GameState, tower: Tower, range: number): Enemy | null
     const dy = e.pos.y - tower.pos.y;
     if (dx * dx + dy * dy > rangeSq) continue;
 
-    if (best === null || e.dist > best.dist || (e.dist === best.dist && e.id < best.id)) {
+    let score: number;
+    switch (tower.targetMode) {
+      case 'strongest':
+        score = e.hp;
+        break;
+      case 'healers':
+        // Huge constant bias rather than a separate pass: any healer in range
+        // outranks every non-healer, and among equals it falls back to
+        // progress along the path.
+        score = (e.healPerSecond > 0 ? 1e9 : 0) + e.dist;
+        break;
+      case 'first':
+      default:
+        score = e.dist;
+        break;
+    }
+
+    if (score > bestScore || (score === bestScore && best !== null && e.id < best.id)) {
       best = e;
+      bestScore = score;
     }
   }
   return best;
 }
+
 
 // ---------------------------------------------------------------------------
 // Per-step update

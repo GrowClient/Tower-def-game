@@ -13,7 +13,14 @@ import { WORLD, type TowerKind } from '../config/balance';
 import { worldToCell } from '../core/grid';
 import { inBounds } from '../core/grid';
 import type { GameState } from '../core/types';
-import { BUILD_BUTTONS, HUD_BUTTONS, PANEL, UPGRADE_BUTTON, hitTest } from '../render/hud';
+import {
+  BUILD_BUTTONS,
+  HUD_BUTTONS,
+  PANEL,
+  TARGET_BUTTON,
+  UPGRADE_BUTTON,
+  hitTest,
+} from '../render/hud';
 import { screenToWorld, type Viewport } from '../render/viewport';
 import { armBuild, selectTower, type UiState } from '../uiState';
 
@@ -23,6 +30,7 @@ export interface InputActions {
   restart(): void;
   placeTower(kind: TowerKind, cx: number, cy: number): void;
   upgradeTower(towerId: number): void;
+  cycleTargetMode(towerId: number): void;
 }
 
 export function attachInput(
@@ -129,6 +137,10 @@ function handleTap(
   if (ui.selectedTowerId !== null) {
     if (hitTest(UPGRADE_BUTTON, x, y)) {
       actions.upgradeTower(ui.selectedTowerId);
+      return;
+    }
+    if (hitTest(TARGET_BUTTON, x, y)) {
+      actions.cycleTargetMode(ui.selectedTowerId);
       return;
     }
     if (hitTest(PANEL, x, y)) return;

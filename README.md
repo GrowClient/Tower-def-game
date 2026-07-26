@@ -60,6 +60,7 @@ Built in vertical slices. Currently through **slice 3**:
 1. Seeded map generation, terrain, the path, enemies walking it
 2. Tower placement, targeting, projectiles, upgrades, gold
 3. Waves, difficulty curves, lives, run summary, local high score
+4. All six enemy types, bosses every 10 waves, tower targeting modes
 
-Next: all six enemy types and bosses (slice 4), then age advancement and
-branching (slice 5).
+Next: age advancement and branching (slice 5), then the juice and balance
+pass (slice 6).

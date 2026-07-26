@@ -5,7 +5,7 @@
  * point is that the world rectangle is currently a bad fit for the window.
  */
 
-import { ENEMIES, TOWERS, WORLD } from '../config/balance';
+import { ENEMIES, TOWERS, WORLD, type TowerKind } from '../config/balance';
 import type { GameState } from '../core/types';
 import { COLORS, font, type Biome } from './palette';
 import { roundRect } from './hud';
@@ -73,7 +73,7 @@ function drawLoadout(
   biome: Biome,
   y: number,
 ): void {
-  const counts = new Map<string, { n: number; kills: number; spent: number }>();
+  const counts = new Map<TowerKind, { n: number; kills: number; spent: number }>();
   for (const t of state.towers) {
     const entry = counts.get(t.kind) ?? { n: 0, kills: 0, spent: 0 };
     entry.n++;
@@ -112,7 +112,7 @@ function drawLoadout(
     ctx.textAlign = 'center';
     ctx.fillStyle = COLORS.text;
     ctx.font = font(19);
-    ctx.fillText(`${entry.n}× ${TOWERS[kind]?.label ?? kind}`, x + cardW / 2, y + 48);
+    ctx.fillText(`${entry.n}× ${TOWERS[kind].label}`, x + cardW / 2, y + 48);
 
     ctx.fillStyle = COLORS.textDim;
     ctx.font = font(15);

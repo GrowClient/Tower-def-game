@@ -13,6 +13,7 @@
  */
 
 import { ENEMIES, WAVES } from '../config/balance';
+import { bossForWave } from './enemies';
 import { waveClearReward } from './economy';
 import { spawnEnemy } from './enemies';
 import { emit } from './events';
@@ -62,9 +63,11 @@ function startWave(state: GameState): void {
  * Turn a wave number into a concrete, time-stamped spawn list.
  */
 function composeWave(state: GameState, waveNumber: number): SpawnOrder[] {
+  const boss = bossForWave(waveNumber);
+
   const units = waveNumber <= WAVES.scripted.length
     ? scriptedUnits(waveNumber)
-    : drawUnits(state, waveNumber);
+    : drawUnits(state, waveNumber, boss !== null ? WAVES.bossWaveBudgetMul : 1);
 
   // Interleave the draw. Without this a budget spent brute-first arrives as a
   // block of brutes followed by a block of runners, which is two easy waves
@@ -76,7 +79,19 @@ function composeWave(state: GameState, waveNumber: number): SpawnOrder[] {
     WAVES.spawnInterval * Math.pow(WAVES.spawnIntervalDecay, waveNumber - 1),
   );
 
-  return units.map((kind, i) => ({ kind, at: state.time + i * interval }));
+  const orders: SpawnOrder[] = units.map((kind, i) => ({
+    kind,
+    at: state.time + i * interval,
+  }));
+
+  // The boss enters a beat into its own wave, so it arrives surrounded by its
+  // escort rather than walking in alone ahead of everything.
+  if (boss) {
+    orders.push({ kind: boss.kind, at: state.time + WAVES.bossSpawnDelay });
+    orders.sort((a, b) => a.at - b.at);
+  }
+
+  return orders;
 }
 
 function scriptedUnits(waveNumber: number): EnemyKind[] {
@@ -89,11 +104,12 @@ function scriptedUnits(waveNumber: number): EnemyKind[] {
 }
 
 /** Spend the wave's threat budget on a weighted draw from unlocked types. */
-function drawUnits(state: GameState, waveNumber: number): EnemyKind[] {
+function drawUnits(state: GameState, waveNumber: number, budgetMul: number): EnemyKind[] {
   const w = waveNumber - 1;
   let budget =
     (WAVES.budgetBase + WAVES.budgetLinear * w + WAVES.budgetQuadratic * w * w) *
-    Math.pow(WAVES.budgetExpGrowth, w);
+    Math.pow(WAVES.budgetExpGrowth, w) *
+    budgetMul;
 
   const pool = WAVES.roster.filter((r) => waveNumber >= r.introWave);
   if (pool.length === 0) return [];

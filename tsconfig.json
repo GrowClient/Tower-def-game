@@ -13,6 +13,7 @@
     "exactOptionalPropertyTypes": false,
     "isolatedModules": true,
     "skipLibCheck": true,
+    "types": ["vite/client"],
     "noEmit": true,
     "verbatimModuleSyntax": true
   },

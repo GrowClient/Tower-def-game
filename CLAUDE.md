@@ -123,6 +123,18 @@ Landing in later slices, as listed in GAME_DESIGN.md's build order:
   winding, so quads and circles that wind oppositely cancel where they
   overlap and punch holes in the clip. To mask to a stroked shape, draw onto
   a layer and trim it with `destination-in` + the real stroke.
+- **Derive behaviour from identity, not from context.** A boss's mechanic
+  comes from *what it is*, looked up from its kind — not from which wave
+  spawned it. Keying behaviour off the surrounding situation means the same
+  entity silently loses it when spawned any other way.
+- **Assert mechanics, don't eyeball them.** `core/` is pure, so every rule
+  ("a shield eats one whole hit regardless of size", "a healer never heals
+  itself") is directly testable headlessly. A rule with no assertion is a rule
+  that will quietly stop holding.
+- **`window.__td` exists in dev only.** `main.ts` exposes the live state behind
+  `import.meta.env.DEV` so tooling can drive real runs; it is dead-code
+  eliminated from production builds. Verify that with a grep after building,
+  not by assuming.
 - **Tune balance with the headless driver, not by eye.** `step()` needs no
   canvas, so a scripted player can run hundreds of full games in seconds.
   Bundle a driver with esbuild (NOT through the Vite dev server — a dynamic

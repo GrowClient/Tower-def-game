@@ -135,8 +135,13 @@ differently**, not be bigger numbers.
 | **Slower** — no damage, slows in an area | Cold mud | **Frost** — hard slow, small radius · **Tar** — weak slow but applies damage-taken vulnerability | **Cryo** — chance to freeze solid briefly · **EMP** — strips shields and suppresses healers |
 | **Heavy** — high damage, very slow fire rate, strong vs armor | Boulder | **Siege cannon** — massive single hit, ignores armor · **Shock hammer** — cone damage with knockback along the path | **Rail lance** — piercing, armor-ignoring, very long range · **Singularity** — pulls enemies together then heavy AoE |
 
-Within an age each tower has 3 upgrade levels bought with gold. Each tower also
-has a targeting mode (first / strongest / healer-priority).
+Within an age each tower has 3 upgrade levels bought with gold.
+
+Each damage-dealing tower also has a **targeting mode** — first (furthest along
+the path), strongest, or healers. This is not a convenience toggle: it is the
+only reason a Healer is answerable at all. Without it, towers shoot the front
+of the pack while the healer at the back undoes the damage. Slowers have no
+target and so are not offered the choice.
 
 ---
 
@@ -164,6 +169,9 @@ bar:
 - **Wave 30** — periodically re-shields and heals itself
 
 Killing a boss triggers a brief slow-motion moment.
+
+A boss's mechanic belongs to the boss, not to the wave that spawned it — the
+same unit summoned by any other means behaves identically.
 
 ---
 

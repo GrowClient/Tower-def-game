@@ -90,9 +90,8 @@ export const RUN = {
 // ---------------------------------------------------------------------------
 // Enemies
 // ---------------------------------------------------------------------------
-// Each type must demand a DIFFERENT answer — see GAME_DESIGN.md. Four more
-// (armored, swarm, shielded, healer) land in slice 4; they need mechanics,
-// not just stats, which is why they aren't here yet.
+// Each type must demand a DIFFERENT answer — see GAME_DESIGN.md. A type whose
+// only distinction is a bigger number is a failure of this table.
 export interface EnemyDef {
   label: string;
   maxHp: number;
@@ -108,12 +107,37 @@ export interface EnemyDef {
   leak: number;
   /** Cost against a wave's threat budget — how "expensive" this unit is. */
   threat: number;
+
+  /**
+   * Hits absorbed outright before damage lands, regardless of how big each hit
+   * is. This is what makes a shield a puzzle: a single huge hit strips one
+   * layer exactly as a pebble does, so the answer is fire RATE, not damage.
+   */
+  shieldHits: number;
+  /** HP per second restored to OTHER enemies within healRadius. */
+  healPerSecond: number;
+  healRadius: number;
+  /** Slows have no effect on this unit. */
+  slowImmune: boolean;
+  /** Flat armor granted to other enemies within armorAuraRadius. */
+  armorAura: number;
+  armorAuraRadius: number;
 }
 
-export const ENEMIES: Record<string, EnemyDef> = {
+const NO_SPECIALS = {
+  shieldHits: 0,
+  healPerSecond: 0,
+  healRadius: 0,
+  slowImmune: false,
+  armorAura: 0,
+  armorAuraRadius: 0,
+};
+
+export const ENEMIES = {
   // Fast and fragile. Raw single-target DPS struggles to track them; the
   // answer is slowers and traps.
   runner: {
+    ...NO_SPECIALS,
     label: 'Runner',
     maxHp: 46,
     speed: 108,
@@ -125,6 +149,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   },
   // Slow and very tough. The answer is heavy towers, not more small hits.
   brute: {
+    ...NO_SPECIALS,
     label: 'Brute',
     maxHp: 280,
     speed: 46,
@@ -134,9 +159,141 @@ export const ENEMIES: Record<string, EnemyDef> = {
     leak: 2,
     threat: 6,
   },
-};
+  // Individually trivial, but they arrive as a block. Single-target towers
+  // can only kill one at a time; the answer is splash.
+  swarm: {
+    ...NO_SPECIALS,
+    label: 'Swarm',
+    maxHp: 22,
+    speed: 88,
+    radius: 9,
+    armor: 0,
+    bounty: 3,
+    leak: 1,
+    threat: 0.55,
+  },
+  // High flat armor blunts every small hit down to the damage floor, so
+  // stacking cheap throwers stops working. The answer is armor piercing.
+  armored: {
+    ...NO_SPECIALS,
+    label: 'Armored',
+    maxHp: 190,
+    speed: 62,
+    radius: 18,
+    armor: 11,
+    bounty: 20,
+    leak: 1,
+    threat: 4,
+  },
+  // Absorbs whole hits. A Boulder wastes its entire payload stripping one
+  // layer; a cheap fast tower strips all of them.
+  shielded: {
+    ...NO_SPECIALS,
+    label: 'Shielded',
+    maxHp: 120,
+    speed: 70,
+    radius: 17,
+    armor: 1,
+    bounty: 18,
+    leak: 1,
+    threat: 3.5,
+    shieldHits: 4,
+  },
+  // Undoes your damage on everything around it. Must be killed FIRST, which
+  // is why towers have a targeting mode at all.
+  healer: {
+    ...NO_SPECIALS,
+    label: 'Healer',
+    maxHp: 150,
+    speed: 64,
+    radius: 16,
+    armor: 1,
+    bounty: 24,
+    leak: 1,
+    threat: 4.5,
+    healPerSecond: 26,
+    healRadius: 130,
+  },
 
-export type EnemyKind = keyof typeof ENEMIES & string;
+  // --- Bosses -------------------------------------------------------------
+  // One per 10 waves, cycling. Each has a MECHANIC (see BOSSES below), not
+  // simply a larger health bar.
+  // The FIRST boss a player ever meets, at wave 10. Sized to be a wall you
+  // can just about break rather than a run-ender: at 10 leaked lives it was
+  // halving a 20-life run in one mistake, and the measured median run died on
+  // wave 10 rather than getting past it.
+  bossSummoner: {
+    ...NO_SPECIALS,
+    label: 'Hive Mother',
+    maxHp: 1700,
+    speed: 38,
+    radius: 34,
+    armor: 4,
+    bounty: 220,
+    leak: 6,
+    threat: 40,
+  },
+  bossWarlord: {
+    ...NO_SPECIALS,
+    label: 'Warlord',
+    maxHp: 4200,
+    speed: 42,
+    radius: 36,
+    armor: 8,
+    bounty: 300,
+    leak: 8,
+    threat: 40,
+    slowImmune: true,
+    armorAura: 6,
+    armorAuraRadius: 170,
+  },
+  bossRegenerator: {
+    ...NO_SPECIALS,
+    label: 'Ancient',
+    maxHp: 5200,
+    speed: 34,
+    radius: 38,
+    armor: 6,
+    bounty: 380,
+    leak: 8,
+    threat: 40,
+    shieldHits: 6,
+  },
+} satisfies Record<string, EnemyDef>;
+
+export type EnemyKind = keyof typeof ENEMIES;
+
+/**
+ * Boss rotation. Wave 10 gets the first entry, wave 20 the second, and so on,
+ * cycling once the list runs out (later loops are far stronger purely through
+ * the wave stat curves).
+ */
+export type BossMechanic = 'summoner' | 'warlord' | 'regenerator';
+
+export interface BossDef {
+  kind: EnemyKind;
+  mechanic: BossMechanic;
+}
+
+export const BOSSES: BossDef[] = [
+  { kind: 'bossSummoner', mechanic: 'summoner' },
+  { kind: 'bossWarlord', mechanic: 'warlord' },
+  { kind: 'bossRegenerator', mechanic: 'regenerator' },
+];
+
+export const BOSS_MECHANICS = {
+  /** summoner: spawns a group each time it drops past one of these HP fractions. */
+  summonAtHpFraction: [0.75, 0.5, 0.25],
+  summonKind: 'swarm' as EnemyKind,
+  summonCount: 6,
+  /** How far behind the boss its summons appear, in world units. */
+  summonTrailDistance: 40,
+
+  /** regenerator: restores its shield and heals on this interval. */
+  regenIntervalSec: 6,
+  regenShieldRestore: 4,
+  regenHealFraction: 0.06,
+} as const;
 
 // ---------------------------------------------------------------------------
 // Towers
@@ -161,7 +318,7 @@ export interface TowerDef {
   onPath: boolean;
 }
 
-export const TOWERS: Record<string, TowerDef> = {
+export const TOWERS = {
   // Cheap, reliable single target. The tower you open with.
   thrower: {
     label: 'Thrower',
@@ -216,9 +373,23 @@ export const TOWERS: Record<string, TowerDef> = {
     slowFactor: 1,
     onPath: false,
   },
-};
+} satisfies Record<string, TowerDef>;
 
-export type TowerKind = keyof typeof TOWERS & string;
+export type TowerKind = keyof typeof TOWERS;
+
+/**
+ * Targeting modes, cycled per tower. `first` (furthest along the path) is the
+ * safe default; `healers` exists specifically because a Healer that isn't
+ * focused undoes the damage every other tower is doing.
+ */
+export const TARGET_MODES = ['first', 'strongest', 'healers'] as const;
+export type TargetMode = (typeof TARGET_MODES)[number];
+
+export const TARGET_MODE_LABELS: Record<TargetMode, string> = {
+  first: 'FIRST',
+  strongest: 'STRONGEST',
+  healers: 'HEALERS',
+};
 
 /** Order of the build bar buttons, left to right. */
 export const BUILD_ORDER: TowerKind[] = ['thrower', 'trap', 'slower', 'heavy'];
@@ -326,13 +497,27 @@ export const WAVES = {
   budgetQuadratic: 0.15,
   budgetExpGrowth: 1.05,
 
+  /**
+   * Intro waves are chosen against where runs actually END, not against a
+   * tidy ramp. A type introduced at wave 20 in a game whose median run is
+   * wave 14 is content almost nobody sees, so every type has to land before
+   * then — and the boss at wave 10 has to be reachable.
+   */
   roster: [
-    { kind: 'runner', introWave: 1, weight: 10, weightGrowth: -0.25, groupSize: 1 },
-    { kind: 'brute', introWave: 6, weight: 2, weightGrowth: 0.35, groupSize: 1 },
+    { kind: 'runner', introWave: 1, weight: 10, weightGrowth: -0.3, groupSize: 1 },
+    { kind: 'brute', introWave: 6, weight: 2, weightGrowth: 0.3, groupSize: 1 },
+    { kind: 'swarm', introWave: 7, weight: 4, weightGrowth: 0.5, groupSize: 5 },
+    { kind: 'armored', introWave: 9, weight: 2, weightGrowth: 0.4, groupSize: 1 },
+    { kind: 'shielded', introWave: 11, weight: 2, weightGrowth: 0.4, groupSize: 1 },
+    { kind: 'healer', introWave: 13, weight: 1.2, weightGrowth: 0.25, groupSize: 1 },
   ] as RosterEntry[],
 
-  /** Boss every N waves. Boss mechanics land in slice 4. */
+  /** Boss every N waves. */
   bossEvery: 10,
+  /** A boss wave's normal budget is scaled down — the boss IS the wave. */
+  bossWaveBudgetMul: 0.45,
+  /** Head start so the boss arrives amid its escort, not alone in front. */
+  bossSpawnDelay: 2.5,
 } as const;
 
 /**
