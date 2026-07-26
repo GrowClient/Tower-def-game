@@ -181,7 +181,15 @@ and ratios drift toward nastier combinations (e.g. healers behind brutes,
 shielded escorting swarms). A build that answered wave 8 should not answer
 wave 20.
 
-Waves 1–5 are hand-authored so the opening is gentle and teaches.
+Waves 1–6 are hand-authored so the opening is gentle and teaches. The
+generated curve must **hand over continuously** from the last scripted wave:
+an unmatched handoff put wave 7 at 2.4× the threat of wave 6, and every run
+died there no matter how the rest of the curve was tuned.
+
+The budget also carries an exponential term. A purely polynomial curve is
+eventually out-scaled by a full board — the grid has a finite number of cells,
+so without exponential growth the run reaches a state where nothing can end
+it.
 
 ---
 

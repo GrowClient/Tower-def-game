@@ -26,6 +26,10 @@ Wi-Fi. Hold the phone in landscape.
 | Pause | `Space` or `P`, or the ⏸ button | tap ⏸ |
 | Speed 1× / 2× | `F`, or the speed button | tap the speed button |
 | Restart | `R`, or the ↻ button | tap ↻ |
+| Pick a tower | `1`–`4`, or the build bar | tap the build bar |
+| Place it | click a highlighted cell | tap a highlighted cell |
+| Inspect / upgrade | click a placed tower | tap a placed tower |
+| Cancel | `Esc` | tap empty ground |
 
 ## Reproducing a run
 
@@ -51,5 +55,11 @@ npm run preview     # serve the production build
 
 ## Status
 
-Built in vertical slices. Currently: **slice 1** — seeded map generation, the
-path, and enemies walking it.
+Built in vertical slices. Currently through **slice 3**:
+
+1. Seeded map generation, terrain, the path, enemies walking it
+2. Tower placement, targeting, projectiles, upgrades, gold
+3. Waves, difficulty curves, lives, run summary, local high score
+
+Next: all six enemy types and bosses (slice 4), then age advancement and
+branching (slice 5).

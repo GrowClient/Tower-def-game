@@ -63,25 +63,30 @@ src/
 │   ├── path.ts           arc-length polyline; sampleAt(dist) -> pos + dir
 │   ├── state.ts          newRun(seed) — the only way a game starts
 │   ├── sim.ts            step(state) — the ONLY function that advances time
-│   ├── enemies.ts        spawn, movement, leaks
+│   ├── intents.ts        player actions, applied at the START of a step
+│   ├── enemies.ts        spawn, per-wave scaling, movement, damage, leaks
+│   ├── towers.ts         placement rules, targeting, firing, upgrades
+│   ├── projectiles.ts    flight and impact (incl. splash)
+│   ├── waves.ts          threat budget, composition draw, pacing
+│   ├── economy.ts        costs, kill bounty, wave clear reward
 │   └── events.ts         sim -> presentation event queue
 ├── render/               READS state, never mutates — see rule 2
 │   ├── viewport.ts       16:9 letterbox, DPR, screen <-> world
 │   ├── palette.ts        BIOMES (one per age), shared colours, font helper
 │   ├── terrain.ts        procedural ground + track, baked once per run
 │   ├── renderer.ts       draw orchestration
-│   ├── drawMap.ts        dynamic map overlay: cell lattice, placement ghosts
+│   ├── drawMap.ts        dynamic map overlay: lattice, build mode, ghosts
 │   ├── drawEntities.ts   enemies (towers, projectiles later)
-│   ├── hud.ts            top stat strip + bottom build bar + button rects
-│   └── screens.ts        pause / game over / rotate-device overlays
-└── input/
-    └── input.ts          Pointer Events -> world coords -> actions
+│   ├── hud.ts            stat strip, build bar, tower panel, button rects
+│   └── screens.ts        pause / run summary / rotate-device overlays
+├── input/
+│   └── input.ts          Pointer Events -> world coords -> intents
+└── platform/
+    └── storage.ts        localStorage high score (never touched by core)
 ```
 
 Landing in later slices, as listed in GAME_DESIGN.md's build order:
-`core/towers.ts`, `core/projectiles.ts`, `core/waves.ts`, `core/ages.ts`,
-`core/economy.ts`, `core/intents.ts`, `render/drawEffects.ts`, `fx/effects.ts`,
-`platform/storage.ts`.
+`core/ages.ts`, `render/drawEffects.ts`, `fx/effects.ts`.
 
 ---
 
@@ -118,6 +123,15 @@ Landing in later slices, as listed in GAME_DESIGN.md's build order:
   winding, so quads and circles that wind oppositely cancel where they
   overlap and punch holes in the clip. To mask to a stroked shape, draw onto
   a layer and trim it with `destination-in` + the real stroke.
+- **Tune balance with the headless driver, not by eye.** `step()` needs no
+  canvas, so a scripted player can run hundreds of full games in seconds.
+  Bundle a driver with esbuild (NOT through the Vite dev server — a dynamic
+  import there gets a *second* instance of `balance.ts`, so mutating `SCALING`
+  changes nothing and every sweep row comes back identical). Assert that a
+  mutation actually moves a sim output before trusting a sweep.
+- **Change one lever at a time.** Difficulty knobs interact: moving eleven
+  numbers at once took the median run from wave 7 to wave 46 with no way to
+  attribute it.
 - **Comment the non-obvious.** Explain *why* (e.g. why the map generator can't
   self-intersect), not *what* the next line does.
 

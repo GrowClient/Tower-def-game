@@ -16,7 +16,25 @@ import type { Cell, CellKind, GameMap, PathTile, Vec2 } from './types';
 import { CellKind as Kind } from './types';
 import { nextBool, nextInt, type Rng } from './rng';
 
+/**
+ * Generate a map, re-rolling until the path is long enough to be worth
+ * defending. Short paths give towers far less time on target, so accepting
+ * them makes two seeds two different difficulties — see MAP.minPathCells.
+ *
+ * Re-rolls keep consuming the same RNG stream, so this stays fully
+ * deterministic: a seed always lands on the same accepted map.
+ */
 export function generateMap(rng: Rng): GameMap {
+  let best: GameMap | null = null;
+  for (let attempt = 0; attempt < MAP.maxGenAttempts; attempt++) {
+    const candidate = generateOnce(rng);
+    if (candidate.tiles.length >= MAP.minPathCells) return candidate;
+    if (best === null || candidate.tiles.length > best.tiles.length) best = candidate;
+  }
+  return best!;
+}
+
+function generateOnce(rng: Rng): GameMap {
   const cols = MAP.cols;
   const rows = MAP.rows;
 

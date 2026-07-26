@@ -2,8 +2,8 @@
  * Run state construction.
  *
  * `newRun(seed)` is the only way a game starts. Everything random about the
- * run — currently the map, later wave composition — is derived from the seed,
- * so `newRun(7)` twice produces two byte-identical runs.
+ * run — the map, and wave composition — is derived from the seed, so
+ * `newRun(7)` twice produces two identical runs.
  */
 
 import { RUN } from '../config/balance';
@@ -11,6 +11,7 @@ import { makeLayout } from './grid';
 import { generateMap } from './mapgen';
 import { buildPath } from './path';
 import { forkRng, makeRng } from './rng';
+import { newWaveState } from './waves';
 import type { GameState } from './types';
 
 export function newRun(seed: number): GameState {
@@ -35,13 +36,20 @@ export function newRun(seed: number): GameState {
     path,
 
     enemies: [],
+    towers: [],
+    projectiles: [],
     nextEntityId: 1,
+
+    // Tower id per cell, 0 = free. Entity ids start at 1 precisely so that 0
+    // is an unambiguous "empty" and this needs no parallel boolean array.
+    occupancy: new Int32Array(map.cols * map.rows),
 
     gold: RUN.startingGold,
     lives: RUN.startingLives,
-    wave: 0,
+    wave: newWaveState(),
 
-    spawnTimer: 0,
+    intents: [],
+    killedBy: null,
 
     events: [],
   };

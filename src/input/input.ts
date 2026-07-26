@@ -5,26 +5,30 @@
  * exactly the same action — there is no separate touch code path to keep in
  * sync. Screen coordinates are converted to world units once, here.
  *
- * Input never touches GameState directly. It calls the action callbacks that
- * main.ts wires up; from slice 2 those become queued intents applied at a step
- * boundary, which is what keeps replays deterministic.
+ * Input never mutates GameState. It either changes UiState (what's selected)
+ * or emits an Intent, which the sim applies at the start of its next step.
  */
 
-import { HUD_BUTTONS } from '../render/hud';
+import { WORLD, type TowerKind } from '../config/balance';
+import { worldToCell } from '../core/grid';
+import { inBounds } from '../core/grid';
+import type { GameState } from '../core/types';
+import { BUILD_BUTTONS, HUD_BUTTONS, PANEL, UPGRADE_BUTTON, hitTest } from '../render/hud';
 import { screenToWorld, type Viewport } from '../render/viewport';
-import type { UiState } from '../uiState';
+import { armBuild, selectTower, type UiState } from '../uiState';
 
 export interface InputActions {
   togglePause(): void;
   cycleSpeed(): void;
   restart(): void;
-  /** A tap/click on the board, in world units. */
-  tapWorld(x: number, y: number): void;
+  placeTower(kind: TowerKind, cx: number, cy: number): void;
+  upgradeTower(towerId: number): void;
 }
 
 export function attachInput(
   canvas: HTMLCanvasElement,
   ui: UiState,
+  getState: () => GameState,
   getViewport: () => Viewport,
   actions: InputActions,
 ): void {
@@ -36,27 +40,18 @@ export function attachInput(
     e.preventDefault();
     const p = toWorld(e);
     ui.pointer = p;
-
-    const btn = HUD_BUTTONS.find(
-      (b) => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h,
-    );
-    if (btn) {
-      if (btn.id === 'pause') actions.togglePause();
-      else if (btn.id === 'speed') actions.cycleSpeed();
-      else actions.restart();
-      return;
-    }
-
-    actions.tapWorld(p.x, p.y);
+    handleTap(ui, getState(), actions, p.x, p.y);
   });
 
   canvas.addEventListener('pointermove', (e) => {
     ui.pointer = toWorld(e);
   });
 
-  // A lifted finger has no hover position; a mouse leaving the window neither.
+  // A lifted finger has no hover position; nor does a mouse leaving the window.
+  // But keep the last position while a build tool is armed on touch, or the
+  // placement ghost flickers out between taps.
   canvas.addEventListener('pointerup', (e) => {
-    if (e.pointerType !== 'mouse') ui.pointer = null;
+    if (e.pointerType !== 'mouse' && ui.buildKind === null) ui.pointer = null;
   });
   canvas.addEventListener('pointercancel', () => {
     ui.pointer = null;
@@ -85,8 +80,76 @@ export function attachInput(
       case 'R':
         actions.restart();
         break;
+      case 'Escape':
+        armBuild(ui, null);
+        selectTower(ui, null);
+        break;
+      // Number keys arm the build tools, matching the bar order.
+      case '1':
+      case '2':
+      case '3':
+      case '4': {
+        const btn = BUILD_BUTTONS[Number(e.key) - 1];
+        if (btn) armBuild(ui, btn.kind);
+        break;
+      }
       default:
         break;
     }
   });
+}
+
+/**
+ * One tap, resolved in priority order: chrome first, then the board. Chrome
+ * wins because its buttons overlap the board's world coordinates, and a tap
+ * meant for a button must never also place a tower behind it.
+ */
+function handleTap(
+  ui: UiState,
+  state: GameState,
+  actions: InputActions,
+  x: number,
+  y: number,
+): void {
+  for (const b of HUD_BUTTONS) {
+    if (!hitTest(b, x, y)) continue;
+    if (b.id === 'pause') actions.togglePause();
+    else if (b.id === 'speed') actions.cycleSpeed();
+    else actions.restart();
+    return;
+  }
+
+  for (const b of BUILD_BUTTONS) {
+    if (!hitTest(b, x, y)) continue;
+    armBuild(ui, b.kind);
+    return;
+  }
+
+  // The selection panel only swallows taps while it's actually open.
+  if (ui.selectedTowerId !== null) {
+    if (hitTest(UPGRADE_BUTTON, x, y)) {
+      actions.upgradeTower(ui.selectedTowerId);
+      return;
+    }
+    if (hitTest(PANEL, x, y)) return;
+  }
+
+  // Taps in the HUD strips that missed every button do nothing, rather than
+  // falling through to the board underneath.
+  if (y < WORLD.hudTop || y > WORLD.height - WORLD.hudBottom) return;
+
+  const cell = worldToCell(state.layout, x, y);
+  if (!inBounds(state.map, cell.cx, cell.cy)) {
+    selectTower(ui, null);
+    return;
+  }
+
+  if (ui.buildKind !== null) {
+    actions.placeTower(ui.buildKind, cell.cx, cell.cy);
+    return;
+  }
+
+  // Not building: tap a tower to open its panel, tap bare ground to close it.
+  const towerId = state.occupancy[cell.cy * state.map.cols + cell.cx] ?? 0;
+  selectTower(ui, towerId !== 0 ? towerId : null);
 }
