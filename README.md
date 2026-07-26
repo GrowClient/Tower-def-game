@@ -6,6 +6,18 @@ in code.
 
 Landscape 16:9: plays in a desktop browser and on a phone held sideways.
 
+## Play it
+
+Deployed from the default branch on every push:
+
+**https://growclient.github.io/Tower-def-game/**
+
+That is a top-level page, which matters: the Fullscreen API is gated by a
+permission the embedding page must grant, so an embedded copy can never go
+fullscreen. From this URL the ⛶ button works, and on iOS — where the
+Fullscreen API doesn't exist at all — Safari's *Add to Home Screen* launches it
+without browser chrome.
+
 ## Run it
 
 ```bash

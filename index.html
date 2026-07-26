@@ -10,6 +10,14 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
     <meta name="theme-color" content="#0B0D14" />
+    <!-- Added to the home screen, iOS launches this without any browser
+         chrome. That is the only route to a fullscreen experience on iPhone,
+         where the Fullscreen API is not implemented at all. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Stone Age TD" />
+    <link rel="manifest" href="manifest.webmanifest" />
     <style>
       html,
       body {
