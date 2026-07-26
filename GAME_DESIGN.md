@@ -155,15 +155,21 @@ their options.
 
 ## Towers
 
-Four types. Two branches at each advancement. Branches must **play
-differently**, not be bigger numbers.
+Four **families**, one version of each per age — twelve towers in total. Each
+age's take on a family plays differently rather than just hitting harder.
 
-| Tower | Stone Age | Middle Age branches | Tech Age branches |
+| Family | Stone Age | Middle Age | Tech Age |
 |---|---|---|---|
-| **Thrower** — single target, cheap | Rock thrower | **Ballista** — shot pierces a line of enemies · **Catapult** — AoE on impact | **Railgun** — full-lane pierce · **Mortar** — big AoE, has a minimum range |
-| **Trap** — damages enemies walking over a path cell | Spike pit | **Oil fire** — burn DoT that stacks · **Snare** — damage plus a brief root | **Tesla coil** — chains between enemies · **Gravity mine** — pulls, then bursts |
-| **Slower** — no damage, slows in an area | Cold mud | **Frost** — hard slow, small radius · **Tar** — weak slow but applies damage-taken vulnerability | **Cryo** — chance to freeze solid briefly · **EMP** — strips shields and suppresses healers |
-| **Heavy** — high damage, very slow fire rate, strong vs armor | Boulder | **Siege cannon** — massive single hit, ignores armor · **Shock hammer** — cone damage with knockback along the path | **Rail lance** — piercing, armor-ignoring, very long range · **Singularity** — pulls enemies together then heavy AoE |
+| **Thrower** — single target | Thrower (90g) | **Ballista** (215g) — the bolt runs *through* a line of enemies | **Railgun** (540g) — pierces up to 8, near-instant travel |
+| **Trap** — sits ON a path cell | Spike Pit (75g) | **Oil Fire** (190g) — stacking burn that bypasses armor | **Tesla Coil** (480g) — chains to 4 nearby enemies |
+| **Slower** — no damage, pure force multiplier | Cold Mud (120g) | **Frost Tower** (270g) — a much harder slow | **Cryo Field** (620g) — plus a chance to freeze solid |
+| **Heavy** — huge hit, punishing reload | Boulder (195g) | **Siege Cannon** (440g) — ignores armor entirely | **Singularity** (1000g) — enormous damage and splash |
+
+A family keeps the same **silhouette** across all three ages. A player who has
+learned that the frame-with-an-arm is their single-target tower should not have
+to relearn the board after advancing; the age changes the palette and the
+detailing, not the read. Towers from an older age carry small age pips so they
+are still distinguishable from the current tier standing next to them.
 
 Within an age each tower has 3 upgrade levels bought with gold.
 
@@ -172,6 +178,8 @@ the path), strongest, or healers. This is not a convenience toggle: it is the
 only reason a Healer is answerable at all. Without it, towers shoot the front
 of the pack while the healer at the back undoes the damage. Slowers have no
 target and so are not offered the choice.
+
+Any tower can be **sold** for 60% of everything sunk into it.
 
 ---
 

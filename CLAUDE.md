@@ -89,8 +89,8 @@ src/
     └── storage.ts        localStorage high score (never touched by core)
 ```
 
-Landing in later slices, as listed in GAME_DESIGN.md's build order:
-`core/ages.ts`, `render/drawEffects.ts`, `fx/effects.ts`.
+Landing in slice 6, as listed in GAME_DESIGN.md's build order:
+`render/drawEffects.ts`, `fx/effects.ts`.
 
 ---
 
