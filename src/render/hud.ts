@@ -25,7 +25,8 @@ import { sellValue, towerDamage, towerRange } from '../core/towers';
 import type { GameState, Tower } from '../core/types';
 import type { UiState } from '../uiState';
 import { speedMultiplier } from '../uiState';
-import { AGE_NAMES, COLORS, biomeFor, font } from './palette';
+import { AGE_NAMES, COLORS, biomeFor, font, type Biome } from './palette';
+import { drawTowerArt } from './drawEntities';
 
 export interface Rect {
   x: number;
@@ -252,6 +253,11 @@ function stat(
 // Build bar
 // ---------------------------------------------------------------------------
 
+/** Which age a tower belongs to — its icon should use that age's palette. */
+function ageIndexOf(kind: TowerKind): number {
+  return TOWERS[kind]!.age;
+}
+
 function drawBuildBar(
   ctx: CanvasRenderingContext2D,
   state: GameState,
@@ -269,7 +275,10 @@ function drawBuildBar(
     panel(ctx, b, armed ? '#5A4A2E' : '#3A3223', armed ? accent : 'rgba(0,0,0,0.55)', armed ? 3 : 2.5);
 
     // Tower glyph, so the button shows the thing rather than only naming it.
-    towerGlyph(ctx, b.x + 34, b.y + b.h / 2, 17, b.kind, affordable ? accent : '#6B6252');
+    ctx.save();
+    if (!affordable) ctx.globalAlpha = 0.45;
+    towerGlyph(ctx, b.x + 36, b.y + b.h / 2, 19, b.kind, biomeFor(ageIndexOf(b.kind)));
+    ctx.restore();
 
     ctx.textAlign = 'left';
     ctx.fillStyle = affordable ? COLORS.text : '#7A705F';
@@ -567,95 +576,25 @@ function button(
  * them twice from one function means the icon can never drift from the thing
  * it builds.
  */
-const FAMILY_GLYPH: Record<TowerKind, 'thrower' | 'trap' | 'slower' | 'heavy'> = {
-  thrower: 'thrower',
-  trap: 'trap',
-  slower: 'slower',
-  heavy: 'heavy',
-  ballista: 'thrower',
-  oilFire: 'trap',
-  frost: 'slower',
-  siegeCannon: 'heavy',
-  railgun: 'thrower',
-  teslaCoil: 'trap',
-  cryo: 'slower',
-  singularity: 'heavy',
-};
-
+/**
+ * Build-bar icon: the real tower art, scaled down.
+ *
+ * Reusing drawTowerArt rather than keeping a parallel set of icons means a
+ * button can never end up showing something other than what it builds.
+ */
 export function towerGlyph(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   r: number,
   kind: TowerKind,
-  color: string,
+  biome: Biome,
 ): void {
   ctx.save();
-  ctx.translate(x, y);
-  ctx.fillStyle = color;
-  ctx.strokeStyle = 'rgba(0,0,0,0.65)';
-  ctx.lineWidth = r * 0.16;
-  ctx.lineJoin = 'round';
-
-  switch (FAMILY_GLYPH[kind]) {
-    case 'thrower': {
-      // A sling arm over a base.
-      ctx.beginPath();
-      ctx.moveTo(-r * 0.8, r * 0.7);
-      ctx.lineTo(r * 0.8, r * 0.7);
-      ctx.lineTo(r * 0.5, -r * 0.2);
-      ctx.lineTo(-r * 0.5, -r * 0.2);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(0, -r * 0.6, r * 0.42, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      break;
-    }
-    case 'trap': {
-      // Downward spikes in a pit.
-      ctx.beginPath();
-      for (let i = -2; i <= 2; i++) {
-        ctx.moveTo(i * r * 0.38 - r * 0.16, r * 0.7);
-        ctx.lineTo(i * r * 0.38, -r * 0.7);
-        ctx.lineTo(i * r * 0.38 + r * 0.16, r * 0.7);
-      }
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      break;
-    }
-    case 'slower': {
-      // A six-point star: cold, radial, obviously not a gun.
-      ctx.beginPath();
-      for (let i = 0; i < 12; i++) {
-        const a = (i / 12) * Math.PI * 2 - Math.PI / 2;
-        const rr = i % 2 === 0 ? r : r * 0.42;
-        const px = Math.cos(a) * rr;
-        const py = Math.sin(a) * rr;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      }
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      break;
-    }
-    case 'heavy': {
-      // A boulder on a heavy plinth.
-      ctx.beginPath();
-      ctx.rect(-r * 0.85, r * 0.25, r * 1.7, r * 0.55);
-      ctx.fill();
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(0, -r * 0.25, r * 0.72, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      break;
-    }
-  }
+  ctx.translate(x, y + r * 0.15);
+  // aim points right and cooldown is 0, so every icon shows its tower ready
+  // and facing the same way.
+  drawTowerArt(ctx, kind, r * 0.78, 0, 0, biome);
   ctx.restore();
 }
 

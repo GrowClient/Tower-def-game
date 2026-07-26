@@ -12,9 +12,10 @@
 
 import { COMBAT } from '../config/balance';
 import { applyBurn, damageEnemy } from './enemies';
-import type { Enemy, GameState, Projectile, Tower } from './types';
+import type { Enemy, GameState, Projectile, ProjectileLook, Tower } from './types';
 
 interface ShotSpec {
+  look: ProjectileLook;
   damage: number;
   splash: number;
   armorPierce: number;
@@ -40,6 +41,7 @@ export function spawnProjectile(
     splash: spec.splash,
     armorPierce: spec.armorPierce,
     ownerId: tower.id,
+    look: spec.look,
     pierce: spec.pierce,
     hitIds: [],
     burnDps: spec.burnDps,

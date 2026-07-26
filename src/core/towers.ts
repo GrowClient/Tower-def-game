@@ -25,7 +25,33 @@ import { emit } from './events';
 import { spend, towerCost, upgradeCost } from './economy';
 import { nextFloat } from './rng';
 import { spawnProjectile } from './projectiles';
-import { CellKind, type Enemy, type GameState, type Tower, type TowerKind } from './types';
+import {
+  CellKind,
+  type Enemy,
+  type GameState,
+  type ProjectileLook,
+  type Tower,
+  type TowerKind,
+} from './types';
+
+/** What each tower's shot looks like in flight. Presentation, but it belongs
+ *  with the tower identity rather than being re-derived in the renderer. */
+const PROJECTILE_LOOK: Record<TowerKind, ProjectileLook> = {
+  thrower: 'rock',
+  trap: 'rock',
+  slower: 'rock',
+  heavy: 'boulder',
+  ballista: 'arrow',
+  oilFire: 'rock',
+  frost: 'rock',
+  siegeCannon: 'cannonball',
+  goldMine: 'rock',
+  railgun: 'bullet',
+  teslaCoil: 'bullet',
+  cryo: 'bullet',
+  singularity: 'cannonball',
+  sniper: 'rail',
+};
 
 // ---------------------------------------------------------------------------
 // Derived stats
@@ -35,6 +61,10 @@ import { CellKind, type Enemy, type GameState, type Tower, type TowerKind } from
 
 export function towerRange(state: GameState, tower: Tower): number {
   const def = TOWERS[tower.kind]!;
+  // A Sniper reaches the whole board. Returning Infinity rather than a big
+  // number keeps every distance comparison honest and lets the renderer test
+  // isFinite() to decide whether a range ring means anything.
+  if (def.unlimitedRange) return Infinity;
   return def.range * (UPGRADES.rangeMul[tower.level - 1] ?? 1) * rangeMul(state);
 }
 
@@ -135,6 +165,11 @@ export function upgradeTower(state: GameState, towerId: number): boolean {
   return true;
 }
 
+/** Upgrades make a mine produce more, since it has no damage to improve. */
+export function mineRate(tower: Tower): number {
+  return UPGRADES.damageMul[tower.level - 1] ?? 1;
+}
+
 /**
  * Refund for scrapping a tower: a fraction of everything sunk into it,
  * upgrades included. Rounded down, so selling is never a way to gain value.
@@ -228,6 +263,15 @@ export function updateTowers(state: GameState, dt: number): void {
     if (tower.recoil > 0) tower.recoil -= dt;
 
     const def = TOWERS[tower.kind]!;
+
+    // Economy buildings never target anything; they just pay out.
+    if (def.goldPerSecond > 0) {
+      // Fractional gold accumulates on state.gold directly. Everything that
+      // spends compares with >=, and the HUD floors for display, so there is
+      // no need for a separate accumulator to round-trip through.
+      state.gold += def.goldPerSecond * mineRate(tower) * dt;
+      continue;
+    }
 
     if (def.slowFactor < 1) {
       updateSlower(state, tower);
@@ -349,6 +393,7 @@ function updateShooter(state: GameState, tower: Tower): void {
 
   const def = TOWERS[tower.kind]!;
   spawnProjectile(state, tower, target, {
+    look: PROJECTILE_LOOK[tower.kind],
     damage: towerDamage(state, tower),
     splash: def.splash * splashMul(state),
     armorPierce: def.armorPierce,

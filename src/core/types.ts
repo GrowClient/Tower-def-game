@@ -164,6 +164,8 @@ export interface Tower {
   targetMode: TargetMode;
 }
 
+export type ProjectileLook = 'rock' | 'boulder' | 'arrow' | 'cannonball' | 'rail' | 'bullet';
+
 export interface Projectile {
   id: number;
   pos: Vec2;
@@ -177,6 +179,9 @@ export interface Projectile {
   armorPierce: number;
   /** Fired by which tower — so kill credit lands in the right place. */
   ownerId: number;
+  /** How the renderer should draw this shot. Set from the firing tower, so a
+   *  cannonball never comes out looking like a rifle round. */
+  look: ProjectileLook;
   /** Enemies this shot may still pass through before stopping. */
   pierce: number;
   /** Already-hit enemy ids, so a piercing shot can't hit the same unit twice

@@ -108,8 +108,8 @@ cyan), and a full biome each — advancing re-skins the ground, the road and the
 props, not just a colour.
 
 Advancement is **player-triggered by spending gold**, never automatic on a wave
-number. Prices are many times a tower (550, then 1750) so paying is a real
-commitment.
+number. Prices are many times a tower (**1000**, then **3000**) so paying is a
+real commitment — you are giving up several towers' worth of defence for it.
 
 **Advancing UNLOCKS the next age's four towers to build. It does not transform,
 remove or refund the towers you already own.** They keep standing and keep
@@ -125,18 +125,24 @@ reward:
 
 ### Why the later towers must be more gold-efficient
 
-Each tier deals roughly **1.75× the previous tier's damage per gold**. This is
+Each tier deals roughly **2.2× the previous tier's damage per gold**. The gap
+has to widen along with the price, or a costlier advance is simply a worse deal. This is
 not flavour, it is load-bearing. When every age had the same damage per gold,
 advancing bought nothing but bigger price tags, and a scripted player that
 never advanced beat one that did by eight whole waves.
 
 ### Why armor scaling is what forces the decision
 
-Flat armor per wave climbs steeply from wave 6. Small hits are exactly what
+Flat armor per wave climbs from wave 8. Small hits are exactly what
 flat armor blunts to the damage floor, so a board of Stone Age Throwers stops
 working somewhere in the mid-teens **no matter how many you own**. Without that
 ceiling, stacking cheap towers was strictly better than advancing, and the age
 system was decorative.
+
+It is a balance in both directions. Cranked too high, runs ended around wave 12
+— *before* anyone could save the 1000 gold an age costs — which made the age
+system unreachable instead of merely unattractive. The pressure has to bite
+without ending the run before the decision can be made.
 
 ---
 
@@ -155,29 +161,42 @@ their options.
 
 ## Towers
 
-Four **families**, one version of each per age — twelve towers in total. Each
-age's take on a family plays differently rather than just hitting harder.
+Fourteen towers across three ages. Each age has its own **visual vocabulary**,
+not a recoloured version of the last — stone is timber and rock, the middle age
+is masonry and gunpowder, the tech age is plated steel and glowing optics. "The
+towers look the same" is exactly the complaint that makes an age advance feel
+like it did nothing.
 
-| Family | Stone Age | Middle Age | Tech Age |
+| Role | Stone Age | Middle Age | Tech Age |
 |---|---|---|---|
-| **Thrower** — single target | Thrower (90g) | **Ballista** (215g) — the bolt runs *through* a line of enemies | **Railgun** (540g) — pierces up to 8, near-instant travel |
-| **Trap** — sits ON a path cell | Spike Pit (75g) | **Oil Fire** (190g) — stacking burn that bypasses armor | **Tesla Coil** (480g) — chains to 4 nearby enemies |
-| **Slower** — no damage, pure force multiplier | Cold Mud (120g) | **Frost Tower** (270g) — a much harder slow | **Cryo Field** (620g) — plus a chance to freeze solid |
-| **Heavy** — huge hit, punishing reload | Boulder (195g) | **Siege Cannon** (440g) — ignores armor entirely | **Singularity** (1000g) — enormous damage and splash |
+| Single target | Thrower (90g) — sling on a timber frame | **Archer Tower** (215g) — crenellated turret, the bolt runs *through* a line | **Gun Turret** (540g) — plated barrel, pierces up to 8 |
+| On the path | Spike Pit (75g) | **Oil Cauldron** (190g) — stacking burn that bypasses armor | **Tesla Coil** (480g) — chains to 4 nearby enemies |
+| Slower | Cold Mud (120g) | **Frost Tower** (270g) — ice spire, much harder slow | **Cryo Field** (620g) — plus a chance to freeze solid |
+| Heavy | Boulder (195g) | **Cannon** (440g) — wheeled gunpowder cannon, ignores armor | **Singularity** (1000g) — enormous damage and splash |
+| Special | — | **Gold Mine** (350g) | **Sniper** (1300g) |
 
-A family keeps the same **silhouette** across all three ages. A player who has
-learned that the frame-with-an-arm is their single-target tower should not have
-to relearn the board after advancing; the age changes the palette and the
-detailing, not the read. Towers from an older age carry small age pips so they
-are still distinguishable from the current tier standing next to them.
+### Gold Mine
 
-Within an age each tower has 3 upgrade levels bought with gold.
+Pure economy. No range, no target, no shots — placed on any buildable cell, it
+simply prints gold. Priced to pay for itself in roughly four waves, which *is*
+the decision: a mine is four waves of defence you did not build, betting you'll
+still be alive to collect. Mines also compete with towers for cells, which is
+what stops "just build mines" from being free.
 
-Each damage-dealing tower also has a **targeting mode** — first (furthest along
-the path), strongest, or healers. This is not a convenience toggle: it is the
-only reason a Healer is answerable at all. Without it, towers shoot the front
-of the pack while the healer at the back undoes the damage. Slowers have no
-target and so are not offered the choice.
+### Sniper
+
+Covers the **entire board**. No range ring, nothing out of reach. Expensive and
+slow-firing to pay for that — its damage per gold is deliberately the worst in
+the Tech Age, because reach on a winding map is worth more than raw output. One
+Sniper answers the corner your board never covered.
+
+Within an age each tower has 3 upgrade levels. On a Gold Mine those upgrades
+raise output instead of damage.
+
+Each damage-dealing tower also has a **targeting mode** — first, strongest, or
+healers. Without the healer mode, towers shoot the front of the pack while the
+healer at the back undoes the damage. Slowers and mines have no target and are
+not offered the choice.
 
 Any tower can be **sold** for 60% of everything sunk into it.
 

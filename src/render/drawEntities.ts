@@ -14,27 +14,6 @@ import { TOWERS, type TowerKind } from '../config/balance';
 import type { Enemy, GameState, Projectile, Tower } from '../core/types';
 import { COLORS, type Biome } from './palette';
 
-/**
- * Which silhouette a tower uses. Keeping one shape per FAMILY across all three
- * ages is deliberate: a player who has learned that the frame-with-an-arm is
- * their single-target tower shouldn't have to relearn the board after
- * advancing. The age changes the palette and the detailing, not the read.
- */
-const FAMILY: Record<TowerKind, 'thrower' | 'trap' | 'slower' | 'heavy'> = {
-  thrower: 'thrower',
-  trap: 'trap',
-  slower: 'slower',
-  heavy: 'heavy',
-  ballista: 'thrower',
-  oilFire: 'trap',
-  frost: 'slower',
-  siegeCannon: 'heavy',
-  railgun: 'thrower',
-  teslaCoil: 'trap',
-  cryo: 'slower',
-  singularity: 'heavy',
-};
-
 export function drawEntities(
   ctx: CanvasRenderingContext2D,
   state: GameState,
@@ -90,44 +69,10 @@ function drawTower(
 
   ctx.lineJoin = 'round';
   ctx.lineWidth = s * 0.15;
-  ctx.strokeStyle = '#14100B';
+  ctx.strokeStyle = OUTLINE;
 
   if (!def.onPath) drawPlinth(ctx, s, biome);
-
-  switch (FAMILY[tower.kind]) {
-    case 'thrower':
-      drawThrower(ctx, s, tower.aim, biome);
-      break;
-    case 'trap':
-      drawTrap(ctx, s, tower.cooldown, biome);
-      break;
-    case 'slower':
-      drawSlower(ctx, s, biome);
-      break;
-    case 'heavy':
-      drawHeavy(ctx, s, tower.aim, biome);
-      break;
-  }
-
-  // Age pips: a small mark per age above Stone, so a Middle Age tower standing
-  // next to a Stone Age one is distinguishable at a glance. That matters
-  // precisely because advancing leaves the old towers on the board.
-  const towerAge = TOWERS[tower.kind]!.age;
-  if (towerAge > 0) {
-    ctx.fillStyle = biome.accent;
-    ctx.strokeStyle = '#14100B';
-    ctx.lineWidth = 1.5;
-    for (let i = 0; i < towerAge; i++) {
-      ctx.beginPath();
-      ctx.moveTo(-s * 0.9 + i * s * 0.3, -s * 0.85);
-      ctx.lineTo(-s * 0.75 + i * s * 0.3, -s * 1.1);
-      ctx.lineTo(-s * 0.6 + i * s * 0.3, -s * 0.85);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-    }
-  }
-
+  drawTowerArt(ctx, tower.kind, s, tower.aim, tower.cooldown, biome);
   drawLevelPips(ctx, s, tower.level, biome.accent);
   ctx.restore();
 
@@ -140,11 +85,82 @@ function drawTower(
   }
 }
 
+const OUTLINE = '#14100B';
+
 /**
- * Stacked stone base every above-ground tower sits on. Two offset ellipses
- * read as courses of piled rock and, more importantly, give every tower the
- * same footprint so the board scans as a set of placed objects.
+ * Every tower's silhouette, in one place.
+ *
+ * Used by the board AND by the build-bar icons, so a button can never drift
+ * from the thing it builds. Each age gets its own vocabulary rather than a
+ * recoloured version of the last: stone is timber and rock, the middle age is
+ * masonry and gunpowder, the tech age is plated steel and glowing optics —
+ * because "the towers look the same" is exactly the complaint that makes an
+ * age advance feel like it did nothing.
  */
+export function drawTowerArt(
+  ctx: CanvasRenderingContext2D,
+  kind: TowerKind,
+  s: number,
+  aim: number,
+  cooldown: number,
+  biome: Biome,
+): void {
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = s * 0.14;
+  ctx.strokeStyle = OUTLINE;
+
+  switch (kind) {
+    // --- Stone Age ---------------------------------------------------------
+    case 'thrower':
+      drawThrower(ctx, s, aim, biome);
+      break;
+    case 'trap':
+      drawSpikePit(ctx, s, cooldown, biome);
+      break;
+    case 'slower':
+      drawColdMud(ctx, s);
+      break;
+    case 'heavy':
+      drawBoulder(ctx, s, aim, biome);
+      break;
+
+    // --- Middle Age --------------------------------------------------------
+    case 'ballista':
+      drawArcherTower(ctx, s, aim);
+      break;
+    case 'oilFire':
+      drawCauldron(ctx, s, cooldown);
+      break;
+    case 'frost':
+      drawFrostTower(ctx, s);
+      break;
+    case 'siegeCannon':
+      drawCannon(ctx, s, aim);
+      break;
+    case 'goldMine':
+      drawGoldMine(ctx, s);
+      break;
+
+    // --- Tech Age ----------------------------------------------------------
+    case 'railgun':
+      drawGunTurret(ctx, s, aim);
+      break;
+    case 'teslaCoil':
+      drawTeslaCoil(ctx, s, cooldown);
+      break;
+    case 'cryo':
+      drawCryoField(ctx, s);
+      break;
+    case 'singularity':
+      drawSingularity(ctx, s);
+      break;
+    case 'sniper':
+      drawSniper(ctx, s, aim);
+      break;
+  }
+}
+
+/** Stacked stone base every above-ground tower sits on. */
 function drawPlinth(ctx: CanvasRenderingContext2D, s: number, biome: Biome): void {
   ctx.beginPath();
   ctx.ellipse(0, s * 0.5, s * 1.02, s * 0.5, 0, 0, Math.PI * 2);
@@ -159,121 +175,47 @@ function drawPlinth(ctx: CanvasRenderingContext2D, s: number, biome: Biome): voi
   ctx.stroke();
 }
 
-/**
- * A sling on a timber frame. The arm is drawn LIGHT and extends well past the
- * base: an arm the same colour as the frame, contained inside the footprint,
- * just reads as a lump — the overhang is what makes the aim direction legible
- * from across the board.
- */
-function drawThrower(
-  ctx: CanvasRenderingContext2D,
-  s: number,
-  aim: number,
-  biome: Biome,
-): void {
-  // Posts FIRST, so the arm swings in front of them. Drawing the frame last
-  // hides the arm behind it and the whole tower collapses into a cone.
+// --- Stone Age ---------------------------------------------------------------
+
+function drawThrower(ctx: CanvasRenderingContext2D, s: number, aim: number, biome: Biome): void {
+  // Posts FIRST so the arm swings in front of them; drawing the frame last
+  // hides the arm and the tower collapses into a cone.
   ctx.fillStyle = '#5E4830';
-  ctx.beginPath();
-  ctx.moveTo(-s * 0.42, s * 0.3);
-  ctx.lineTo(-s * 0.2, -s * 0.55);
-  ctx.lineTo(s * 0.2, -s * 0.55);
-  ctx.lineTo(s * 0.42, s * 0.3);
-  ctx.closePath();
+  poly(ctx, [[-0.42, 0.3], [-0.2, -0.55], [0.2, -0.55], [0.42, 0.3]], s);
   ctx.fill();
   ctx.stroke();
 
   ctx.save();
   ctx.rotate(aim);
-
-  // Throwing arm, light against the dark frame and overhanging the base so
-  // the aim direction is legible from across the board.
   ctx.fillStyle = '#A8814F';
-  ctx.beginPath();
-  ctx.moveTo(-s * 0.3, -s * 0.18);
-  ctx.lineTo(s * 1.3, -s * 0.11);
-  ctx.lineTo(s * 1.3, s * 0.11);
-  ctx.lineTo(-s * 0.3, s * 0.18);
-  ctx.closePath();
+  poly(ctx, [[-0.3, -0.18], [1.3, -0.11], [1.3, 0.11], [-0.3, 0.18]], s);
   ctx.fill();
   ctx.stroke();
-
-  // The rock in the sling, at the tip where it can be seen.
-  ctx.beginPath();
-  ctx.arc(s * 1.2, 0, s * 0.3, 0, Math.PI * 2);
-  ctx.fillStyle = biome.rockLit;
-  ctx.fill();
-  ctx.stroke();
+  circle(ctx, s * 1.2, 0, s * 0.3, biome.rockLit, true);
   ctx.restore();
 }
 
-function drawTrap(
+function drawSpikePit(
   ctx: CanvasRenderingContext2D,
   s: number,
   cooldown: number,
   biome: Biome,
 ): void {
-  // A pit dug into the track, not a hole punched through the render. A solid
-  // near-black oval reads as missing geometry, and a path lined with them
-  // turns into a caterpillar of dark blobs — so this stays earth-coloured and
-  // keeps a lit rim so the surrounding dirt still reads through.
-  ctx.beginPath();
-  ctx.ellipse(0, 0, s * 0.86, s * 0.66, 0, 0, Math.PI * 2);
-  ctx.fillStyle = '#4A3722';
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.ellipse(0, s * 0.08, s * 0.68, s * 0.5, 0, 0, Math.PI * 2);
-  ctx.fillStyle = '#2E2214';
-  ctx.fill();
+  ellipse(ctx, 0, 0, s * 0.86, s * 0.66, '#4A3722', true);
+  ellipse(ctx, 0, s * 0.08, s * 0.68, s * 0.5, '#2E2214', false);
 
   const armed = Math.max(0, 1 - Math.max(0, cooldown) / 1.6);
   if (armed <= 0.02) return;
-
-  // Five spikes rather than eight: enough to read as a trap, few enough that
-  // the tower doesn't out-shout the enemies walking over it.
   ctx.fillStyle = biome.rockLit;
-  ctx.strokeStyle = '#1B140C';
   ctx.lineWidth = s * 0.07;
-  const spikes: [number, number][] = [
-    [-0.5, 0.18],
-    [-0.22, -0.2],
-    [0.06, 0.22],
-    [0.34, -0.16],
-    [0.56, 0.14],
-  ];
-  for (const [ox, oy] of spikes) {
-    const px = ox * s;
-    const py = oy * s;
-    const h = s * 0.4 * armed;
-    ctx.beginPath();
-    ctx.moveTo(px - s * 0.11, py + s * 0.1);
-    ctx.lineTo(px, py - h);
-    ctx.lineTo(px + s * 0.11, py + s * 0.1);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
+  for (const [ox, oy] of [[-0.5, 0.18], [-0.22, -0.2], [0.06, 0.22], [0.34, -0.16], [0.56, 0.14]]) {
+    spike(ctx, ox! * s, oy! * s, s * 0.11, s * 0.4 * armed);
   }
 }
 
-/**
- * A frozen pool with radiating frost spurs. Deliberately the only tower with
- * no barrel and no aim: it must not look like it shoots, because a player who
- * expects damage from it will misread every fight it is in.
- */
-function drawSlower(ctx: CanvasRenderingContext2D, s: number, biome: Biome): void {
-  ctx.beginPath();
-  ctx.arc(0, -s * 0.08, s * 0.78, 0, Math.PI * 2);
-  ctx.fillStyle = '#2E5A68';
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(-s * 0.2, -s * 0.28, s * 0.36, 0, Math.PI * 2);
-  ctx.fillStyle = '#5E93A4';
-  ctx.fill();
-
+function drawColdMud(ctx: CanvasRenderingContext2D, s: number): void {
+  circle(ctx, 0, -s * 0.08, s * 0.78, '#2E5A68', true);
+  circle(ctx, -s * 0.2, -s * 0.28, s * 0.36, '#5E93A4', false);
   ctx.strokeStyle = '#D6F0F8';
   ctx.lineWidth = s * 0.13;
   ctx.lineCap = 'round';
@@ -284,34 +226,410 @@ function drawSlower(ctx: CanvasRenderingContext2D, s: number, biome: Biome): voi
     ctx.lineTo(-Math.cos(a) * s * 0.58, -Math.sin(a) * s * 0.58 - s * 0.08);
   }
   ctx.stroke();
-  ctx.strokeStyle = '#14100B';
-  void biome;
+  ctx.strokeStyle = OUTLINE;
 }
 
-/** A boulder in a throwing cradle. Bulk is the read: this thing is slow. */
-function drawHeavy(ctx: CanvasRenderingContext2D, s: number, aim: number, biome: Biome): void {
+function drawBoulder(ctx: CanvasRenderingContext2D, s: number, aim: number, biome: Biome): void {
   ctx.save();
   ctx.rotate(aim);
   ctx.fillStyle = '#4E3A24';
-  ctx.beginPath();
-  ctx.moveTo(-s * 0.7, -s * 0.5);
-  ctx.lineTo(s * 1.0, -s * 0.34);
-  ctx.lineTo(s * 1.0, s * 0.34);
-  ctx.lineTo(-s * 0.7, s * 0.5);
-  ctx.closePath();
+  poly(ctx, [[-0.7, -0.5], [1.0, -0.34], [1.0, 0.34], [-0.7, 0.5]], s);
   ctx.fill();
   ctx.stroke();
   ctx.restore();
+  circle(ctx, 0, -s * 0.18, s * 0.74, biome.rock, true);
+  circle(ctx, -s * 0.22, -s * 0.4, s * 0.36, biome.rockLit, false);
+}
 
-  ctx.beginPath();
-  ctx.arc(0, -s * 0.18, s * 0.74, 0, Math.PI * 2);
-  ctx.fillStyle = biome.rock;
+// --- Middle Age --------------------------------------------------------------
+
+/** A crenellated masonry turret with an archer on top, drawing a bow. */
+function drawArcherTower(ctx: CanvasRenderingContext2D, s: number, aim: number): void {
+  // Tower body with visible courses of stone.
+  ctx.fillStyle = '#8E8676';
+  poly(ctx, [[-0.52, 0.32], [-0.44, -0.62], [0.44, -0.62], [0.52, 0.32]], s);
   ctx.fill();
   ctx.stroke();
+  ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+  ctx.lineWidth = s * 0.05;
+  for (let i = 1; i <= 2; i++) {
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.5, s * 0.32 - i * s * 0.31);
+    ctx.lineTo(s * 0.5, s * 0.32 - i * s * 0.31);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = OUTLINE;
+  ctx.lineWidth = s * 0.14;
+
+  // Crenellations — the single detail that says "castle" instantly.
+  ctx.fillStyle = '#A69C89';
+  for (let i = -2; i <= 2; i++) {
+    ctx.beginPath();
+    ctx.rect(i * s * 0.24 - s * 0.09, -s * 0.86, s * 0.18, s * 0.26);
+    ctx.fill();
+    ctx.stroke();
+  }
   ctx.beginPath();
-  ctx.arc(-s * 0.22, -s * 0.4, s * 0.36, 0, Math.PI * 2);
-  ctx.fillStyle = biome.rockLit;
+  ctx.rect(-s * 0.58, -s * 0.66, s * 1.16, s * 0.16);
+  ctx.fillStyle = '#B5AB97';
   ctx.fill();
+  ctx.stroke();
+
+  // The archer: a head plus a drawn bow that tracks the target.
+  ctx.save();
+  ctx.rotate(aim);
+  ctx.strokeStyle = '#5E4830';
+  ctx.lineWidth = s * 0.1;
+  ctx.beginPath();
+  ctx.arc(s * 0.34, 0, s * 0.42, -1.15, 1.15);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(s * 0.34 + Math.cos(-1.15) * s * 0.42, Math.sin(-1.15) * s * 0.42);
+  ctx.lineTo(s * 0.34 + Math.cos(1.15) * s * 0.42, Math.sin(1.15) * s * 0.42);
+  ctx.strokeStyle = '#E8E0CC';
+  ctx.lineWidth = s * 0.05;
+  ctx.stroke();
+  ctx.restore();
+
+  circle(ctx, 0, -s * 0.98, s * 0.2, '#D8C49B', true);
+  ctx.lineWidth = s * 0.14;
+}
+
+/** A cauldron of burning oil, set into the track. */
+function drawCauldron(ctx: CanvasRenderingContext2D, s: number, cooldown: number): void {
+  ellipse(ctx, 0, s * 0.1, s * 0.9, s * 0.6, '#2A2016', true);
+
+  ctx.fillStyle = '#3E3A38';
+  ctx.beginPath();
+  ctx.ellipse(0, -s * 0.05, s * 0.62, s * 0.44, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ellipse(ctx, 0, -s * 0.1, s * 0.5, s * 0.32, '#1B1614', false);
+
+  const hot = Math.max(0, 1 - Math.max(0, cooldown) / 1.2);
+  if (hot <= 0.05) return;
+  // Flames: three tongues whose height tracks how close it is to firing.
+  for (const [ox, scale] of [[-0.26, 0.8], [0, 1], [0.26, 0.75]]) {
+    const h = s * 0.75 * hot * scale!;
+    ctx.beginPath();
+    ctx.moveTo(ox! * s - s * 0.14, -s * 0.12);
+    ctx.quadraticCurveTo(ox! * s - s * 0.05, -s * 0.12 - h * 0.6, ox! * s, -s * 0.12 - h);
+    ctx.quadraticCurveTo(ox! * s + s * 0.05, -s * 0.12 - h * 0.6, ox! * s + s * 0.14, -s * 0.12);
+    ctx.closePath();
+    ctx.fillStyle = '#E8873D';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(ox! * s - s * 0.07, -s * 0.12);
+    ctx.quadraticCurveTo(ox! * s, -s * 0.12 - h * 0.5, ox! * s, -s * 0.12 - h * 0.62);
+    ctx.quadraticCurveTo(ox! * s + s * 0.07, -s * 0.12 - h * 0.5, ox! * s + s * 0.07, -s * 0.12);
+    ctx.closePath();
+    ctx.fillStyle = '#F5D97A';
+    ctx.fill();
+  }
+}
+
+function drawFrostTower(ctx: CanvasRenderingContext2D, s: number): void {
+  // An ice spire: a tall crystal with two shoulders.
+  ctx.fillStyle = '#7FB8CC';
+  poly(ctx, [[-0.4, 0.36], [-0.24, -0.5], [0, -1.0], [0.24, -0.5], [0.4, 0.36]], s);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#BFE6F0';
+  poly(ctx, [[-0.24, -0.5], [0, -1.0], [0, -0.2], [-0.12, 0.1]], s);
+  ctx.fill();
+
+  for (const dir of [-1, 1]) {
+    ctx.fillStyle = '#9FD2E4';
+    poly(ctx, [[dir * 0.34, 0.1], [dir * 0.5, -0.42], [dir * 0.6, 0.16]], s);
+    ctx.fill();
+    ctx.stroke();
+  }
+}
+
+/** A wheeled gunpowder cannon. Barrel tracks the target. */
+function drawCannon(ctx: CanvasRenderingContext2D, s: number, aim: number): void {
+  // Carriage.
+  ctx.fillStyle = '#5E4830';
+  ctx.beginPath();
+  ctx.rect(-s * 0.6, s * 0.06, s * 1.2, s * 0.34);
+  ctx.fill();
+  ctx.stroke();
+  for (const dir of [-1, 1]) {
+    circle(ctx, dir * s * 0.42, s * 0.36, s * 0.26, '#6B5233', true);
+    circle(ctx, dir * s * 0.42, s * 0.36, s * 0.09, '#3A2A1C', false);
+  }
+
+  // Barrel, with a wider muzzle so the firing end is obvious.
+  ctx.save();
+  ctx.rotate(aim);
+  ctx.fillStyle = '#4A4640';
+  poly(ctx, [[-0.42, -0.26], [0.98, -0.2], [0.98, 0.2], [-0.42, 0.26]], s);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#6A655C';
+  ctx.beginPath();
+  ctx.rect(s * 0.9, -s * 0.26, s * 0.2, s * 0.52);
+  ctx.fill();
+  ctx.stroke();
+  circle(ctx, s * 1.0, 0, s * 0.13, '#141210', false);
+  ctx.restore();
+}
+
+/** A timbered mine head with a gold seam. No barrel — it never shoots. */
+function drawGoldMine(ctx: CanvasRenderingContext2D, s: number): void {
+  // Spoil heap.
+  ellipse(ctx, 0, s * 0.36, s * 0.98, s * 0.34, '#5A4A32', true);
+
+  // Timber frame around a dark adit.
+  ctx.fillStyle = '#2A1F14';
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.46, s * 0.3);
+  ctx.lineTo(-s * 0.46, -s * 0.32);
+  ctx.quadraticCurveTo(0, -s * 0.86, s * 0.46, -s * 0.32);
+  ctx.lineTo(s * 0.46, s * 0.3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#6B5233';
+  ctx.beginPath();
+  ctx.rect(-s * 0.6, -s * 0.42, s * 0.16, s * 0.76);
+  ctx.rect(s * 0.44, -s * 0.42, s * 0.16, s * 0.76);
+  ctx.rect(-s * 0.62, -s * 0.5, s * 1.24, s * 0.16);
+  ctx.fill();
+  ctx.stroke();
+
+  // Gold: a few nuggets catching the light, plus a glow so it reads as
+  // valuable at a glance rather than as another brown building.
+  const glow = ctx.createRadialGradient(0, s * 0.02, 0, 0, s * 0.02, s * 0.7);
+  glow.addColorStop(0, 'rgba(245, 200, 70, 0.5)');
+  glow.addColorStop(1, 'rgba(245, 200, 70, 0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(-s * 0.7, -s * 0.7, s * 1.4, s * 1.4);
+
+  for (const [ox, oy, r] of [[-0.16, 0.1, 0.13], [0.12, 0.16, 0.11], [0.0, -0.06, 0.09]]) {
+    circle(ctx, ox! * s, oy! * s, r! * s, '#F5C842', false);
+    circle(ctx, ox! * s - r! * s * 0.3, oy! * s - r! * s * 0.3, r! * s * 0.4, '#FFF0B0', false);
+  }
+}
+
+// --- Tech Age ----------------------------------------------------------------
+
+/** Plated turret with a long barrel and a vented muzzle. */
+function drawGunTurret(ctx: CanvasRenderingContext2D, s: number, aim: number): void {
+  ctx.save();
+  ctx.rotate(aim);
+
+  ctx.fillStyle = '#4E5A66';
+  poly(ctx, [[-0.46, -0.42], [0.34, -0.34], [0.34, 0.34], [-0.46, 0.42]], s);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#39424C';
+  ctx.beginPath();
+  ctx.rect(s * 0.2, -s * 0.15, s * 1.02, s * 0.3);
+  ctx.fill();
+  ctx.stroke();
+  // Muzzle brake: two slots near the tip.
+  ctx.fillStyle = '#20262C';
+  ctx.fillRect(s * 0.86, -s * 0.16, s * 0.07, s * 0.32);
+  ctx.fillRect(s * 1.0, -s * 0.16, s * 0.07, s * 0.32);
+  ctx.restore();
+
+  circle(ctx, 0, 0, s * 0.3, '#5E6B78', true);
+  circle(ctx, -s * 0.08, -s * 0.08, s * 0.13, '#35D6E8', false);
+}
+
+function drawTeslaCoil(ctx: CanvasRenderingContext2D, s: number, cooldown: number): void {
+  ellipse(ctx, 0, s * 0.2, s * 0.86, s * 0.4, '#2F3640', true);
+
+  ctx.fillStyle = '#454E58';
+  ctx.beginPath();
+  ctx.rect(-s * 0.16, -s * 0.55, s * 0.32, s * 0.8);
+  ctx.fill();
+  ctx.stroke();
+  // Coil windings.
+  ctx.strokeStyle = '#8A6A3A';
+  ctx.lineWidth = s * 0.07;
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath();
+    ctx.ellipse(0, -s * 0.42 + i * s * 0.17, s * 0.22, s * 0.06, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = OUTLINE;
+  ctx.lineWidth = s * 0.14;
+
+  circle(ctx, 0, -s * 0.68, s * 0.24, '#7AC6D8', true);
+
+  const charged = Math.max(0, 1 - Math.max(0, cooldown) / 1.0);
+  if (charged < 0.5) return;
+  // Arcs snapping off the top ball when it's ready to discharge.
+  ctx.strokeStyle = '#BFF4FF';
+  ctx.lineWidth = s * 0.05;
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2 + charged * 3;
+    ctx.beginPath();
+    ctx.moveTo(0, -s * 0.68);
+    ctx.lineTo(Math.cos(a) * s * 0.4, -s * 0.68 + Math.sin(a) * s * 0.4);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = OUTLINE;
+  ctx.lineWidth = s * 0.14;
+}
+
+function drawCryoField(ctx: CanvasRenderingContext2D, s: number): void {
+  // A dish emitter venting vapour.
+  ctx.fillStyle = '#3E4A56';
+  poly(ctx, [[-0.3, 0.34], [-0.18, -0.1], [0.18, -0.1], [0.3, 0.34]], s);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#5E93A4';
+  ctx.beginPath();
+  ctx.ellipse(0, -s * 0.2, s * 0.64, s * 0.26, 0, Math.PI, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#CFEFF8';
+  ctx.beginPath();
+  ctx.ellipse(0, -s * 0.24, s * 0.44, s * 0.16, 0, Math.PI, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.strokeStyle = '#BFE6F0';
+  ctx.lineWidth = s * 0.07;
+  ctx.lineCap = 'round';
+  for (const dir of [-1, 0, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(dir * s * 0.26, -s * 0.42);
+    ctx.lineTo(dir * s * 0.34, -s * 0.74);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = OUTLINE;
+  ctx.lineWidth = s * 0.14;
+}
+
+function drawSingularity(ctx: CanvasRenderingContext2D, s: number): void {
+  ctx.fillStyle = '#2A2F3A';
+  ctx.beginPath();
+  ctx.ellipse(0, -s * 0.1, s * 0.9, s * 0.34, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  const grad = ctx.createRadialGradient(0, -s * 0.1, s * 0.05, 0, -s * 0.1, s * 0.55);
+  grad.addColorStop(0, '#0A0C12');
+  grad.addColorStop(0.7, '#2B1B44');
+  grad.addColorStop(1, '#6A4FA8');
+  circle(ctx, 0, -s * 0.1, s * 0.5, grad as unknown as string, true);
+
+  ctx.strokeStyle = '#B79CF0';
+  ctx.lineWidth = s * 0.06;
+  ctx.beginPath();
+  ctx.ellipse(0, -s * 0.1, s * 0.78, s * 0.26, 0.3, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = OUTLINE;
+  ctx.lineWidth = s * 0.14;
+}
+
+/** A long rifle on a tripod. The scope glint is the tell. */
+function drawSniper(ctx: CanvasRenderingContext2D, s: number, aim: number): void {
+  // Tripod legs, drawn before the weapon so it sits on top.
+  ctx.strokeStyle = '#39424C';
+  ctx.lineWidth = s * 0.12;
+  ctx.lineCap = 'round';
+  for (const a of [-2.4, -0.75, 1.6]) {
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(Math.cos(a) * s * 0.6, Math.sin(a) * s * 0.6 + s * 0.2);
+    ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+  ctx.strokeStyle = OUTLINE;
+  ctx.lineWidth = s * 0.12;
+
+  ctx.save();
+  ctx.rotate(aim);
+
+  // Receiver plus a very long, thin barrel — length is the whole read.
+  ctx.fillStyle = '#454E58';
+  ctx.beginPath();
+  ctx.rect(-s * 0.42, -s * 0.2, s * 0.7, s * 0.4);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#2F3640';
+  ctx.beginPath();
+  ctx.rect(s * 0.24, -s * 0.08, s * 1.5, s * 0.16);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#20262C';
+  ctx.fillRect(s * 1.6, -s * 0.13, s * 0.14, s * 0.26);
+
+  // Scope with a cyan lens flare.
+  ctx.fillStyle = '#20262C';
+  ctx.beginPath();
+  ctx.rect(-s * 0.16, -s * 0.42, s * 0.6, s * 0.2);
+  ctx.fill();
+  ctx.stroke();
+  circle(ctx, s * 0.44, -s * 0.32, s * 0.1, '#35D6E8', false);
+  ctx.restore();
+}
+
+// --- Shared primitives -------------------------------------------------------
+
+function poly(ctx: CanvasRenderingContext2D, pts: number[][], s: number): void {
+  ctx.beginPath();
+  ctx.moveTo(pts[0]![0]! * s, pts[0]![1]! * s);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i]![0]! * s, pts[i]![1]! * s);
+  ctx.closePath();
+}
+
+function circle(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  r: number,
+  fill: string,
+  outline: boolean,
+): void {
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = fill;
+  ctx.fill();
+  if (outline) ctx.stroke();
+}
+
+function ellipse(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  rx: number,
+  ry: number,
+  fill: string,
+  outline: boolean,
+): void {
+  ctx.beginPath();
+  ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fillStyle = fill;
+  ctx.fill();
+  if (outline) ctx.stroke();
+}
+
+function spike(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  halfWidth: number,
+  height: number,
+): void {
+  ctx.beginPath();
+  ctx.moveTo(x - halfWidth, y + halfWidth);
+  ctx.lineTo(x, y - height);
+  ctx.lineTo(x + halfWidth, y + halfWidth);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
 }
 
 /** Small notches showing upgrade level, so the board shows your investment. */
@@ -323,7 +641,7 @@ function drawLevelPips(
 ): void {
   if (level <= 1) return;
   ctx.fillStyle = accent;
-  ctx.strokeStyle = '#14100B';
+  ctx.strokeStyle = OUTLINE;
   ctx.lineWidth = 1.5;
   for (let i = 0; i < level - 1; i++) {
     const x = (i - (level - 2) / 2) * s * 0.34;

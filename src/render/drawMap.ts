@@ -15,7 +15,8 @@ import { towerRange } from '../core/towers';
 import { CellKind, type GameState, type Tower } from '../core/types';
 import type { UiState } from '../uiState';
 import { COLORS } from './palette';
-import { towerGlyph } from './hud';
+import { drawTowerArt } from './drawEntities';
+import { biomeFor } from './palette';
 
 /**
  * A whisper of a grid. Players need to know cells exist, but a hard lattice is
@@ -98,8 +99,9 @@ export function drawPlacementGhost(
   const center = cellCenter(layout, cx, cy);
   const def = TOWERS[kind]!;
 
-  // Range preview first, so the ghost sits on top of it.
-  if (def.range > 0) {
+  // Range preview first, so the ghost sits on top of it. A Sniper has no
+  // meaningful ring — drawing one of radius Infinity paints the whole screen.
+  if (def.range > 0 && !def.unlimitedRange) {
     ctx.beginPath();
     ctx.arc(center.x, center.y, def.range, 0, Math.PI * 2);
     ctx.fillStyle = ok ? hexToRgba(accent, 0.08) : 'rgba(244, 102, 79, 0.07)';
@@ -117,7 +119,8 @@ export function drawPlacementGhost(
 
   ctx.save();
   ctx.globalAlpha = 0.75;
-  towerGlyph(ctx, center.x, center.y, layout.cellSize * 0.3, kind, ok ? accent : '#F4664F');
+  ctx.translate(center.x, center.y);
+  drawTowerArt(ctx, kind, layout.cellSize * 0.34, 0, 0, biomeFor(state.age));
   ctx.restore();
 }
 
@@ -129,7 +132,7 @@ export function drawSelectionRing(
   accent: string,
 ): void {
   const range = towerRange(state, tower);
-  if (range <= 0) return;
+  if (range <= 0 || !Number.isFinite(range)) return;
 
   ctx.beginPath();
   ctx.arc(tower.pos.x, tower.pos.y, range, 0, Math.PI * 2);

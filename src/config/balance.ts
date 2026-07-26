@@ -330,9 +330,19 @@ export interface TowerDef {
   /** Chance per hit to freeze an enemy nearly solid, and for how long. */
   freezeChance: number;
   freezeSeconds: number;
+
+  /**
+   * Gold generated per second. A tower with this set is an ECONOMY building:
+   * it never targets, never fires, and pays back over time instead.
+   */
+  goldPerSecond: number;
+  /** Ignores range entirely and can hit anything on the board. */
+  unlimitedRange: boolean;
 }
 
 const PLAIN = {
+  goldPerSecond: 0,
+  unlimitedRange: false,
   pierce: 0,
   burnDps: 0,
   burnSeconds: 0,
@@ -418,11 +428,11 @@ export const TOWERS = {
   // a straight it is worth several Throwers; against stragglers, one.
   ballista: {
     ...PLAIN,
-    label: 'Ballista',
+    label: 'Archer Tower',
     age: 1,
     cost: 215,
     range: 215,
-    damage: 66,
+    damage: 85,
     fireRate: 1.45,
     projectileSpeed: 640,
     splash: 0,
@@ -435,18 +445,18 @@ export const TOWERS = {
   // a stack of ticks rather than as one blunted hit.
   oilFire: {
     ...PLAIN,
-    label: 'Oil Fire',
+    label: 'Oil Cauldron',
     age: 1,
     cost: 190,
     range: 0,
-    damage: 22,
+    damage: 28,
     fireRate: 0.85,
     projectileSpeed: 0,
     splash: 0,
     armorPierce: 0,
     slowFactor: 1,
     onPath: true,
-    burnDps: 46,
+    burnDps: 59,
     burnSeconds: 3.5,
   },
   frost: {
@@ -454,24 +464,24 @@ export const TOWERS = {
     label: 'Frost Tower',
     age: 1,
     cost: 270,
-    range: 170,
+    range: 175,
     damage: 0,
     fireRate: 0,
     projectileSpeed: 0,
     splash: 0,
     armorPierce: 0,
-    slowFactor: 0.4,
+    slowFactor: 0.34,
     onPath: false,
   },
   // Ignores armor entirely — the dedicated answer to Armored and to Warlord
   // escorts, and nothing else in this age does that.
   siegeCannon: {
     ...PLAIN,
-    label: 'Siege Cannon',
+    label: 'Cannon',
     age: 1,
     cost: 440,
     range: 235,
-    damage: 470,
+    damage: 600,
     fireRate: 0.36,
     projectileSpeed: 380,
     splash: 22,
@@ -480,14 +490,39 @@ export const TOWERS = {
     onPath: false,
   },
 
+  /**
+   * Pure economy: no range, no target, no shots. Placed anywhere buildable, it
+   * simply prints gold.
+   *
+   * Priced so it pays for itself in roughly four waves. That is the whole
+   * decision — a mine is four waves of defence you did not build, betting that
+   * you will still be alive to collect. Mines also compete with towers for
+   * cells, which is what stops "just build mines" from being free.
+   */
+  goldMine: {
+    ...PLAIN,
+    label: 'Gold Mine',
+    age: 1,
+    cost: 350,
+    range: 0,
+    damage: 0,
+    fireRate: 0,
+    projectileSpeed: 0,
+    splash: 0,
+    armorPierce: 0,
+    slowFactor: 1,
+    onPath: false,
+    goldPerSecond: 1.5,
+  },
+
   // --- Age 2: Tech --------------------------------------------------------
   railgun: {
     ...PLAIN,
-    label: 'Railgun',
+    label: 'Gun Turret',
     age: 2,
     cost: 540,
     range: 290,
-    damage: 240,
+    damage: 400,
     fireRate: 1.7,
     projectileSpeed: 1500,
     splash: 0,
@@ -504,7 +539,7 @@ export const TOWERS = {
     age: 2,
     cost: 480,
     range: 0,
-    damage: 155,
+    damage: 260,
     fireRate: 1.1,
     projectileSpeed: 0,
     splash: 0,
@@ -525,9 +560,9 @@ export const TOWERS = {
     projectileSpeed: 0,
     splash: 0,
     armorPierce: 0,
-    slowFactor: 0.34,
+    slowFactor: 0.28,
     onPath: false,
-    freezeChance: 0.1,
+    freezeChance: 0.12,
     freezeSeconds: 1.1,
   },
   singularity: {
@@ -536,13 +571,34 @@ export const TOWERS = {
     age: 2,
     cost: 1000,
     range: 260,
-    damage: 1800,
+    damage: 3000,
     fireRate: 0.3,
     projectileSpeed: 420,
     splash: 92,
     armorPierce: 9999,
     slowFactor: 1,
     onPath: false,
+  },
+  /**
+   * Covers the ENTIRE board — no range ring, nothing out of reach. Expensive
+   * and slow-firing to pay for that: its damage per gold is deliberately the
+   * worst in the Tech Age, because reach on a winding map is worth more than
+   * raw output. One Sniper answers the corner your board never covered.
+   */
+  sniper: {
+    ...PLAIN,
+    label: 'Sniper',
+    age: 2,
+    cost: 1300,
+    range: 0,
+    damage: 620,
+    fireRate: 0.6,
+    projectileSpeed: 2200,
+    splash: 0,
+    armorPierce: 40,
+    slowFactor: 1,
+    onPath: false,
+    unlimitedRange: true,
   },
 } satisfies Record<string, TowerDef>;
 
@@ -573,8 +629,8 @@ export const TARGET_MODE_LABELS: Record<TargetMode, string> = {
  */
 export const AGES = [
   { name: 'Stone Age', advanceCost: 0 },
-  { name: 'Middle Age', advanceCost: 550 },
-  { name: 'Tech Age', advanceCost: 1750 },
+  { name: 'Middle Age', advanceCost: 1000 },
+  { name: 'Tech Age', advanceCost: 3000 },
 ] as const;
 
 /**
@@ -582,15 +638,16 @@ export const AGES = [
  * advancing has to be worth doing. When each age's towers had the same
  * damage-per-gold as the last, paying to advance bought nothing but bigger
  * price tags, and a scripted player that never advanced beat one that did by
- * eight whole waves. Each tier is now roughly 1.75x the previous tier's
- * damage per gold.
+ * eight whole waves. Each tier is now roughly 2.2x the previous
+ * tier's damage per gold — the gap has to widen with the price, or a costlier
+ * advance is simply a worse deal.
  */
 
 /** Build bar contents per age — the four towers unlocked at that tier. */
 export const BUILD_ORDER: TowerKind[][] = [
   ['thrower', 'trap', 'slower', 'heavy'],
-  ['ballista', 'oilFire', 'frost', 'siegeCannon'],
-  ['railgun', 'teslaCoil', 'cryo', 'singularity'],
+  ['ballista', 'oilFire', 'frost', 'siegeCannon', 'goldMine'],
+  ['railgun', 'teslaCoil', 'cryo', 'singularity', 'sniper'],
 ];
 
 /**
@@ -761,7 +818,7 @@ export const WAVES = {
   budgetBase: 6,
   budgetLinear: 1.8,
   budgetQuadratic: 0.15,
-  budgetExpGrowth: 1.038,
+  budgetExpGrowth: 1.025,
 
   /**
    * Intro waves are chosen against where runs actually END, not against a
@@ -806,11 +863,15 @@ export const SCALING = {
    * optional. Cheap towers deal small hits, and small hits are exactly what
    * flat armor blunts to the damage floor — so a board of Stone Age Throwers
    * stops working somewhere in the mid-teens no matter how many you own.
-   * With this at 0.22 a scripted player who NEVER advanced beat one who did
-   * by eight waves, because quantity of cheap towers had no ceiling.
+   * It is a balancing act in both directions: at 0.22 a scripted player who
+   * never advanced beat one who did by eight waves, because quantity of cheap
+   * towers had no ceiling. At 2.2 runs ended around wave 12 — before anyone
+   * could ever save the 1000 gold an age costs, which made the whole age
+   * system unreachable. The pressure has to bite without ending the run
+   * before the decision can be made.
    */
-  armorPerWave: 2.2,
-  armorStartWave: 6,
+  armorPerWave: 1.0,
+  armorStartWave: 8,
 
   /** Bounty grows slower than HP, so income tightens as waves escalate. */
   bountyLinear: 0.02,

@@ -89,6 +89,7 @@ Built in vertical slices. Currently through **slice 3**:
 3. Waves, difficulty curves, lives, run summary, local high score
 4. All six enemy types, bosses every 10 waves, tower targeting modes
 5. All three ages, selling towers, the perk draft, and synthesised sound
+6. Per-age tower art, Gold Mines, Snipers, and a costlier age advance
 
 Next: the juice and balance pass (slice 6) — screenshake, particles, damage
 numbers, and tuning against real playtests.
