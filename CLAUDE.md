@@ -67,9 +67,10 @@ src/
 │   └── events.ts         sim -> presentation event queue
 ├── render/               READS state, never mutates — see rule 2
 │   ├── viewport.ts       16:9 letterbox, DPR, screen <-> world
-│   ├── palette.ts        colours, per-age accents, font helper
+│   ├── palette.ts        BIOMES (one per age), shared colours, font helper
+│   ├── terrain.ts        procedural ground + track, baked once per run
 │   ├── renderer.ts       draw orchestration
-│   ├── drawMap.ts        grid plates and the path band
+│   ├── drawMap.ts        dynamic map overlay: cell lattice, placement ghosts
 │   ├── drawEntities.ts   enemies (towers, projectiles later)
 │   ├── hud.ts            top stat strip + bottom build bar + button rects
 │   └── screens.ts        pause / game over / rotate-device overlays
@@ -100,8 +101,23 @@ Landing in later slices, as listed in GAME_DESIGN.md's build order:
   produce identical actions. There is no separate touch code path.
 - **Button geometry is exported.** `render/hud.ts` exports the rectangles it
   draws so `input/` hit-tests the exact same geometry. Never duplicate a rect.
-- **No assets.** All art is flat geometry drawn in code. Do not add image or
-  audio files, and do not reference any.
+- **No assets.** All art is geometry drawn in code. Do not add image or audio
+  files, and do not reference any.
+- **Texture is baked, never per-frame.** The ground is a few thousand small
+  shapes. `render/terrain.ts` scatters them once into an offscreen canvas and
+  blits that every frame; it re-bakes only when the seed, age or display
+  resolution changes. Anything static belongs in the bake, not in the loop.
+- **Terrain scatter is seeded too.** It uses its own `Rng` derived from
+  `state.seed` (never `Math.random`), so `?seed=123` reproduces the same
+  meadow, not just the same path. That RNG stream is deliberately separate
+  from the sim's, so adding decoration can never shift wave composition.
+- **Scatter in clumps, not uniformly.** Uniform random placement reads as
+  machine-made confetti. Pick clump centres and grow shapes around them, and
+  fade density near the track instead of stopping dead at its edge.
+- **Don't build clip regions by unioning subpaths.** Canvas uses nonzero
+  winding, so quads and circles that wind oppositely cancel where they
+  overlap and punch holes in the clip. To mask to a stroked shape, draw onto
+  a layer and trim it with `destination-in` + the real stroke.
 - **Comment the non-obvious.** Explain *why* (e.g. why the map generator can't
   self-intersect), not *what* the next line does.
 

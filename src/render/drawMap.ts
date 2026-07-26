@@ -1,87 +1,43 @@
 /**
- * Draws the grid and the generated path.
+ * The dynamic map overlay: everything drawn *on top of* the baked terrain that
+ * can change between frames — the cell lattice and, from slice 2, placement
+ * ghosts and range circles.
  *
- * Render rule: this file READS game state and never mutates it. Nothing here
- * may write to any object reachable from GameState.
+ * The terrain itself (ground, scatter, track) is baked once per run in
+ * terrain.ts. Nothing static belongs here.
+ *
+ * Render rule: reads game state, never mutates it.
  */
 
 import { cellOrigin } from '../core/grid';
-import { CellKind } from '../core/types';
-import type { GameState } from '../core/types';
+import { CellKind, type GameState } from '../core/types';
 import { COLORS } from './palette';
 
-export function drawMap(ctx: CanvasRenderingContext2D, state: GameState): void {
+/**
+ * A whisper of a grid. Players need to know cells exist, but a hard lattice is
+ * what makes a board look like a spreadsheet instead of a place.
+ *
+ * Only BUILDABLE cells are outlined. Ruling the track into squares made it
+ * read as laid brickwork instead of worn dirt, and the grid there is useless
+ * anyway — you can't build on the path (traps aside, in slice 2).
+ *
+ * Slice 2 lights these up properly while a tower is being placed.
+ */
+export function drawGrid(ctx: CanvasRenderingContext2D, state: GameState): void {
   const { layout, map } = state;
   const cs = layout.cellSize;
 
-  // --- Buildable cells: subtle plates so the player can read where towers go
+  ctx.save();
+  ctx.strokeStyle = COLORS.gridLine;
   ctx.lineWidth = 1;
+  ctx.beginPath();
   for (let cy = 0; cy < map.rows; cy++) {
     for (let cx = 0; cx < map.cols; cx++) {
       if (map.cells[cy * map.cols + cx] === CellKind.Path) continue;
       const o = cellOrigin(layout, cx, cy);
-      ctx.fillStyle = COLORS.buildable;
-      ctx.fillRect(o.x + 1, o.y + 1, cs - 2, cs - 2);
-      ctx.strokeStyle = COLORS.buildableEdge;
-      ctx.strokeRect(o.x + 1.5, o.y + 1.5, cs - 3, cs - 3);
+      ctx.rect(o.x + 0.5, o.y + 0.5, cs - 1, cs - 1);
     }
   }
-
-  drawPathBand(ctx, state);
-}
-
-/**
- * The path is drawn as one thick stroked polyline through the cell centres
- * rather than per-cell tiles. Round joins turn every corner piece into a clean
- * bend for free, which is exactly what the tile pieces describe anyway.
- */
-function drawPathBand(ctx: CanvasRenderingContext2D, state: GameState): void {
-  const pts = state.path.points;
-  if (pts.length < 2) return;
-  const cs = state.layout.cellSize;
-
-  const trace = () => {
-    ctx.beginPath();
-    ctx.moveTo(pts[0]!.x, pts[0]!.y);
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i]!.x, pts[i]!.y);
-  };
-
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-  // Outer edge
-  trace();
-  ctx.strokeStyle = COLORS.pathEdge;
-  ctx.lineWidth = cs * 0.92;
   ctx.stroke();
-
-  // Inner fill
-  trace();
-  ctx.strokeStyle = COLORS.path;
-  ctx.lineWidth = cs * 0.78;
-  ctx.stroke();
-
-  // Centre guide line — makes travel direction readable at a glance
-  trace();
-  ctx.strokeStyle = COLORS.pathCenter;
-  ctx.lineWidth = Math.max(1, cs * 0.05);
-  ctx.setLineDash([cs * 0.22, cs * 0.22]);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  drawEndCap(ctx, pts[0]!.x, pts[0]!.y, cs * 0.3, COLORS.entrance);
-  drawEndCap(ctx, pts[pts.length - 1]!.x, pts[pts.length - 1]!.y, cs * 0.3, COLORS.exit);
-}
-
-function drawEndCap(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  r: number,
-  color: string,
-): void {
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.fillStyle = color;
-  ctx.fill();
+  ctx.restore();
 }

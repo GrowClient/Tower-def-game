@@ -4,9 +4,45 @@ The design reference for this prototype. If code and this document disagree,
 this document is the intent — fix the code or update this on purpose.
 
 **Phase 1 goal: prove the core loop is fun.** No monetization, no backend, no
-accounts, no native mobile build. Placeholder geometry only — flat shapes drawn
-in code. There are no image or audio files in this project and none should be
-added.
+accounts, no native mobile build. There are no image or audio files in this
+project and none should be added.
+
+---
+
+## Art direction
+
+Everything is drawn in code. That is a constraint on *technique*, not on
+ambition: "no assets" must not mean "flat coloured rectangles on a grid". A
+board made of plates and bands reads as a spreadsheet, and no amount of
+gameplay rescues that first impression.
+
+The rule is: **each age must be recognisable from a screenshot with the label
+covered up.** Not by adding fine detail, but by getting three things right —
+what the ground is made of, what the road is worn into, and what is lying
+around on it.
+
+| | Ground | Track | Props |
+|---|---|---|---|
+| **Stone Age** | overgrown meadow, clumped grass, bare-earth scuffs | dirt rutted through the grass, gravel, a kerb of loose stones | standing stones, fallen logs, scattered rock |
+| **Middle Age** | tilled earth and trodden turf | packed road, cobble at the edges | timber stakes, cart ruts |
+| **Tech Age** | poured concrete, panel seams | sunken plating with painted markings | pylons, vents, cable runs |
+
+Technique that gets this out of pure code:
+
+- **Scatter in clumps, not uniformly.** Uniform random placement has no visual
+  rhythm and reads instantly as generated noise. Real ground grows in patches.
+- **Light everything from the same direction.** One consistent key light
+  (upper-left) plus a contact shadow is what makes a flat polygon read as a
+  raised rock.
+- **Density gradients, not hard edges.** Vegetation should thin out toward the
+  track over a margin. A clean boundary is what makes scatter look stamped on.
+- **Bake it.** Terrain is generated once per run into an offscreen canvas from
+  the run seed, then blitted. It costs one frame at startup and nothing after.
+- **Units get a heavy dark outline.** Against textured ground, readable
+  silhouettes matter more than unit detail — gameplay clarity always wins.
+
+The grid is drawn as a whisper on buildable cells only, and lights up when the
+player is actually placing something.
 
 ---
 
