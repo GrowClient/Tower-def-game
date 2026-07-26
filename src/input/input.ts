@@ -100,16 +100,24 @@ export function attachInput(
       case 'Escape':
         armBuild(ui, null);
         selectTower(ui, null);
+        ui.showCombos = false;
         break;
       case 'm':
       case 'M':
         actions.toggleMute();
         break;
-      // Number keys arm the build tools, matching the bar order.
+      case 'c':
+      case 'C':
+        ui.showCombos = !ui.showCombos;
+        break;
+      // Number keys arm the build tools, matching the bar order. Six, because
+      // the Tech Age bar is six wide once the Factory is on it.
       case '1':
       case '2':
       case '3':
-      case '4': {
+      case '4':
+      case '5':
+      case '6': {
         const btn = buildButtons(getState().age)[Number(e.key) - 1];
         if (btn) armBuild(ui, btn.kind);
         break;
@@ -142,12 +150,20 @@ function handleTap(
     return;
   }
 
+  // The combos sheet is modal too — any tap dismisses it, so it can never
+  // swallow a tap meant for the board underneath.
+  if (ui.showCombos) {
+    ui.showCombos = false;
+    return;
+  }
+
   for (const b of HUD_BUTTONS) {
     if (!hitTest(b, x, y)) continue;
     if (b.id === 'pause') actions.togglePause();
     else if (b.id === 'speed') actions.cycleSpeed();
     else if (b.id === 'fullscreen') actions.toggleFullscreen();
     else if (b.id === 'mute') actions.toggleMute();
+    else if (b.id === 'combos') ui.showCombos = !ui.showCombos;
     else actions.restart();
     return;
   }

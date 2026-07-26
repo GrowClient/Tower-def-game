@@ -9,6 +9,7 @@
  */
 
 import { SELL_REFUND, TARGET_MODES, TOWERS, UPGRADES } from '../config/balance';
+import { comboEffect, refreshCombos } from './combos';
 import {
   bonusPierce,
   burnMul,
@@ -41,6 +42,7 @@ const PROJECTILE_LOOK: Record<TowerKind, ProjectileLook> = {
   trap: 'rock',
   slower: 'rock',
   heavy: 'boulder',
+  campfire: 'rock',
   ballista: 'arrow',
   oilFire: 'rock',
   frost: 'rock',
@@ -51,6 +53,7 @@ const PROJECTILE_LOOK: Record<TowerKind, ProjectileLook> = {
   cryo: 'bullet',
   singularity: 'cannonball',
   sniper: 'rail',
+  factory: 'rock',
 };
 
 // ---------------------------------------------------------------------------
@@ -70,20 +73,46 @@ export function towerRange(state: GameState, tower: Tower): number {
 
 export function towerDamage(state: GameState, tower: Tower): number {
   const def = TOWERS[tower.kind]!;
-  return def.damage * (UPGRADES.damageMul[tower.level - 1] ?? 1) * damageMul(state);
+  return (
+    def.damage *
+    (UPGRADES.damageMul[tower.level - 1] ?? 1) *
+    damageMul(state) *
+    comboEffect(tower).damageMul
+  );
 }
 
 export function towerFireRate(state: GameState, tower: Tower): number {
   const def = TOWERS[tower.kind]!;
-  return def.fireRate * (UPGRADES.fireRateMul[tower.level - 1] ?? 1) * fireRateMul(state);
+  return (
+    def.fireRate *
+    (UPGRADES.fireRateMul[tower.level - 1] ?? 1) *
+    fireRateMul(state) *
+    comboEffect(tower).fireRateMul
+  );
 }
 
 export function towerSlowFactor(state: GameState, tower: Tower): number {
   const def = TOWERS[tower.kind]!;
   if (def.slowFactor >= 1) return 1;
-  // Upgrades and the Deep Freeze perk both push the multiplier toward zero.
-  const strength = (UPGRADES.slowBonus[tower.level - 1] ?? 0) + slowBonus(state) * def.slowFactor;
+  // Upgrades, the Deep Freeze perk and combos all push the multiplier toward
+  // zero rather than scaling it, so stacking sources can't loop past a stop.
+  const strength =
+    (UPGRADES.slowBonus[tower.level - 1] ?? 0) +
+    slowBonus(state) * def.slowFactor +
+    comboEffect(tower).slowBonus;
   return Math.max(0.1, def.slowFactor - strength);
+}
+
+/**
+ * Gold this economy building pays when a wave is cleared. Upgrades raise output
+ * instead of damage, since it has no damage to raise.
+ */
+export function towerIncome(tower: Tower): number {
+  const def = TOWERS[tower.kind]!;
+  if (def.goldPerWave <= 0) return 0;
+  return Math.round(
+    def.goldPerWave * (UPGRADES.damageMul[tower.level - 1] ?? 1) * comboEffect(tower).goldMul,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -142,9 +171,13 @@ export function placeTower(
     aim: 0,
     recoil: 0,
     targetMode: 'first',
+    combos: [],
   };
   state.towers.push(tower);
   state.occupancy[cellIndex(state.map, cx, cy)] = tower.id;
+  // A new tower can form combos for itself AND for everything already in
+  // range, so the whole board is re-swept rather than just this tower.
+  state.combosDirty = true;
   emit(state, { type: 'towerPlaced', at: pos, kind });
   return tower;
 }
@@ -161,13 +194,10 @@ export function upgradeTower(state: GameState, towerId: number): boolean {
 
   tower.level++;
   tower.invested += cost;
+  // An upgrade widens the range ring, which can reach a new partner.
+  state.combosDirty = true;
   emit(state, { type: 'towerUpgraded', at: tower.pos, level: tower.level });
   return true;
-}
-
-/** Upgrades make a mine produce more, since it has no damage to improve. */
-export function mineRate(tower: Tower): number {
-  return UPGRADES.damageMul[tower.level - 1] ?? 1;
 }
 
 /**
@@ -183,11 +213,14 @@ export function sellTower(state: GameState, towerId: number): boolean {
   if (index < 0) return false;
 
   const tower = state.towers[index]!;
-  state.gold += sellValue(state, tower);
+  const refund = sellValue(state, tower);
+  state.gold += refund;
   state.occupancy[cellIndex(state.map, tower.cell.cx, tower.cell.cy)] = 0;
   state.towers.splice(index, 1);
+  // Selling can break combos on towers that are still standing.
+  state.combosDirty = true;
 
-  emit(state, { type: 'towerSold', at: tower.pos, refund: sellValue(state, tower) });
+  emit(state, { type: 'towerSold', at: tower.pos, refund });
   return true;
 }
 
@@ -258,20 +291,18 @@ function findTarget(state: GameState, tower: Tower, range: number): Enemy | null
 // ---------------------------------------------------------------------------
 
 export function updateTowers(state: GameState, dt: number): void {
+  // Once per step at most, and only when the board actually changed.
+  if (state.combosDirty) refreshCombos(state);
+
   for (const tower of state.towers) {
     if (tower.cooldown > 0) tower.cooldown -= dt;
     if (tower.recoil > 0) tower.recoil -= dt;
 
     const def = TOWERS[tower.kind]!;
 
-    // Economy buildings never target anything; they just pay out.
-    if (def.goldPerSecond > 0) {
-      // Fractional gold accumulates on state.gold directly. Everything that
-      // spends compares with >=, and the HUD floors for display, so there is
-      // no need for a separate accumulator to round-trip through.
-      state.gold += def.goldPerSecond * mineRate(tower) * dt;
-      continue;
-    }
+    // Economy buildings never target anything. They are paid on wave clear —
+    // see collectIncome in waves.ts — so there is nothing to do per step.
+    if (def.goldPerWave > 0) continue;
 
     if (def.slowFactor < 1) {
       updateSlower(state, tower);
@@ -318,6 +349,7 @@ function updateTrap(state: GameState, tower: Tower): void {
   const reach = state.layout.cellSize * 0.5;
   const reachSq = reach * reach;
   const def = TOWERS[tower.kind]!;
+  const combo = comboEffect(tower);
   const damage = towerDamage(state, tower);
   const struck: typeof state.enemies = [];
 
@@ -327,7 +359,9 @@ function updateTrap(state: GameState, tower: Tower): void {
     const dy = e.pos.y - tower.pos.y;
     if (dx * dx + dy * dy > reachSq) continue;
     damageEnemy(state, e, damage, def.armorPierce, tower.id);
-    if (def.burnDps > 0) applyBurn(e, def.burnDps * burnMul(state), def.burnSeconds);
+    if (def.burnDps > 0) {
+      applyBurn(e, def.burnDps * burnMul(state) * combo.burnMul, def.burnSeconds);
+    }
     struck.push(e);
   }
 
@@ -337,7 +371,15 @@ function updateTrap(state: GameState, tower: Tower): void {
   // enemies rather than a radius from the tower, so a strung-out line is a
   // better target for it than a tight clump.
   if (def.chainCount > 0) {
-    chainFrom(state, tower, struck, def.chainCount, def.chainRange, damage, def.armorPierce);
+    chainFrom(
+      state,
+      tower,
+      struck,
+      def.chainCount + combo.chainBonus,
+      def.chainRange,
+      damage,
+      def.armorPierce,
+    );
   }
 
   tower.cooldown = 1 / towerFireRate(state, tower);
@@ -392,6 +434,7 @@ function updateShooter(state: GameState, tower: Tower): void {
   if (tower.cooldown > 0) return;
 
   const def = TOWERS[tower.kind]!;
+  const combo = comboEffect(tower);
   spawnProjectile(state, tower, target, {
     look: PROJECTILE_LOOK[tower.kind],
     damage: towerDamage(state, tower),
@@ -401,7 +444,7 @@ function updateShooter(state: GameState, tower: Tower): void {
     // Only towers that already pierce benefit from the perk; it shouldn't
     // silently turn every Thrower into a lance.
     pierce: def.pierce > 0 ? def.pierce + bonusPierce(state) : 0,
-    burnDps: def.burnDps * burnMul(state),
+    burnDps: def.burnDps * burnMul(state) * combo.burnMul,
     burnSeconds: def.burnSeconds,
   });
 

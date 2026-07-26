@@ -13,6 +13,7 @@
 import {
   AGES,
   BUILD_ORDER,
+  COMBOS,
   TARGET_MODE_LABELS,
   TOWERS,
   WAVES,
@@ -21,11 +22,12 @@ import {
 } from '../config/balance';
 import { advanceCost, isMaxAge } from '../core/ages';
 import { upgradeCost } from '../core/economy';
-import { sellValue, towerDamage, towerRange } from '../core/towers';
+import { sellValue, towerDamage, towerIncome, towerRange } from '../core/towers';
 import type { GameState, Tower } from '../core/types';
 import type { UiState } from '../uiState';
 import { speedMultiplier } from '../uiState';
 import { AGE_NAMES, COLORS, biomeFor, font, type Biome } from './palette';
+import { comboColor } from './drawMap';
 import { drawTowerArt } from './drawEntities';
 
 export interface Rect {
@@ -36,7 +38,7 @@ export interface Rect {
 }
 
 export interface HudButton extends Rect {
-  id: 'pause' | 'speed' | 'restart' | 'fullscreen' | 'mute';
+  id: 'pause' | 'speed' | 'restart' | 'fullscreen' | 'mute' | 'combos';
 }
 
 /**
@@ -65,8 +67,8 @@ const BTN_GAP = 10;
 
 /** Right-aligned button cluster in the top strip. */
 const HUD_BUTTON_IDS: HudButton['id'][] = FULLSCREEN_AVAILABLE
-  ? ['mute', 'fullscreen', 'pause', 'speed', 'restart']
-  : ['mute', 'pause', 'speed', 'restart'];
+  ? ['combos', 'mute', 'fullscreen', 'pause', 'speed', 'restart']
+  : ['combos', 'mute', 'pause', 'speed', 'restart'];
 
 export const HUD_BUTTONS: HudButton[] = HUD_BUTTON_IDS.map((id, i) => {
   const n = HUD_BUTTON_IDS.length;
@@ -105,11 +107,12 @@ export function buildButtons(age: number): BuildButton[] {
   }));
 }
 
-/** Buttons inside the selected-tower panel. */
-export const UPGRADE_BUTTON: Rect = { x: WORLD.width - 268, y: WORLD.hudTop + 126, w: 244, h: 48 };
-export const TARGET_BUTTON: Rect = { x: WORLD.width - 268, y: WORLD.hudTop + 180, w: 244, h: 40 };
-export const SELL_BUTTON: Rect = { x: WORLD.width - 268, y: WORLD.hudTop + 226, w: 244, h: 40 };
-export const PANEL: Rect = { x: WORLD.width - 288, y: WORLD.hudTop + 16, w: 264, h: 264 };
+/** Buttons inside the selected-tower panel. Sits below the combo strip, which
+ *  is why everything is 46 lower than the stats it follows. */
+export const UPGRADE_BUTTON: Rect = { x: WORLD.width - 268, y: WORLD.hudTop + 172, w: 244, h: 48 };
+export const TARGET_BUTTON: Rect = { x: WORLD.width - 268, y: WORLD.hudTop + 226, w: 244, h: 40 };
+export const SELL_BUTTON: Rect = { x: WORLD.width - 268, y: WORLD.hudTop + 272, w: 244, h: 40 };
+export const PANEL: Rect = { x: WORLD.width - 288, y: WORLD.hudTop + 16, w: 264, h: 310 };
 
 /**
  * Advance-age button, bottom-left of the board. Deliberately large and always
@@ -219,6 +222,7 @@ function drawTopStrip(
       button(ctx, b, null, ui.fullscreen ? accent : COLORS.text, ui.fullscreen ? 'exitFull' : 'enterFull');
     else if (b.id === 'mute')
       button(ctx, b, null, ui.muted ? '#7A705F' : COLORS.text, ui.muted ? 'muted' : 'sound');
+    else if (b.id === 'combos') button(ctx, b, null, ui.showCombos ? accent : COLORS.text, 'combos');
     else button(ctx, b, '↻', COLORS.text);
   }
 }
@@ -289,7 +293,19 @@ function drawBuildBar(
 
     ctx.fillStyle = affordable ? '#F0C46A' : '#8A6E42';
     ctx.font = font(20);
-    ctx.fillText(`${def.cost}g`, b.x + 60, b.y + 62);
+    const priceText = `${def.cost}g`;
+    ctx.fillText(priceText, b.x + 60, b.y + 62);
+    // Measured while the price font is still set — measuring afterwards gives
+    // the width of the text in the wrong font and the label lands on top of it.
+    const priceW = ctx.measureText(priceText).width;
+
+    // What an economy building pays back, on the button. Otherwise its price
+    // is the only number the player sees and it just looks like a bad tower.
+    if (def.goldPerWave > 0) {
+      ctx.font = font(13);
+      ctx.fillStyle = affordable ? '#9AD07A' : '#5F7A4E';
+      ctx.fillText(`+${def.goldPerWave}/wave`, b.x + 60 + priceW + 10, b.y + 62);
+    }
   }
 }
 
@@ -325,10 +341,25 @@ function drawSelectionPanel(
 
   ctx.fillStyle = COLORS.textDim;
   ctx.font = font(15);
-  const dmg = def.slowFactor < 1 ? 'slow' : Math.round(towerDamage(state, tower)).toString();
-  ctx.fillText(`dmg ${dmg}`, PANEL.x + 18, PANEL.y + 84);
-  ctx.fillText(`range ${Math.round(towerRange(state, tower))}`, PANEL.x + 110, PANEL.y + 84);
-  ctx.fillText(`kills ${tower.kills}`, PANEL.x + 18, PANEL.y + 106);
+  if (def.goldPerWave > 0) {
+    // An economy building has no damage to report, and its one number — what
+    // it pays per cleared wave — is the whole reason it is on the board.
+    ctx.fillStyle = '#F0C46A';
+    ctx.fillText(`+${towerIncome(tower)}g per wave`, PANEL.x + 18, PANEL.y + 84);
+    ctx.fillStyle = COLORS.textDim;
+  } else {
+    const dmg = def.slowFactor < 1 ? 'slow' : Math.round(towerDamage(state, tower)).toString();
+    ctx.fillText(`dmg ${dmg}`, PANEL.x + 18, PANEL.y + 84);
+    const range = towerRange(state, tower);
+    ctx.fillText(
+      Number.isFinite(range) ? `range ${Math.round(range)}` : 'range all',
+      PANEL.x + 110,
+      PANEL.y + 84,
+    );
+    ctx.fillText(`kills ${tower.kills}`, PANEL.x + 18, PANEL.y + 106);
+  }
+
+  drawActiveCombos(ctx, tower);
 
   const cost = upgradeCost(tower);
   if (cost === null) {
@@ -365,9 +396,9 @@ function drawSelectionPanel(
   ctx.font = font(17);
   ctx.fillText(`SELL  +${refund}g`, SELL_BUTTON.x + SELL_BUTTON.w / 2, SELL_BUTTON.y + 26);
 
-  // Targeting mode. Slowers have no target — showing them a mode selector
-  // would imply a choice that does nothing.
-  if (def.slowFactor >= 1) {
+  // Targeting mode. Slowers and economy buildings have no target — showing
+  // them a mode selector would imply a choice that does nothing.
+  if (def.slowFactor >= 1 && def.goldPerWave === 0) {
     panel(ctx, TARGET_BUTTON, '#2C2519', 'rgba(0,0,0,0.5)', 2);
     ctx.textAlign = 'center';
     ctx.fillStyle = COLORS.textDim;
@@ -382,6 +413,52 @@ function drawSelectionPanel(
     );
   }
   ctx.textAlign = 'left';
+}
+
+/**
+ * The combos this tower is currently getting, named and priced.
+ *
+ * Named in the panel as well as on the board link, because the panel is where
+ * a player goes to ask "is this tower pulling its weight" — and a Cannon that
+ * is quietly running at +40% is the answer to that question.
+ */
+function drawActiveCombos(ctx: CanvasRenderingContext2D, tower: Tower): void {
+  const y = PANEL.y + 126;
+
+  ctx.font = font(13);
+  ctx.textAlign = 'left';
+  ctx.fillStyle = COLORS.textDim;
+  ctx.fillText('COMBOS', PANEL.x + 18, y);
+
+  if (tower.combos.length === 0) {
+    ctx.fillStyle = '#6A6152';
+    ctx.font = font(14);
+    ctx.fillText('none — overlap another role', PANEL.x + 18, y + 22);
+    return;
+  }
+
+  let x = PANEL.x + 18;
+  let row = y + 22;
+  for (const key of tower.combos) {
+    const def = COMBOS.find((c) => c.key === key);
+    if (!def) continue;
+    ctx.font = font(13);
+    const w = ctx.measureText(def.label).width + 16;
+    // Wrap rather than run off the panel edge; three combos is common.
+    if (x + w > PANEL.x + PANEL.w - 14) {
+      x = PANEL.x + 18;
+      row += 22;
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    roundRect(ctx, x, row - 14, w, 20, 5);
+    ctx.fill();
+    ctx.strokeStyle = comboColor(key);
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+    ctx.fillStyle = comboColor(key);
+    ctx.fillText(def.label, x + 8, row);
+    x += w + 6;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -469,7 +546,7 @@ function button(
   b: HudButton,
   label: string | null,
   color: string,
-  icon?: 'play' | 'pause' | 'enterFull' | 'exitFull' | 'sound' | 'muted',
+  icon?: 'play' | 'pause' | 'enterFull' | 'exitFull' | 'sound' | 'muted' | 'combos',
 ): void {
   const grad = ctx.createLinearGradient(0, b.y, 0, b.y + b.h);
   grad.addColorStop(0, '#453B2C');
@@ -502,6 +579,19 @@ function button(
     ctx.lineTo(cx - 7, cy + 12);
     ctx.closePath();
     ctx.fill();
+    return;
+  }
+  if (icon === 'combos') {
+    // Two interlocking rings: the combo rule is literally "two fields that
+    // overlap", so the icon is that picture rather than a letter.
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.8;
+    ctx.beginPath();
+    ctx.arc(cx - 5, cy, 9, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx + 5, cy, 9, 0, Math.PI * 2);
+    ctx.stroke();
     return;
   }
   if (icon === 'sound' || icon === 'muted') {

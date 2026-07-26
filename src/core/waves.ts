@@ -18,6 +18,7 @@ import { waveClearReward } from './economy';
 import { openDraft, shouldDraft } from './perks';
 import { spawnEnemy } from './enemies';
 import { emit } from './events';
+import { towerIncome } from './towers';
 import { nextFloat, nextInt } from './rng';
 import type { EnemyKind, GameState, SpawnOrder } from './types';
 
@@ -48,7 +49,7 @@ export function updateWaves(state: GameState, dt: number): void {
 
   // The wave is only over once the board is clear, not once spawning stops.
   if (wave.queue.length === 0 && state.enemies.length === 0) {
-    const reward = waveClearReward(wave.number);
+    const reward = waveClearReward(wave.number) + collectIncome(state);
     state.gold += reward;
     wave.active = false;
     wave.timer = WAVES.betweenWaves;
@@ -56,6 +57,25 @@ export function updateWaves(state: GameState, dt: number): void {
 
     if (shouldDraft(wave.number)) openDraft(state);
   }
+}
+
+/**
+ * Pay out every economy building for the wave just cleared.
+ *
+ * Deliberately here and not in a per-step tick: a mine should be a bet that you
+ * survive the wave, not a clock that runs whether or not you do. It also means
+ * a run that ends mid-wave collects nothing for it, which is the risk that
+ * makes buying income instead of defence an actual decision.
+ */
+function collectIncome(state: GameState): number {
+  let total = 0;
+  for (const tower of state.towers) {
+    const income = towerIncome(tower);
+    if (income <= 0) continue;
+    total += income;
+    emit(state, { type: 'goldMined', at: { ...tower.pos }, amount: income, kind: tower.kind });
+  }
+  return total;
 }
 
 function startWave(state: GameState): void {
@@ -81,10 +101,12 @@ function composeWave(state: GameState, waveNumber: number): SpawnOrder[] {
   // stapled together rather than one interesting one.
   shuffle(state, units);
 
-  const interval = Math.max(
-    WAVES.spawnIntervalMin,
-    WAVES.spawnInterval * Math.pow(WAVES.spawnIntervalDecay, waveNumber - 1),
-  );
+  // Two limits, whichever is tighter: the per-wave decay, and the bound on how
+  // long the whole wave may take to arrive. Early waves are set by the first
+  // and never come close to the second.
+  const decayed = WAVES.spawnInterval * Math.pow(WAVES.spawnIntervalDecay, waveNumber - 1);
+  const windowed = WAVES.maxSpawnWindow / Math.max(1, units.length);
+  const interval = Math.max(WAVES.spawnIntervalMin, Math.min(decayed, windowed));
 
   const orders: SpawnOrder[] = units.map((kind, i) => ({
     kind,
@@ -110,13 +132,32 @@ function scriptedUnits(waveNumber: number): EnemyKind[] {
   return out;
 }
 
+/**
+ * Threat budget for a wave.
+ *
+ * Two exponentials, deliberately. The gentle one shapes the whole curve and is
+ * constrained by having to hand over cleanly from the last scripted wave. The
+ * second only starts at `budgetSurgeWave` and exists because a player's board
+ * compounds faster than that first curve does once an economy exists — upgrades,
+ * perks, a better age and combos all land in the same stretch. Without it a run
+ * reaches a point where nothing on the board is ever threatened again.
+ *
+ * Exported because the headless balance driver reports on it directly; a curve
+ * you can't ask questions of is a curve you end up tuning by anecdote.
+ */
+export function waveBudget(waveNumber: number): number {
+  const w = waveNumber - 1;
+  const poly = WAVES.budgetBase + WAVES.budgetLinear * w + WAVES.budgetQuadratic * w * w;
+  const surge = Math.pow(
+    WAVES.budgetSurgeGrowth,
+    Math.max(0, waveNumber - WAVES.budgetSurgeWave),
+  );
+  return poly * Math.pow(WAVES.budgetExpGrowth, w) * surge;
+}
+
 /** Spend the wave's threat budget on a weighted draw from unlocked types. */
 function drawUnits(state: GameState, waveNumber: number, budgetMul: number): EnemyKind[] {
-  const w = waveNumber - 1;
-  let budget =
-    (WAVES.budgetBase + WAVES.budgetLinear * w + WAVES.budgetQuadratic * w * w) *
-    Math.pow(WAVES.budgetExpGrowth, w) *
-    budgetMul;
+  let budget = waveBudget(waveNumber) * budgetMul;
 
   const pool = WAVES.roster.filter((r) => waveNumber >= r.introWave);
   if (pool.length === 0) return [];

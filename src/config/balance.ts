@@ -298,6 +298,23 @@ export const BOSS_MECHANICS = {
 // ---------------------------------------------------------------------------
 // Towers
 // ---------------------------------------------------------------------------
+/**
+ * What a tower *is*, for the purposes of combos. Tags are deliberately about
+ * the nature of the weapon rather than its age, so a Cold Mud and a Cryo Field
+ * both read as `ice` and both light up the same synergies — a combo learned in
+ * the Stone Age still means something in the Tech Age.
+ */
+export type TowerTag =
+  | 'fire'
+  | 'ice'
+  | 'heavy'
+  | 'rapid'
+  | 'chain'
+  | 'pierce'
+  | 'trap'
+  | 'precision'
+  | 'economy';
+
 export interface TowerDef {
   label: string;
   /** Which age unlocks this tower. Towers from earlier ages keep working. */
@@ -332,17 +349,26 @@ export interface TowerDef {
   freezeSeconds: number;
 
   /**
-   * Gold generated per second. A tower with this set is an ECONOMY building:
-   * it never targets, never fires, and pays back over time instead.
+   * Gold paid out when a wave is CLEARED. A tower with this set is an ECONOMY
+   * building: it never targets, never fires, and pays back per wave instead.
+   *
+   * Per wave rather than per second on purpose. Paying by the second quietly
+   * rewarded dawdling — a wave you let run long printed more gold than one you
+   * killed fast — and it paid out during the between-wave pause too, so the
+   * safest possible play was also the richest. Tying income to a CLEARED wave
+   * makes a mine a bet on surviving that wave instead of a metronome.
    */
-  goldPerSecond: number;
+  goldPerWave: number;
   /** Ignores range entirely and can hit anything on the board. */
   unlimitedRange: boolean;
+  /** What this tower counts as when looking for combos. See COMBOS. */
+  tags: TowerTag[];
 }
 
 const PLAIN = {
-  goldPerSecond: 0,
+  goldPerWave: 0,
   unlimitedRange: false,
+  tags: [] as TowerTag[],
   pierce: 0,
   burnDps: 0,
   burnSeconds: 0,
@@ -379,6 +405,7 @@ export const TOWERS = {
     armorPierce: 0,
     slowFactor: 1,
     onPath: false,
+    tags: ['rapid'],
   },
   trap: {
     ...PLAIN,
@@ -393,6 +420,7 @@ export const TOWERS = {
     armorPierce: 0,
     slowFactor: 1,
     onPath: true,
+    tags: ['trap'],
   },
   slower: {
     ...PLAIN,
@@ -407,6 +435,7 @@ export const TOWERS = {
     armorPierce: 0,
     slowFactor: 0.55,
     onPath: false,
+    tags: ['ice'],
   },
   heavy: {
     ...PLAIN,
@@ -421,6 +450,29 @@ export const TOWERS = {
     armorPierce: 12,
     slowFactor: 1,
     onPath: false,
+    tags: ['heavy'],
+  },
+
+  /**
+   * The Stone Age economy building. Every age has one now: the Middle Age mine
+   * used to be the only source of passive income, which made advancing to it a
+   * foregone conclusion and left the Stone Age with no economic decision at all.
+   */
+  campfire: {
+    ...PLAIN,
+    label: 'Campfire',
+    age: 0,
+    cost: 120,
+    range: 0,
+    damage: 0,
+    fireRate: 0,
+    projectileSpeed: 0,
+    splash: 0,
+    armorPierce: 0,
+    slowFactor: 1,
+    onPath: false,
+    goldPerWave: 24,
+    tags: ['economy'],
   },
 
   // --- Age 1: Middle ------------------------------------------------------
@@ -440,6 +492,7 @@ export const TOWERS = {
     slowFactor: 1,
     onPath: false,
     pierce: 3,
+    tags: ['rapid', 'pierce'],
   },
   // Small hit, big burn. Beats armor in practice because the damage arrives as
   // a stack of ticks rather than as one blunted hit.
@@ -458,6 +511,7 @@ export const TOWERS = {
     onPath: true,
     burnDps: 59,
     burnSeconds: 3.5,
+    tags: ['fire', 'trap'],
   },
   frost: {
     ...PLAIN,
@@ -472,6 +526,7 @@ export const TOWERS = {
     armorPierce: 0,
     slowFactor: 0.34,
     onPath: false,
+    tags: ['ice'],
   },
   // Ignores armor entirely — the dedicated answer to Armored and to Warlord
   // escorts, and nothing else in this age does that.
@@ -488,14 +543,15 @@ export const TOWERS = {
     armorPierce: 9999,
     slowFactor: 1,
     onPath: false,
+    tags: ['heavy'],
   },
 
   /**
    * Pure economy: no range, no target, no shots. Placed anywhere buildable, it
-   * simply prints gold.
+   * simply pays out when a wave is cleared.
    *
-   * Priced so it pays for itself in roughly four waves. That is the whole
-   * decision — a mine is four waves of defence you did not build, betting that
+   * Priced so it pays for itself in roughly six waves. That is the whole
+   * decision — a mine is six waves of defence you did not build, betting that
    * you will still be alive to collect. Mines also compete with towers for
    * cells, which is what stops "just build mines" from being free.
    */
@@ -512,7 +568,8 @@ export const TOWERS = {
     armorPierce: 0,
     slowFactor: 1,
     onPath: false,
-    goldPerSecond: 1.5,
+    goldPerWave: 62,
+    tags: ['economy'],
   },
 
   // --- Age 2: Tech --------------------------------------------------------
@@ -530,6 +587,7 @@ export const TOWERS = {
     slowFactor: 1,
     onPath: false,
     pierce: 8,
+    tags: ['rapid', 'pierce'],
   },
   // Chains between nearby enemies, so a swarm is BETTER for it than a lone
   // target — the inverse of every other tower in the game.
@@ -548,6 +606,7 @@ export const TOWERS = {
     onPath: true,
     chainCount: 4,
     chainRange: 135,
+    tags: ['chain', 'trap'],
   },
   cryo: {
     ...PLAIN,
@@ -564,6 +623,7 @@ export const TOWERS = {
     onPath: false,
     freezeChance: 0.12,
     freezeSeconds: 1.1,
+    tags: ['ice'],
   },
   singularity: {
     ...PLAIN,
@@ -578,6 +638,7 @@ export const TOWERS = {
     armorPierce: 9999,
     slowFactor: 1,
     onPath: false,
+    tags: ['heavy'],
   },
   /**
    * Covers the ENTIRE board — no range ring, nothing out of reach. Expensive
@@ -599,6 +660,25 @@ export const TOWERS = {
     slowFactor: 1,
     onPath: false,
     unlimitedRange: true,
+    tags: ['precision'],
+  },
+
+  /** The Tech Age economy building — an automated plant, same role as a mine. */
+  factory: {
+    ...PLAIN,
+    label: 'Factory',
+    age: 2,
+    cost: 900,
+    range: 0,
+    damage: 0,
+    fireRate: 0,
+    projectileSpeed: 0,
+    splash: 0,
+    armorPierce: 0,
+    slowFactor: 1,
+    onPath: false,
+    goldPerWave: 168,
+    tags: ['economy'],
   },
 } satisfies Record<string, TowerDef>;
 
@@ -643,11 +723,15 @@ export const AGES = [
  * advance is simply a worse deal.
  */
 
-/** Build bar contents per age — the four towers unlocked at that tier. */
+/**
+ * Build bar contents per age. Every age ends with its economy building, so the
+ * "do I buy income or defence" decision sits in the same place on the bar in
+ * all three ages rather than appearing out of nowhere in the Middle Age.
+ */
 export const BUILD_ORDER: TowerKind[][] = [
-  ['thrower', 'trap', 'slower', 'heavy'],
+  ['thrower', 'trap', 'slower', 'heavy', 'campfire'],
   ['ballista', 'oilFire', 'frost', 'siegeCannon', 'goldMine'],
-  ['railgun', 'teslaCoil', 'cryo', 'singularity', 'sniper'],
+  ['railgun', 'teslaCoil', 'cryo', 'singularity', 'sniper', 'factory'],
 ];
 
 /**
@@ -657,6 +741,138 @@ export const BUILD_ORDER: TowerKind[][] = [
  * instead of a cost you weigh against leaving the old towers firing.
  */
 export const SELL_REFUND = 0.6;
+
+// ---------------------------------------------------------------------------
+// Combos
+// ---------------------------------------------------------------------------
+/**
+ * Towers whose fields OVERLAP form a named combo and both get stronger.
+ *
+ * This exists because a board of twelve identical towers was a winning board.
+ * Placement had no texture: a tower's value never depended on what stood next
+ * to it, so the optimal play was to find the best damage-per-gold tower and
+ * spam it. Combos make the same gold buy more or less depending on where it
+ * goes, which is the difference between building a defence and filling cells.
+ *
+ * Two rules keep this readable rather than a hidden spreadsheet:
+ *
+ *  - The trigger is ring overlap, which the player can SEE. No invisible
+ *    adjacency radius that disagrees with the rings drawn on the board.
+ *  - A combo counts ONCE per tower no matter how many partners supply it, so
+ *    six Frost Towers around one Cannon is not six times the bonus. Otherwise
+ *    the answer to combos would be "stack more partners", which is the same
+ *    mindless-spam problem in a new hat.
+ */
+export type ComboKey =
+  | 'thermalShock'
+  | 'shatter'
+  | 'conduction'
+  | 'spotter'
+  | 'killZone'
+  | 'foundry';
+
+/**
+ * What a combo does. Both towers in the pairing receive the SAME effect, and
+ * each simply uses the parts that mean anything to it — a gold bonus does
+ * nothing to a cannon, a damage bonus does nothing to a mine. That is why the
+ * Foundry can pay the mine and hurry the cannon without needing per-side rules.
+ */
+export interface ComboEffect {
+  damageMul: number;
+  fireRateMul: number;
+  burnMul: number;
+  goldMul: number;
+  /** Extra enemies a chain jumps to. */
+  chainBonus: number;
+  /** Pushes a slow multiplier further toward zero. */
+  slowBonus: number;
+}
+
+export interface ComboDef {
+  key: ComboKey;
+  label: string;
+  detail: string;
+  /** The two tags that must meet. When both are the same tag, it takes two
+   *  DIFFERENT towers carrying it — a tower can never combo with itself. */
+  a: TowerTag;
+  b: TowerTag;
+  effect: ComboEffect;
+}
+
+const NO_EFFECT = {
+  damageMul: 1,
+  fireRateMul: 1,
+  burnMul: 1,
+  goldMul: 1,
+  chainBonus: 0,
+  slowBonus: 0,
+};
+
+export const COMBOS: ComboDef[] = [
+  {
+    key: 'thermalShock',
+    label: 'Thermal Shock',
+    detail: 'Ice + fire — chilled armor cracks: +50% damage, +60% burn',
+    a: 'ice',
+    b: 'fire',
+    effect: { ...NO_EFFECT, damageMul: 1.5, burnMul: 1.6 },
+  },
+  {
+    key: 'shatter',
+    label: 'Shatter',
+    detail: 'Ice + heavy — a frozen target breaks: +40% damage',
+    a: 'ice',
+    b: 'heavy',
+    effect: { ...NO_EFFECT, damageMul: 1.4 },
+  },
+  {
+    key: 'conduction',
+    label: 'Conduction',
+    detail: 'Ice + chain — wet ground carries the arc: +2 chain targets',
+    a: 'ice',
+    b: 'chain',
+    effect: { ...NO_EFFECT, damageMul: 1.15, chainBonus: 2 },
+  },
+  {
+    key: 'spotter',
+    label: 'Spotter',
+    detail: 'Precision + rapid — called shots: +25% fire rate',
+    a: 'precision',
+    b: 'rapid',
+    effect: { ...NO_EFFECT, fireRateMul: 1.25 },
+  },
+  {
+    key: 'killZone',
+    label: 'Kill Zone',
+    detail: 'Two traps on one stretch of road: +30% fire rate',
+    a: 'trap',
+    b: 'trap',
+    effect: { ...NO_EFFECT, fireRateMul: 1.3 },
+  },
+  {
+    key: 'foundry',
+    label: 'Foundry',
+    detail: 'Economy + heavy — the works keeps it fed: +20% fire rate, +30% gold',
+    a: 'economy',
+    b: 'heavy',
+    effect: { ...NO_EFFECT, fireRateMul: 1.2, goldMul: 1.3 },
+  },
+];
+
+export const COMBO_RULES = {
+  /**
+   * Field radius for a tower that has no range of its own — traps, slow-free
+   * economy buildings. Roughly one cell, so a trap combos with what is
+   * genuinely beside it rather than with half the board.
+   */
+  fallbackRadius: 74,
+  /**
+   * A Sniper's range is the whole board. Left uncapped it would combo with
+   * every tower in existence, which is not a placement decision at all — so
+   * for combo purposes only, its field is clamped to this.
+   */
+  maxRadius: 250,
+} as const;
 
 // ---------------------------------------------------------------------------
 // Perks
@@ -780,7 +996,26 @@ export const WAVES = {
   spawnInterval: 0.85,
   /** Spawn interval shrinks as waves go up, to a floor. */
   spawnIntervalDecay: 0.985,
-  spawnIntervalMin: 0.3,
+  spawnIntervalMin: 0.1,
+
+  /**
+   * Longest a wave may take to finish spawning, in seconds.
+   *
+   * Threat cost per unit doesn't scale with the wave — a Brute costs 6 whether
+   * it has 280 HP or 4000 — so the budget curve is really a UNIT COUNT curve,
+   * and an exponential unit count on a fixed interval is an exponentially
+   * longer wave. Measured, wave 25 took 163 seconds to trickle out: not hard,
+   * just slow. Bounding the window instead of hand-tuning the decay makes a
+   * big wave arrive as a flood rather than a queue, and it is self-correcting
+   * — however the budget curve is retuned later, pacing holds.
+   *
+   * Early waves are far below this bound and are completely unaffected —
+   * measured, waves 7/10/15/20 held at 38/55/50/51 seconds either way, while
+   * wave 25 came down from 163 seconds to 62. At 42 seconds it over-corrected:
+   * 150+ enemies on the board at once outran any possible defence and every
+   * seed died on the same wave.
+   */
+  maxSpawnWindow: 70,
 
   /**
    * Hand-authored opening. Index 0 is wave 1.
@@ -821,6 +1056,27 @@ export const WAVES = {
   budgetExpGrowth: 1.025,
 
   /**
+   * A SECOND exponential that only starts biting past `budgetSurgeWave`.
+   *
+   * The single gentle exponential above is tuned for the opening, where it has
+   * to hand over cleanly from the scripted waves. That same rate is far too
+   * slack once a player has an economy: a run could coast into the Tech Age by
+   * wave 22 and then find the wave-30 boss easier than the wave-10 one,
+   * because towers had compounded (upgrades, perks, combos, a fuller board)
+   * faster than the wave curve did. This term is the answer — the early game
+   * keeps its readable ramp and the late game stops being a victory lap.
+   *
+   * Measured with the headless driver over 13 seeds. At 1.055 and 1.035 the
+   * scripted player's death wave collapsed onto 26 for every single seed — the
+   * curve was drowning out how well the board was built, which is the opposite
+   * of the goal. At 1.03 the median holds around 26 while the good runs still
+   * reach 38-41, so surviving the Tech transition is what earns the late waves
+   * rather than the curve deciding for you.
+   */
+  budgetSurgeWave: 15,
+  budgetSurgeGrowth: 1.03,
+
+  /**
    * Intro waves are chosen against where runs actually END, not against a
    * tidy ramp. A type introduced at wave 20 in a game whose median run is
    * wave 14 is content almost nobody sees, so every type has to land before
@@ -841,6 +1097,32 @@ export const WAVES = {
   bossWaveBudgetMul: 0.45,
   /** Head start so the boss arrives amid its escort, not alone in front. */
   bossSpawnDelay: 2.5,
+} as const;
+
+/**
+ * Boss escalation across appearances.
+ *
+ * The ordinary wave curves apply to bosses too, but they are not enough on
+ * their own: a player's board compounds between wave 10 and wave 30 in ways a
+ * per-wave HP curve doesn't track — three upgrade levels, several perks, a
+ * whole age of better towers and now combos. Without a term that grows per
+ * BOSS rather than per wave, the third boss lands into a board built to kill
+ * the first one and simply falls over.
+ *
+ * The mechanics escalate alongside the HP, because a boss that is only harder
+ * to chew through is a longer fight, not a harder one.
+ */
+export const BOSS_SCALING = {
+  /** HP multiplier per boss after the first: appearance n gets growth^(n-1). */
+  hpGrowth: 1.4,
+  /** Armor added per boss after the first. */
+  armorPerAppearance: 3,
+  /** Extra summons per appearance (Hive Mother). */
+  summonsPerAppearance: 2,
+  /** Regen interval shortens by this factor per appearance (Ancient). */
+  regenIntervalDecay: 0.82,
+  /** Extra armor the Warlord's aura grants per appearance. */
+  auraPerAppearance: 2,
 } as const;
 
 /**
@@ -872,6 +1154,18 @@ export const SCALING = {
    */
   armorPerWave: 1.0,
   armorStartWave: 8,
+
+  /**
+   * Armor accelerates again once the Tech Age is realistically reachable.
+   *
+   * The first ramp exists to retire Stone Age throwers. This second one exists
+   * to stop the Tech Age's own cheap-and-fast towers becoming the new forever
+   * answer: without it, armor stops mattering the moment you own a Gun Turret
+   * (24 pierce) and the whole armor mechanic quietly switches off exactly when
+   * the run is supposed to get harder.
+   */
+  armorLateStartWave: 20,
+  armorLatePerWave: 0.9,
 
   /** Bounty grows slower than HP, so income tightens as waves escalate. */
   bountyLinear: 0.02,

@@ -28,6 +28,9 @@ export interface UiState {
   fullscreen: boolean;
   /** Sound off. Mirrors the audio layer so the HUD can draw the right icon. */
   muted: boolean;
+  /** The combos reference sheet is open. Session state, not simulation — a
+   *  replay does not care that you stopped to read the rules. */
+  showCombos: boolean;
   /** Smoothed frames-per-second, for the debug corner. */
   fps: number;
 }
@@ -41,6 +44,7 @@ export function newUiState(): UiState {
     selectedTowerId: null,
     fullscreen: false,
     muted: false,
+    showCombos: false,
     fps: 0,
   };
 }

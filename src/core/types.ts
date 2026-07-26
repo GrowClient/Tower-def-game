@@ -5,10 +5,17 @@
  * no `window`, no `Date`, no `Math.random`.
  */
 
-import type { BossMechanic, EnemyKind, PerkKey, TargetMode, TowerKind } from '../config/balance';
+import type {
+  BossMechanic,
+  ComboKey,
+  EnemyKind,
+  PerkKey,
+  TargetMode,
+  TowerKind,
+} from '../config/balance';
 import type { Rng } from './rng';
 
-export type { BossMechanic, EnemyKind, PerkKey, TargetMode, TowerKind };
+export type { BossMechanic, ComboKey, EnemyKind, PerkKey, TargetMode, TowerKind };
 
 // --- Geometry ---------------------------------------------------------------
 
@@ -126,8 +133,13 @@ export interface Enemy {
   mechanic: BossMechanic | null;
   /** summoner: how many HP thresholds have already fired. */
   summonsFired: number;
-  /** regenerator: seconds until the next self-repair. */
+  /** summoner: units released per threshold. Carried on the unit rather than
+   *  read from a table at use time, so a boss's escalated mechanic travels
+   *  with it however it was spawned. */
+  summonCount: number;
+  /** regenerator: seconds until the next self-repair, and the gap it resets to. */
   regenTimer: number;
+  regenInterval: number;
 
   /** Damage-over-time. Stored as one stack rather than a list: re-applying
    *  refreshes the timer and keeps the stronger dps, which is far cheaper than
@@ -162,6 +174,13 @@ export interface Tower {
   recoil: number;
   /** Which enemy this tower prefers to shoot. */
   targetMode: TargetMode;
+  /**
+   * Combos currently active on this tower, deduplicated and sorted.
+   *
+   * Cached rather than recomputed per use because it is an O(towers²) sweep
+   * and it only changes when the board does — see `core/combos.ts`.
+   */
+  combos: ComboKey[];
 }
 
 export type ProjectileLook = 'rock' | 'boulder' | 'arrow' | 'cannonball' | 'rail' | 'bullet';
@@ -251,6 +270,13 @@ export interface GameState {
   /** Tower id occupying each cell, or 0. Row-major, same indexing as map.cells. */
   occupancy: Int32Array;
 
+  /**
+   * Set whenever the board changes in a way that could form or break a combo:
+   * a tower placed, sold or upgraded, or a perk that moves ranges. The combo
+   * sweep is O(towers²), so it runs on this flag rather than every step.
+   */
+  combosDirty: boolean;
+
   gold: number;
   lives: number;
   wave: WaveState;
@@ -293,6 +319,7 @@ export type SimEvent =
   | { type: 'towerFired'; at: Vec2; kind: TowerKind }
   | { type: 'towerUpgraded'; at: Vec2; level: number }
   | { type: 'towerSold'; at: Vec2; refund: number }
+  | { type: 'goldMined'; at: Vec2; amount: number; kind: TowerKind }
   | { type: 'chainArc'; from: Vec2; to: Vec2 }
   | { type: 'ageAdvanced'; age: number }
   | { type: 'perkDraftOpened' }

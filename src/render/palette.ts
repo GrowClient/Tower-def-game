@@ -29,6 +29,38 @@ export const COLORS = {
 } as const;
 
 /**
+ * Upgrade tiers, as materials rather than as a counter.
+ *
+ * A tower's level used to be three small dots under its feet, which is a
+ * readout, not a picture — you had to stop and count them, and at board scale
+ * they were invisible anyway. Instead each level re-forges the tower's working
+ * end: the sling that throws the rock, the muzzle the shell leaves, the tip of
+ * the ice spire. Wood and stone, then silver, then gold. The player reads
+ * "that one's fully upgraded" from across the board without counting anything.
+ *
+ * `metal` of null means "use whatever this tower is natively made of", which is
+ * what keeps a level 1 tower looking like an honest piece of its own age
+ * instead of a dimmer version of the upgraded one.
+ */
+export interface Tier {
+  metal: string | null;
+  metalLit: string;
+  /** Halo behind the tower. Only the top tier gets one — if every level glowed
+   *  the glow would stop meaning anything. */
+  glow: string | null;
+}
+
+export const TIERS: Tier[] = [
+  { metal: null, metalLit: '#FFFFFF', glow: null },
+  { metal: '#C4CBD8', metalLit: '#F2F6FC', glow: null },
+  { metal: '#E8B93D', metalLit: '#FFF3B0', glow: 'rgba(245, 205, 90, 0.30)' },
+];
+
+export function tierFor(level: number): Tier {
+  return TIERS[Math.min(Math.max(level, 1), TIERS.length) - 1]!;
+}
+
+/**
  * A biome is the whole visual identity of an age: what the ground is made of,
  * what the path is worn into, and which props get scattered around.
  *

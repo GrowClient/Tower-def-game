@@ -11,6 +11,7 @@
 
 import {
   BOSS_MECHANICS,
+  BOSS_SCALING,
   BOSSES,
   COMBAT,
   ENEMIES,
@@ -41,7 +42,20 @@ export function speedMultiplier(wave: number): number {
 
 export function armorBonus(wave: number): number {
   if (wave < SCALING.armorStartWave) return 0;
-  return (wave - SCALING.armorStartWave + 1) * SCALING.armorPerWave;
+  const base = (wave - SCALING.armorStartWave + 1) * SCALING.armorPerWave;
+  // A second, steeper ramp once the Tech Age is realistically in play, so
+  // armor doesn't quietly stop mattering the moment you own a Gun Turret.
+  const late = Math.max(0, wave - SCALING.armorLateStartWave) * SCALING.armorLatePerWave;
+  return base + late;
+}
+
+/**
+ * Which appearance of a boss this is: 1 at wave 10, 2 at wave 20, and so on.
+ * Boss strength is keyed off this rather than off the wave number so the curve
+ * is stated in the units it is actually about — "the third boss you meet".
+ */
+export function bossAppearance(wave: number): number {
+  return Math.max(1, Math.floor(wave / WAVES.bossEvery));
 }
 
 /** Which boss belongs to a boss wave, cycling once the list is exhausted. */
@@ -72,8 +86,23 @@ export function spawnEnemy(
   startDist = 0,
 ): Enemy {
   const def = ENEMIES[kind];
-  const hp = Math.round(def.maxHp * hpMultiplier(wave));
   const mechanic = mechanicFor(kind);
+
+  /**
+   * Bosses get an extra curve of their own, on top of the per-wave one.
+   *
+   * The wave curves track how far into the run you are; they do not track how
+   * much your BOARD has compounded since the last boss — three upgrade levels,
+   * a couple of perks, a whole age of better towers, and now combos. Without a
+   * term that grows per boss, the third one walks into a defence built to kill
+   * the first and simply falls over.
+   */
+  const app = mechanic ? bossAppearance(wave) : 1;
+  const bossHpMul = mechanic ? Math.pow(BOSS_SCALING.hpGrowth, app - 1) : 1;
+  const bossArmor = mechanic ? BOSS_SCALING.armorPerAppearance * (app - 1) : 0;
+  const bossAura = mechanic && def.armorAura > 0 ? BOSS_SCALING.auraPerAppearance * (app - 1) : 0;
+
+  const hp = Math.round(def.maxHp * hpMultiplier(wave) * bossHpMul);
 
   const start = sampleAt(state.path, startDist, 0);
   const enemy: Enemy = {
@@ -87,7 +116,7 @@ export function spawnEnemy(
     maxHp: hp,
     baseSpeed: def.speed * speedMultiplier(wave),
     radius: def.radius,
-    armor: def.armor + armorBonus(wave),
+    armor: def.armor + armorBonus(wave) + bossArmor,
     bounty: killReward(state, def.bounty, wave),
     leak: def.leak,
 
@@ -104,13 +133,18 @@ export function spawnEnemy(
     healPerSecond: def.healPerSecond,
     healRadius: def.healRadius,
 
-    armorAura: def.armorAura,
+    armorAura: def.armorAura + bossAura,
     armorAuraRadius: def.armorAuraRadius,
     auraArmor: 0,
 
     mechanic,
     summonsFired: 0,
-    regenTimer: BOSS_MECHANICS.regenIntervalSec,
+    // A later Ancient repairs itself more often, so out-damaging it stays the
+    // problem it was the first time rather than becoming a formality.
+    regenTimer: BOSS_MECHANICS.regenIntervalSec * Math.pow(BOSS_SCALING.regenIntervalDecay, app - 1),
+    regenInterval:
+      BOSS_MECHANICS.regenIntervalSec * Math.pow(BOSS_SCALING.regenIntervalDecay, app - 1),
+    summonCount: BOSS_MECHANICS.summonCount + BOSS_SCALING.summonsPerAppearance * (app - 1),
 
     flash: 0,
     dead: false,
@@ -227,7 +261,7 @@ function updateBosses(state: GameState, dt: number): void {
           fraction <= thresholds[boss.summonsFired]!
         ) {
           boss.summonsFired++;
-          for (let i = 0; i < BOSS_MECHANICS.summonCount; i++) {
+          for (let i = 0; i < boss.summonCount; i++) {
             // Spawn behind the boss so the escort has to be fought through,
             // rather than appearing already past your defences.
             const behind = Math.max(
@@ -243,7 +277,7 @@ function updateBosses(state: GameState, dt: number): void {
       case 'regenerator': {
         boss.regenTimer -= dt;
         if (boss.regenTimer <= 0) {
-          boss.regenTimer = BOSS_MECHANICS.regenIntervalSec;
+          boss.regenTimer = boss.regenInterval;
           boss.shield = Math.min(boss.maxShield, boss.shield + BOSS_MECHANICS.regenShieldRestore);
           boss.hp = Math.min(
             boss.maxHp,

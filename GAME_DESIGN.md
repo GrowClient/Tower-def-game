@@ -173,15 +173,29 @@ like it did nothing.
 | On the path | Spike Pit (75g) | **Oil Cauldron** (190g) — stacking burn that bypasses armor | **Tesla Coil** (480g) — chains to 4 nearby enemies |
 | Slower | Cold Mud (120g) | **Frost Tower** (270g) — ice spire, much harder slow | **Cryo Field** (620g) — plus a chance to freeze solid |
 | Heavy | Boulder (195g) | **Cannon** (440g) — wheeled gunpowder cannon, ignores armor | **Singularity** (1000g) — enormous damage and splash |
-| Special | — | **Gold Mine** (350g) | **Sniper** (1300g) |
+| Economy | **Campfire** (120g) | **Gold Mine** (350g) | **Factory** (900g) |
+| Special | — | — | **Sniper** (1300g) |
 
-### Gold Mine
+### Economy buildings
 
 Pure economy. No range, no target, no shots — placed on any buildable cell, it
-simply prints gold. Priced to pay for itself in roughly four waves, which *is*
-the decision: a mine is four waves of defence you did not build, betting you'll
-still be alive to collect. Mines also compete with towers for cells, which is
-what stops "just build mines" from being free.
+pays out **when a wave is cleared**.
+
+Every age has one, and they differ only in scale and skin: a ring of stones
+around a fire, a timbered pit head, a plant with a lit stack. Restricting income
+to the Middle Age made advancing to it a foregone conclusion and left the Stone
+Age with no economic decision at all.
+
+Each is priced to pay for itself in roughly **six waves**, which *is* the
+decision: a mine is six waves of defence you did not build, betting you'll still
+be alive to collect. They also compete with towers for cells, which is what
+stops "just build mines" from being free.
+
+Paying **per cleared wave** rather than per second is load-bearing. Per-second
+income quietly rewarded dawdling — a wave you let run long printed more gold
+than one you killed fast — and it kept paying during the between-wave lull, so
+the safest possible play was also the richest. Tying income to a wave you
+actually finished makes a mine a bet rather than a metronome.
 
 ### Sniper
 
@@ -190,8 +204,52 @@ slow-firing to pay for that — its damage per gold is deliberately the worst in
 the Tech Age, because reach on a winding map is worth more than raw output. One
 Sniper answers the corner your board never covered.
 
-Within an age each tower has 3 upgrade levels. On a Gold Mine those upgrades
-raise output instead of damage.
+Within an age each tower has 3 upgrade levels. On an economy building those
+upgrades raise output instead of damage.
+
+**A level must be readable from the board, not counted.** Each upgrade re-forges
+the tower's working end — the sling that throws the rock, the muzzle the shell
+leaves, the tip of the ice spire: native wood and stone at level 1, silver at 2, gold at 3,
+with a halo on the top tier only. Three dots under a tower's feet is a readout,
+not a picture; you had to stop and count them and at board scale they were
+invisible anyway.
+
+### Combos
+
+**Two towers whose fields overlap form a named combo and both get stronger.**
+
+This exists because a board of twelve identical towers was a winning board.
+A tower's value never depended on what stood next to it, so the optimal play was
+to find the best damage-per-gold tower and spam it. Combos make the same gold
+buy more or less depending on where it goes.
+
+Combos are keyed off **tags** (`ice`, `fire`, `heavy`, `rapid`, `chain`,
+`pierce`, `trap`, `precision`, `economy`) rather than off specific towers, so a
+combo learned in the Stone Age still means something in the Tech Age — Cold Mud
+and Cryo Field are both `ice`.
+
+| Combo | Tags | Effect |
+|---|---|---|
+| **Thermal Shock** | ice + fire | +50% damage, +60% burn |
+| **Shatter** | ice + heavy | +40% damage |
+| **Conduction** | ice + chain | +2 chain targets, +15% damage |
+| **Spotter** | precision + rapid | +25% fire rate |
+| **Kill Zone** | trap + trap | +30% fire rate |
+| **Foundry** | economy + heavy | +20% fire rate, +30% gold |
+
+Both towers in a pairing receive the same effect and each uses only the parts
+that mean anything to it — which is how the Foundry pays the mine and hurries
+the cannon without needing per-side rules.
+
+Three properties keep this a mechanic rather than a hidden spreadsheet:
+
+- **The trigger is visible.** Rings overlap, and those are the rings already
+  drawn on the board. There is no second invisible adjacency rule.
+- **A combo counts once**, however many partners supply it. Otherwise "stack
+  more partners" becomes the new mindless answer.
+- **It is taught, not discovered.** The board draws named links while a tower is
+  selected, the placement ghost previews what a tower *would* gain before you
+  pay for it, and a combos sheet lists all of them.
 
 Each damage-dealing tower also has a **targeting mode** — first, strongest, or
 healers. Without the healer mode, towers shoot the front of the pack while the
@@ -256,6 +314,43 @@ eventually out-scaled by a full board — the grid has a finite number of cells,
 so without exponential growth the run reaches a state where nothing can end
 it.
 
+### The late-game surge
+
+A **second** exponential starts at wave 15. The first one is constrained by
+having to hand over cleanly from the scripted opening, and that same gentle rate
+is far too slack once a player has an economy: runs coasted into the Tech Age
+around wave 22 and then found the wave-30 boss easier than the wave-10 one,
+because the board compounds — upgrades, perks, a better age, combos — faster
+than the original curve did.
+
+Measured over 13 seeds with a scripted player, the surge rate is a real
+trade-off and not a free knob. Too steep (1.055 or 1.035) and every seed died on
+exactly wave 26: the curve was drowning out how well the board was built, which
+is the opposite of the goal. At **1.03** the median holds around 26 while good
+runs still reach 38–41, so surviving the Tech transition is what earns the late
+waves rather than the curve deciding for you.
+
+Bosses get a curve of their own on top, keyed to **which appearance it is**
+rather than to the wave: HP ×1.4 per boss, more armor, and escalating mechanics
+(the Hive Mother summons more, the Ancient repairs more often, the Warlord's
+aura hardens). A boss that is only harder to chew through is a longer fight, not
+a harder one.
+
+### Pacing is a separate problem from difficulty
+
+Threat cost per unit doesn't scale with the wave — a Brute costs 6 threat
+whether it has 280 HP or 4000 — so the budget curve is really a *unit count*
+curve, and an exponential unit count on a fixed spawn interval is an
+exponentially longer wave. Measured, wave 25 took **163 seconds** to trickle
+out: not hard, just slow.
+
+So a wave has a bounded **spawn window**: whatever the count, it finishes
+arriving within about 70 seconds. Early waves are far below that bound and are
+completely unaffected (waves 7/10/15/20 measured at 38/55/50/51 seconds either
+way) while wave 25 came down to 62. Bounding the window rather than hand-tuning
+the interval decay is self-correcting — however the budget is retuned later,
+pacing holds.
+
 ---
 
 ## Economy
@@ -307,12 +402,11 @@ Each slice is independently runnable and gets its own commit.
 3. ✅ Waves, scaling curves, lives, game over, run summary, high score
 4. ✅ All six enemy types and bosses
 5. ✅ All three ages, selling, the perk draft, synthesised sound
-6. ⬜ **Juice pass and balance tuning** — everything under *Feel*, above, plus
-   pricing the age advance against real playtests
+6. ✅ **Juice pass and balance tuning** — everything under *Feel*, above, plus
+   combos, per-age economy buildings, readable upgrade tiers, per-weapon sound,
+   and a measured late-game curve
 
-Slice 6 is the only one left. Everything it needs from the sim already exists:
-`core/events.ts` emits `hit`, `kill`, `bossKilled`, `lifeLost` and
-`ageAdvanced`, and `audio/sfx.ts` is currently the queue's only consumer. The
-work is to add a second consumer — `fx/effects.ts` holding the particle and
-camera state, drawn by `render/drawEffects.ts` — without the sim learning that
-either exists.
+`fx/effects.ts` holds the particle and camera state and `render/drawEffects.ts`
+draws it. It is the queue's **second** consumer alongside `audio/sfx.ts`, and
+the sim knows about neither: slow motion works by feeding fewer whole steps into
+the fixed-timestep accumulator, never by touching `SIM.dt`.

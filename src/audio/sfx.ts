@@ -20,13 +20,41 @@
 
 import type { SimEvent, TowerKind } from '../core/types';
 
+/**
+ * One voice per weapon, not one per rough category.
+ *
+ * Five buckets used to cover fourteen towers, so a sling, a bowstring and a
+ * spike pit were the same noise, and advancing an age changed how the board
+ * looked without changing how it sounded. A shot is the main feedback a tower
+ * gives, and it should tell you *which* tower fired without you looking: sinew
+ * and stone in the Stone Age, timber and gunpowder in the Middle Age, electric
+ * and metallic in the Tech Age.
+ */
 type SoundId =
-  | 'shootLight'
-  | 'shootHeavy'
-  | 'shootRail'
-  | 'trapSnap'
+  // --- Stone Age: sinew, wood, rock. Nothing metallic, nothing electric. ---
+  | 'slingThrow'
+  | 'spikeSnap'
+  | 'mudSquelch'
+  | 'boulderLaunch'
+  | 'fireCrackle'
+  // --- Middle Age: bowstrings, burning oil, ice, gunpowder. ---
+  | 'bowRelease'
+  | 'oilWhoosh'
+  | 'frostRing'
+  | 'cannonBoom'
+  | 'minePick'
+  // --- Tech Age: rifled cracks, capacitors, cryo hiss, mass drivers. ---
+  | 'turretCrack'
+  | 'teslaDischarge'
+  | 'cryoHiss'
+  | 'singularityHum'
+  | 'sniperCrack'
+  | 'factoryStamp'
+  // --- Shared feedback ---
   | 'zap'
   | 'hit'
+  | 'hitHeavy'
+  | 'shieldPing'
   | 'kill'
   | 'leak'
   | 'place'
@@ -40,14 +68,33 @@ type SoundId =
   | 'perk'
   | 'gameOver';
 
-/** Minimum seconds between retriggers of the same sound. */
+/**
+ * Minimum seconds between retriggers of the same sound.
+ *
+ * Roughly the tower's own reload, so a fast tower is allowed to sound fast
+ * while a dozen of them still can't turn the wave into a wall of noise.
+ */
 const THROTTLE: Record<SoundId, number> = {
-  shootLight: 0.05,
-  shootHeavy: 0.08,
-  shootRail: 0.05,
-  trapSnap: 0.07,
+  slingThrow: 0.05,
+  spikeSnap: 0.07,
+  mudSquelch: 0.2,
+  boulderLaunch: 0.1,
+  fireCrackle: 0.5,
+  bowRelease: 0.05,
+  oilWhoosh: 0.09,
+  frostRing: 0.25,
+  cannonBoom: 0.1,
+  minePick: 0.4,
+  turretCrack: 0.045,
+  teslaDischarge: 0.07,
+  cryoHiss: 0.25,
+  singularityHum: 0.12,
+  sniperCrack: 0.1,
+  factoryStamp: 0.4,
   zap: 0.06,
   hit: 0.045,
+  hitHeavy: 0.07,
+  shieldPing: 0.11,
   kill: 0.04,
   leak: 0.12,
   place: 0,
@@ -126,10 +173,22 @@ function soundFor(e: SimEvent): SoundId | null {
   switch (e.type) {
     case 'towerFired':
       return shootSoundFor(e.kind);
+    // An economy building never fires, so its voice plays when it pays out —
+    // which means a campfire, a mine and a factory each sound like themselves
+    // at the end of a wave.
+    case 'goldMined':
+      return shootSoundFor(e.kind);
     case 'chainArc':
       return 'zap';
+    // A hit that landed for 3000 should not sound like one that landed for 4.
     case 'enemyHit':
-      return 'hit';
+      return e.damage >= 150 ? 'hitHeavy' : 'hit';
+    // A shield eating a hit is the one thing a player most needs to HEAR:
+    // it is the difference between "my towers are working" and "my towers are
+    // doing literally nothing". Throttled, because a shielded pack triggers it
+    // constantly.
+    case 'shieldAbsorbed':
+      return 'shieldPing';
     case 'enemyKilled':
       return 'kill';
     case 'enemyLeaked':
@@ -155,30 +214,43 @@ function soundFor(e: SimEvent): SoundId | null {
     case 'gameOver':
       return 'gameOver';
     default:
-      // enemySpawned, shieldAbsorbed, enemyHealed, waveCleared, perkDraftOpened
-      // are deliberately silent — they fire constantly and would turn a busy
-      // wave into noise.
+      // enemySpawned, enemyHealed, waveCleared and perkDraftOpened are
+      // deliberately silent — they fire constantly and would turn a busy wave
+      // into noise. The fx layer marks them visually instead.
       return null;
   }
 }
 
-/** A tower's shot should sound like the thing it is: heft, snap or crack. */
+/**
+ * Every tower gets its own voice.
+ *
+ * Exhaustive on purpose rather than defaulting: a new tower added later must
+ * be a compile error here, not something that silently comes out sounding like
+ * a sling.
+ */
+const SHOOT_SOUND: Record<TowerKind, SoundId> = {
+  thrower: 'slingThrow',
+  trap: 'spikeSnap',
+  slower: 'mudSquelch',
+  heavy: 'boulderLaunch',
+  campfire: 'fireCrackle',
+
+  ballista: 'bowRelease',
+  oilFire: 'oilWhoosh',
+  frost: 'frostRing',
+  siegeCannon: 'cannonBoom',
+  goldMine: 'minePick',
+
+  railgun: 'turretCrack',
+  teslaCoil: 'teslaDischarge',
+  cryo: 'cryoHiss',
+  singularity: 'singularityHum',
+  sniper: 'sniperCrack',
+  factory: 'factoryStamp',
+};
+
 function shootSoundFor(kind: TowerKind): SoundId {
-  switch (kind) {
-    case 'heavy':
-    case 'siegeCannon':
-    case 'singularity':
-      return 'shootHeavy';
-    case 'railgun':
-      return 'shootRail';
-    case 'trap':
-    case 'oilFire':
-      return 'trapSnap';
-    case 'teslaCoil':
-      return 'zap';
-    default:
-      return 'shootLight';
-  }
+  return SHOOT_SOUND[kind];
 }
 
 function play(id: SoundId): boolean {
@@ -190,24 +262,101 @@ function play(id: SoundId): boolean {
   lastPlayed.set(id, now);
 
   switch (id) {
-    // A rock leaving a sling: a short filtered noise whoosh.
-    case 'shootLight':
-      noise(now, 0.09, 0.16, 'bandpass', 900, 1.6);
+    // --- Stone Age -------------------------------------------------------
+    // Sinew and stone. A rock leaving a sling: the whoosh of the loop, then
+    // the rock itself letting go.
+    case 'slingThrow':
+      noise(now, 0.1, 0.15, 'bandpass', 780, 1.9);
+      tone(now + 0.06, 'triangle', 420, 260, 0.05, 0.06);
       break;
-    // Heavy artillery: low body plus a click of transient so it doesn't turn
-    // to mush on a phone speaker with no bass response.
-    case 'shootHeavy':
-      tone(now, 'sine', 150, 55, 0.22, 0.32);
-      noise(now, 0.05, 0.12, 'lowpass', 700, 1);
+    // Wooden stakes driven up through dirt: a dry knock, no ring to it.
+    case 'spikeSnap':
+      noise(now, 0.04, 0.22, 'highpass', 1500, 0.8);
+      tone(now, 'square', 260, 90, 0.07, 0.09);
+      noise(now + 0.03, 0.06, 0.1, 'lowpass', 500, 1);
       break;
-    case 'shootRail':
-      tone(now, 'sawtooth', 1400, 260, 0.13, 0.12);
-      noise(now, 0.06, 0.09, 'highpass', 2200, 1);
+    // Cold wet mud: a low, dull squelch with no attack at all.
+    case 'mudSquelch':
+      noise(now, 0.18, 0.09, 'lowpass', 340, 0.7);
+      tone(now, 'sine', 130, 70, 0.2, 0.07);
       break;
-    case 'trapSnap':
-      noise(now, 0.05, 0.2, 'highpass', 1800, 1);
-      tone(now, 'square', 320, 140, 0.06, 0.07);
+    // A boulder in a timber arm: the creak of the throw, then the weight.
+    case 'boulderLaunch':
+      tone(now, 'sine', 120, 48, 0.26, 0.3);
+      noise(now, 0.09, 0.14, 'lowpass', 620, 1);
+      tone(now + 0.02, 'triangle', 300, 170, 0.12, 0.07);
       break;
+    // A campfire doesn't fire — this is its ambient pop when it pays out.
+    case 'fireCrackle':
+      noise(now, 0.14, 0.09, 'bandpass', 1100, 1.2);
+      noise(now + 0.07, 0.08, 0.06, 'highpass', 2400, 1);
+      break;
+
+    // --- Middle Age ------------------------------------------------------
+    // A bowstring: the release snap, then the shaft cutting air.
+    case 'bowRelease':
+      tone(now, 'triangle', 900, 300, 0.05, 0.11);
+      noise(now + 0.01, 0.11, 0.1, 'bandpass', 2000, 2.4);
+      break;
+    // Burning oil poured out: a rising hiss, not an impact.
+    case 'oilWhoosh':
+      noise(now, 0.26, 0.13, 'bandpass', 700, 0.9);
+      tone(now, 'sawtooth', 90, 190, 0.24, 0.05);
+      break;
+    // Ice: a struck crystal ringing, high and clean.
+    case 'frostRing':
+      tone(now, 'sine', 1760, 1720, 0.42, 0.09);
+      tone(now + 0.02, 'sine', 2640, 2600, 0.3, 0.05);
+      break;
+    // Gunpowder: a real bang needs a sharp transient over the low body, or a
+    // phone speaker with no bass response renders it as a thud.
+    case 'cannonBoom':
+      noise(now, 0.03, 0.32, 'highpass', 1800, 0.7);
+      tone(now, 'sine', 190, 42, 0.34, 0.36);
+      noise(now, 0.22, 0.2, 'lowpass', 420, 1);
+      break;
+    // A pick striking ore.
+    case 'minePick':
+      tone(now, 'triangle', 1400, 900, 0.07, 0.1);
+      noise(now, 0.05, 0.1, 'bandpass', 2600, 3);
+      break;
+
+    // --- Tech Age --------------------------------------------------------
+    // Rifled and mechanical: a hard crack with the action cycling behind it.
+    case 'turretCrack':
+      noise(now, 0.035, 0.26, 'highpass', 2600, 0.8);
+      tone(now, 'square', 700, 180, 0.07, 0.12);
+      noise(now + 0.05, 0.05, 0.07, 'bandpass', 1400, 3);
+      break;
+    // A capacitor bank dumping: the thump of the discharge, then the arc.
+    case 'teslaDischarge':
+      tone(now, 'sawtooth', 2600, 420, 0.11, 0.11);
+      noise(now, 0.09, 0.13, 'highpass', 3200, 1);
+      tone(now + 0.03, 'square', 160, 80, 0.09, 0.07);
+      break;
+    // Compressed gas venting: pure noise, no pitch at all.
+    case 'cryoHiss':
+      noise(now, 0.34, 0.11, 'highpass', 4200, 0.6);
+      noise(now + 0.05, 0.2, 0.07, 'bandpass', 2200, 1.4);
+      break;
+    // Something collapsing inward: a pitch that falls away rather than decays.
+    case 'singularityHum':
+      tone(now, 'sine', 420, 30, 0.5, 0.3);
+      tone(now + 0.04, 'sawtooth', 210, 24, 0.42, 0.12);
+      noise(now, 0.3, 0.12, 'lowpass', 300, 1);
+      break;
+    // A supersonic round: crack first, then the long tail of the report.
+    case 'sniperCrack':
+      noise(now, 0.02, 0.36, 'highpass', 3600, 0.6);
+      tone(now, 'sawtooth', 1900, 140, 0.16, 0.16);
+      noise(now + 0.03, 0.3, 0.09, 'lowpass', 900, 1);
+      break;
+    // Industrial: a press cycling.
+    case 'factoryStamp':
+      tone(now, 'square', 220, 110, 0.09, 0.12);
+      noise(now + 0.06, 0.1, 0.12, 'lowpass', 800, 1);
+      break;
+
     case 'zap':
       tone(now, 'square', 2400, 700, 0.07, 0.07);
       noise(now, 0.05, 0.1, 'highpass', 3000, 1);
@@ -215,6 +364,16 @@ function play(id: SoundId): boolean {
     // Kept very quiet: this one plays dozens of times a wave.
     case 'hit':
       noise(now, 0.03, 0.045, 'bandpass', 1500, 3);
+      break;
+    // A big hit landing: same idea, with weight under it.
+    case 'hitHeavy':
+      noise(now, 0.07, 0.09, 'bandpass', 700, 1.6);
+      tone(now, 'sine', 160, 80, 0.09, 0.09);
+      break;
+    // Glassy and pitched, so it is obviously NOT a hit landing.
+    case 'shieldPing':
+      tone(now, 'sine', 1320, 1180, 0.16, 0.07);
+      tone(now + 0.01, 'sine', 1980, 1900, 0.1, 0.035);
       break;
     case 'kill':
       noise(now, 0.11, 0.13, 'lowpass', 1100, 1);

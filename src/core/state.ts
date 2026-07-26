@@ -43,6 +43,7 @@ export function newRun(seed: number): GameState {
     // Tower id per cell, 0 = free. Entity ids start at 1 precisely so that 0
     // is an unambiguous "empty" and this needs no parallel boolean array.
     occupancy: new Int32Array(map.cols * map.rows),
+    combosDirty: false,
 
     gold: RUN.startingGold,
     lives: RUN.startingLives,

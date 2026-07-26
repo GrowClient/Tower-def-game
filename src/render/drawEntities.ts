@@ -12,13 +12,15 @@
 import { TOWERS, type TowerKind } from '../config/balance';
 
 import type { Enemy, GameState, Projectile, Tower } from '../core/types';
-import { COLORS, type Biome } from './palette';
+import { popScale, type FxState } from '../fx/effects';
+import { COLORS, tierFor, type Biome, type Tier } from './palette';
 
 export function drawEntities(
   ctx: CanvasRenderingContext2D,
   state: GameState,
   biome: Biome,
   selectedId: number | null,
+  fx: FxState,
 ): void {
   // Shadows in their own pass, so no unit's body is drawn under another's
   // shadow.
@@ -26,7 +28,7 @@ export function drawEntities(
   for (const e of state.enemies) shadow(ctx, e.pos.x, e.pos.y + e.radius * 0.55, e.radius, 0.35);
 
   for (const t of state.towers) drawTower(ctx, t, state.layout.cellSize, biome, t.id === selectedId);
-  for (const e of state.enemies) drawEnemy(ctx, e);
+  for (const e of state.enemies) drawEnemy(ctx, e, popScale(fx, e.id));
   for (const p of state.projectiles) drawProjectile(ctx, p, biome);
 }
 
@@ -72,8 +74,7 @@ function drawTower(
   ctx.strokeStyle = OUTLINE;
 
   if (!def.onPath) drawPlinth(ctx, s, biome);
-  drawTowerArt(ctx, tower.kind, s, tower.aim, tower.cooldown, biome);
-  drawLevelPips(ctx, s, tower.level, biome.accent);
+  drawTowerArt(ctx, tower.kind, s, tower.aim, tower.cooldown, biome, tower.level);
   ctx.restore();
 
   if (selected) {
@@ -104,60 +105,91 @@ export function drawTowerArt(
   aim: number,
   cooldown: number,
   biome: Biome,
+  level = 1,
 ): void {
   ctx.lineJoin = 'round';
   ctx.lineWidth = s * 0.14;
   ctx.strokeStyle = OUTLINE;
 
+  const tier = tierFor(level);
+
+  // The top tier gets a halo, drawn under the tower so it reads as the thing
+  // glowing rather than as a sticker behind it.
+  if (tier.glow) {
+    const halo = ctx.createRadialGradient(0, 0, s * 0.2, 0, 0, s * 1.7);
+    halo.addColorStop(0, tier.glow);
+    halo.addColorStop(1, 'rgba(245, 205, 90, 0)');
+    ctx.fillStyle = halo;
+    ctx.fillRect(-s * 1.8, -s * 1.8, s * 3.6, s * 3.6);
+  }
+
   switch (kind) {
     // --- Stone Age ---------------------------------------------------------
     case 'thrower':
-      drawThrower(ctx, s, aim, biome);
+      drawThrower(ctx, s, aim, biome, tier);
       break;
     case 'trap':
-      drawSpikePit(ctx, s, cooldown, biome);
+      drawSpikePit(ctx, s, cooldown, biome, tier);
       break;
     case 'slower':
-      drawColdMud(ctx, s);
+      drawColdMud(ctx, s, tier);
       break;
     case 'heavy':
-      drawBoulder(ctx, s, aim, biome);
+      drawBoulder(ctx, s, aim, biome, tier);
+      break;
+    case 'campfire':
+      drawCampfire(ctx, s, biome, tier);
       break;
 
     // --- Middle Age --------------------------------------------------------
     case 'ballista':
-      drawArcherTower(ctx, s, aim);
+      drawArcherTower(ctx, s, aim, tier);
       break;
     case 'oilFire':
-      drawCauldron(ctx, s, cooldown);
+      drawCauldron(ctx, s, cooldown, tier);
       break;
     case 'frost':
-      drawFrostTower(ctx, s);
+      drawFrostTower(ctx, s, tier);
       break;
     case 'siegeCannon':
-      drawCannon(ctx, s, aim);
+      drawCannon(ctx, s, aim, tier);
       break;
     case 'goldMine':
-      drawGoldMine(ctx, s);
+      drawGoldMine(ctx, s, tier);
       break;
 
     // --- Tech Age ----------------------------------------------------------
     case 'railgun':
-      drawGunTurret(ctx, s, aim);
+      drawGunTurret(ctx, s, aim, tier);
       break;
     case 'teslaCoil':
-      drawTeslaCoil(ctx, s, cooldown);
+      drawTeslaCoil(ctx, s, cooldown, tier);
       break;
     case 'cryo':
-      drawCryoField(ctx, s);
+      drawCryoField(ctx, s, tier);
       break;
     case 'singularity':
-      drawSingularity(ctx, s);
+      drawSingularity(ctx, s, tier);
       break;
     case 'sniper':
-      drawSniper(ctx, s, aim);
+      drawSniper(ctx, s, aim, tier);
+      break;
+    case 'factory':
+      drawFactory(ctx, s, tier);
       break;
   }
+}
+
+/**
+ * The tower's working end, in whatever this upgrade tier is forged from.
+ * `fallback` is the tower's own native material, used at level 1.
+ */
+function mat(tier: Tier, fallback: string): string {
+  return tier.metal ?? fallback;
+}
+
+function matLit(tier: Tier, fallback: string): string {
+  return tier.metal === null ? fallback : tier.metalLit;
 }
 
 /** Stacked stone base every above-ground tower sits on. */
@@ -177,7 +209,13 @@ function drawPlinth(ctx: CanvasRenderingContext2D, s: number, biome: Biome): voi
 
 // --- Stone Age ---------------------------------------------------------------
 
-function drawThrower(ctx: CanvasRenderingContext2D, s: number, aim: number, biome: Biome): void {
+function drawThrower(
+  ctx: CanvasRenderingContext2D,
+  s: number,
+  aim: number,
+  biome: Biome,
+  tier: Tier,
+): void {
   // Posts FIRST so the arm swings in front of them; drawing the frame last
   // hides the arm and the tower collapses into a cone.
   ctx.fillStyle = '#5E4830';
@@ -191,7 +229,16 @@ function drawThrower(ctx: CanvasRenderingContext2D, s: number, aim: number, biom
   poly(ctx, [[-0.3, -0.18], [1.3, -0.11], [1.3, 0.11], [-0.3, 0.18]], s);
   ctx.fill();
   ctx.stroke();
-  circle(ctx, s * 1.2, 0, s * 0.3, biome.rockLit, true);
+  // The sling itself is the working end: banded, then silver, then gold.
+  if (tier.metal) {
+    ctx.fillStyle = tier.metal;
+    ctx.beginPath();
+    ctx.rect(s * 0.55, -s * 0.17, s * 0.3, s * 0.34);
+    ctx.fill();
+    ctx.stroke();
+  }
+  circle(ctx, s * 1.2, 0, s * 0.3, mat(tier, biome.rockLit), true);
+  if (tier.metal) circle(ctx, s * 1.12, -s * 0.09, s * 0.12, tier.metalLit, false);
   ctx.restore();
 }
 
@@ -200,23 +247,44 @@ function drawSpikePit(
   s: number,
   cooldown: number,
   biome: Biome,
+  tier: Tier,
 ): void {
   ellipse(ctx, 0, 0, s * 0.86, s * 0.66, '#4A3722', true);
   ellipse(ctx, 0, s * 0.08, s * 0.68, s * 0.5, '#2E2214', false);
 
+  // A forged rim around the pit, so an upgraded trap reads even with the
+  // spikes retracted mid-reload.
+  if (tier.metal) {
+    ctx.strokeStyle = tier.metal;
+    ctx.lineWidth = s * 0.12;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, s * 0.86, s * 0.66, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = OUTLINE;
+  }
+
   const armed = Math.max(0, 1 - Math.max(0, cooldown) / 1.6);
   if (armed <= 0.02) return;
-  ctx.fillStyle = biome.rockLit;
+  ctx.fillStyle = mat(tier, biome.rockLit);
   ctx.lineWidth = s * 0.07;
   for (const [ox, oy] of [[-0.5, 0.18], [-0.22, -0.2], [0.06, 0.22], [0.34, -0.16], [0.56, 0.14]]) {
     spike(ctx, ox! * s, oy! * s, s * 0.11, s * 0.4 * armed);
   }
 }
 
-function drawColdMud(ctx: CanvasRenderingContext2D, s: number): void {
+function drawColdMud(ctx: CanvasRenderingContext2D, s: number, tier: Tier): void {
   circle(ctx, 0, -s * 0.08, s * 0.78, '#2E5A68', true);
   circle(ctx, -s * 0.2, -s * 0.28, s * 0.36, '#5E93A4', false);
-  ctx.strokeStyle = '#D6F0F8';
+  // A forged rim holding the pool — the ice stays ice at every level, because
+  // the tower's identity is the cold, not the metal.
+  if (tier.metal) {
+    ctx.strokeStyle = tier.metal;
+    ctx.lineWidth = s * 0.14;
+    ctx.beginPath();
+    ctx.arc(0, -s * 0.08, s * 0.78, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = matLit(tier, '#D6F0F8');
   ctx.lineWidth = s * 0.13;
   ctx.lineCap = 'round';
   ctx.beginPath();
@@ -226,25 +294,100 @@ function drawColdMud(ctx: CanvasRenderingContext2D, s: number): void {
     ctx.lineTo(-Math.cos(a) * s * 0.58, -Math.sin(a) * s * 0.58 - s * 0.08);
   }
   ctx.stroke();
+  ctx.lineCap = 'butt';
   ctx.strokeStyle = OUTLINE;
 }
 
-function drawBoulder(ctx: CanvasRenderingContext2D, s: number, aim: number, biome: Biome): void {
+function drawBoulder(
+  ctx: CanvasRenderingContext2D,
+  s: number,
+  aim: number,
+  biome: Biome,
+  tier: Tier,
+): void {
   ctx.save();
   ctx.rotate(aim);
   ctx.fillStyle = '#4E3A24';
   poly(ctx, [[-0.7, -0.5], [1.0, -0.34], [1.0, 0.34], [-0.7, 0.5]], s);
   ctx.fill();
   ctx.stroke();
+  // Reinforcing straps down the throwing arm.
+  if (tier.metal) {
+    ctx.fillStyle = tier.metal;
+    for (const ox of [-0.3, 0.45]) {
+      ctx.beginPath();
+      ctx.rect(ox * s, -s * 0.46, s * 0.14, s * 0.92);
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
   ctx.restore();
   circle(ctx, 0, -s * 0.18, s * 0.74, biome.rock, true);
-  circle(ctx, -s * 0.22, -s * 0.4, s * 0.36, biome.rockLit, false);
+  circle(ctx, -s * 0.22, -s * 0.4, s * 0.36, mat(tier, biome.rockLit), false);
+}
+
+/**
+ * The Stone Age economy building: a ring of stones, a stack of logs and a
+ * flame. No barrel, because like every economy building it never shoots.
+ */
+function drawCampfire(
+  ctx: CanvasRenderingContext2D,
+  s: number,
+  biome: Biome,
+  tier: Tier,
+): void {
+  // Hearth stones, laid in a ring.
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2;
+    circle(
+      ctx,
+      Math.cos(a) * s * 0.74,
+      Math.sin(a) * s * 0.42 + s * 0.2,
+      s * 0.19,
+      mat(tier, i % 2 === 0 ? biome.rock : biome.rockLit),
+      true,
+    );
+  }
+
+  // Crossed logs.
+  ctx.fillStyle = '#6B5233';
+  for (const rot of [-0.6, 0.6]) {
+    ctx.save();
+    ctx.rotate(rot);
+    ctx.beginPath();
+    ctx.rect(-s * 0.62, -s * 0.09, s * 1.24, s * 0.18);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Flame. Static shape — this is baked-in identity, not an animation; the
+  // fx layer owns anything that moves.
+  const flame = ctx.createRadialGradient(0, -s * 0.25, s * 0.05, 0, -s * 0.2, s * 0.7);
+  flame.addColorStop(0, 'rgba(255, 240, 170, 0.95)');
+  flame.addColorStop(0.5, 'rgba(240, 150, 50, 0.75)');
+  flame.addColorStop(1, 'rgba(220, 90, 30, 0)');
+  ctx.fillStyle = flame;
+  ctx.fillRect(-s * 0.8, -s * 1.0, s * 1.6, s * 1.4);
+
+  ctx.fillStyle = '#F5D97A';
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.22, -s * 0.1);
+  ctx.quadraticCurveTo(-s * 0.08, -s * 0.5, 0, -s * 0.82);
+  ctx.quadraticCurveTo(s * 0.1, -s * 0.5, s * 0.22, -s * 0.1);
+  ctx.closePath();
+  ctx.fill();
 }
 
 // --- Middle Age --------------------------------------------------------------
 
 /** A crenellated masonry turret with an archer on top, drawing a bow. */
-function drawArcherTower(ctx: CanvasRenderingContext2D, s: number, aim: number): void {
+function drawArcherTower(
+  ctx: CanvasRenderingContext2D,
+  s: number,
+  aim: number,
+  tier: Tier,
+): void {
   // Tower body with visible courses of stone.
   ctx.fillStyle = '#8E8676';
   poly(ctx, [[-0.52, 0.32], [-0.44, -0.62], [0.44, -0.62], [0.52, 0.32]], s);
@@ -261,8 +404,9 @@ function drawArcherTower(ctx: CanvasRenderingContext2D, s: number, aim: number):
   ctx.strokeStyle = OUTLINE;
   ctx.lineWidth = s * 0.14;
 
-  // Crenellations — the single detail that says "castle" instantly.
-  ctx.fillStyle = '#A69C89';
+  // Crenellations — the single detail that says "castle" instantly, and the
+  // natural place to show the tower has been re-faced.
+  ctx.fillStyle = mat(tier, '#A69C89');
   for (let i = -2; i <= 2; i++) {
     ctx.beginPath();
     ctx.rect(i * s * 0.24 - s * 0.09, -s * 0.86, s * 0.18, s * 0.26);
@@ -271,7 +415,7 @@ function drawArcherTower(ctx: CanvasRenderingContext2D, s: number, aim: number):
   }
   ctx.beginPath();
   ctx.rect(-s * 0.58, -s * 0.66, s * 1.16, s * 0.16);
-  ctx.fillStyle = '#B5AB97';
+  ctx.fillStyle = mat(tier, '#B5AB97');
   ctx.fill();
   ctx.stroke();
 
@@ -286,7 +430,7 @@ function drawArcherTower(ctx: CanvasRenderingContext2D, s: number, aim: number):
   ctx.beginPath();
   ctx.moveTo(s * 0.34 + Math.cos(-1.15) * s * 0.42, Math.sin(-1.15) * s * 0.42);
   ctx.lineTo(s * 0.34 + Math.cos(1.15) * s * 0.42, Math.sin(1.15) * s * 0.42);
-  ctx.strokeStyle = '#E8E0CC';
+  ctx.strokeStyle = matLit(tier, '#E8E0CC');
   ctx.lineWidth = s * 0.05;
   ctx.stroke();
   ctx.restore();
@@ -296,10 +440,15 @@ function drawArcherTower(ctx: CanvasRenderingContext2D, s: number, aim: number):
 }
 
 /** A cauldron of burning oil, set into the track. */
-function drawCauldron(ctx: CanvasRenderingContext2D, s: number, cooldown: number): void {
+function drawCauldron(
+  ctx: CanvasRenderingContext2D,
+  s: number,
+  cooldown: number,
+  tier: Tier,
+): void {
   ellipse(ctx, 0, s * 0.1, s * 0.9, s * 0.6, '#2A2016', true);
 
-  ctx.fillStyle = '#3E3A38';
+  ctx.fillStyle = mat(tier, '#3E3A38');
   ctx.beginPath();
   ctx.ellipse(0, -s * 0.05, s * 0.62, s * 0.44, 0, 0, Math.PI * 2);
   ctx.fill();
@@ -328,7 +477,7 @@ function drawCauldron(ctx: CanvasRenderingContext2D, s: number, cooldown: number
   }
 }
 
-function drawFrostTower(ctx: CanvasRenderingContext2D, s: number): void {
+function drawFrostTower(ctx: CanvasRenderingContext2D, s: number, tier: Tier): void {
   // An ice spire: a tall crystal with two shoulders.
   ctx.fillStyle = '#7FB8CC';
   poly(ctx, [[-0.4, 0.36], [-0.24, -0.5], [0, -1.0], [0.24, -0.5], [0.4, 0.36]], s);
@@ -344,10 +493,22 @@ function drawFrostTower(ctx: CanvasRenderingContext2D, s: number): void {
     ctx.fill();
     ctx.stroke();
   }
+
+  // A cap forged onto the spire's tip. The crystal itself stays ice — the
+  // upgrade is the setting it is mounted in, not a different element.
+  if (tier.metal) {
+    ctx.fillStyle = tier.metal;
+    poly(ctx, [[-0.17, -0.62], [0, -1.05], [0.17, -0.62]], s);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = tier.metalLit;
+    poly(ctx, [[-0.07, -0.7], [0, -0.98], [0.03, -0.68]], s);
+    ctx.fill();
+  }
 }
 
 /** A wheeled gunpowder cannon. Barrel tracks the target. */
-function drawCannon(ctx: CanvasRenderingContext2D, s: number, aim: number): void {
+function drawCannon(ctx: CanvasRenderingContext2D, s: number, aim: number, tier: Tier): void {
   // Carriage.
   ctx.fillStyle = '#5E4830';
   ctx.beginPath();
@@ -366,17 +527,25 @@ function drawCannon(ctx: CanvasRenderingContext2D, s: number, aim: number): void
   poly(ctx, [[-0.42, -0.26], [0.98, -0.2], [0.98, 0.2], [-0.42, 0.26]], s);
   ctx.fill();
   ctx.stroke();
-  ctx.fillStyle = '#6A655C';
+  // The muzzle — where the shell leaves — is this tower's working end.
+  ctx.fillStyle = mat(tier, '#6A655C');
   ctx.beginPath();
   ctx.rect(s * 0.9, -s * 0.26, s * 0.2, s * 0.52);
   ctx.fill();
   ctx.stroke();
+  if (tier.metal) {
+    ctx.fillStyle = tier.metal;
+    ctx.beginPath();
+    ctx.rect(s * 0.1, -s * 0.28, s * 0.14, s * 0.56);
+    ctx.fill();
+    ctx.stroke();
+  }
   circle(ctx, s * 1.0, 0, s * 0.13, '#141210', false);
   ctx.restore();
 }
 
 /** A timbered mine head with a gold seam. No barrel — it never shoots. */
-function drawGoldMine(ctx: CanvasRenderingContext2D, s: number): void {
+function drawGoldMine(ctx: CanvasRenderingContext2D, s: number, tier: Tier): void {
   // Spoil heap.
   ellipse(ctx, 0, s * 0.36, s * 0.98, s * 0.34, '#5A4A32', true);
 
@@ -391,7 +560,8 @@ function drawGoldMine(ctx: CanvasRenderingContext2D, s: number): void {
   ctx.fill();
   ctx.stroke();
 
-  ctx.fillStyle = '#6B5233';
+  // Pit-head timbers, replaced with forged supports as it is upgraded.
+  ctx.fillStyle = mat(tier, '#6B5233');
   ctx.beginPath();
   ctx.rect(-s * 0.6, -s * 0.42, s * 0.16, s * 0.76);
   ctx.rect(s * 0.44, -s * 0.42, s * 0.16, s * 0.76);
@@ -416,7 +586,12 @@ function drawGoldMine(ctx: CanvasRenderingContext2D, s: number): void {
 // --- Tech Age ----------------------------------------------------------------
 
 /** Plated turret with a long barrel and a vented muzzle. */
-function drawGunTurret(ctx: CanvasRenderingContext2D, s: number, aim: number): void {
+function drawGunTurret(
+  ctx: CanvasRenderingContext2D,
+  s: number,
+  aim: number,
+  tier: Tier,
+): void {
   ctx.save();
   ctx.rotate(aim);
 
@@ -425,7 +600,7 @@ function drawGunTurret(ctx: CanvasRenderingContext2D, s: number, aim: number): v
   ctx.fill();
   ctx.stroke();
 
-  ctx.fillStyle = '#39424C';
+  ctx.fillStyle = mat(tier, '#39424C');
   ctx.beginPath();
   ctx.rect(s * 0.2, -s * 0.15, s * 1.02, s * 0.3);
   ctx.fill();
@@ -436,11 +611,16 @@ function drawGunTurret(ctx: CanvasRenderingContext2D, s: number, aim: number): v
   ctx.fillRect(s * 1.0, -s * 0.16, s * 0.07, s * 0.32);
   ctx.restore();
 
-  circle(ctx, 0, 0, s * 0.3, '#5E6B78', true);
+  circle(ctx, 0, 0, s * 0.3, mat(tier, '#5E6B78'), true);
   circle(ctx, -s * 0.08, -s * 0.08, s * 0.13, '#35D6E8', false);
 }
 
-function drawTeslaCoil(ctx: CanvasRenderingContext2D, s: number, cooldown: number): void {
+function drawTeslaCoil(
+  ctx: CanvasRenderingContext2D,
+  s: number,
+  cooldown: number,
+  tier: Tier,
+): void {
   ellipse(ctx, 0, s * 0.2, s * 0.86, s * 0.4, '#2F3640', true);
 
   ctx.fillStyle = '#454E58';
@@ -459,7 +639,8 @@ function drawTeslaCoil(ctx: CanvasRenderingContext2D, s: number, cooldown: numbe
   ctx.strokeStyle = OUTLINE;
   ctx.lineWidth = s * 0.14;
 
-  circle(ctx, 0, -s * 0.68, s * 0.24, '#7AC6D8', true);
+  // The discharge electrode: the part that actually does the work.
+  circle(ctx, 0, -s * 0.68, s * 0.24, mat(tier, '#7AC6D8'), true);
 
   const charged = Math.max(0, 1 - Math.max(0, cooldown) / 1.0);
   if (charged < 0.5) return;
@@ -477,14 +658,14 @@ function drawTeslaCoil(ctx: CanvasRenderingContext2D, s: number, cooldown: numbe
   ctx.lineWidth = s * 0.14;
 }
 
-function drawCryoField(ctx: CanvasRenderingContext2D, s: number): void {
+function drawCryoField(ctx: CanvasRenderingContext2D, s: number, tier: Tier): void {
   // A dish emitter venting vapour.
   ctx.fillStyle = '#3E4A56';
   poly(ctx, [[-0.3, 0.34], [-0.18, -0.1], [0.18, -0.1], [0.3, 0.34]], s);
   ctx.fill();
   ctx.stroke();
 
-  ctx.fillStyle = '#5E93A4';
+  ctx.fillStyle = mat(tier, '#5E93A4');
   ctx.beginPath();
   ctx.ellipse(0, -s * 0.2, s * 0.64, s * 0.26, 0, Math.PI, 0);
   ctx.closePath();
@@ -510,7 +691,7 @@ function drawCryoField(ctx: CanvasRenderingContext2D, s: number): void {
   ctx.lineWidth = s * 0.14;
 }
 
-function drawSingularity(ctx: CanvasRenderingContext2D, s: number): void {
+function drawSingularity(ctx: CanvasRenderingContext2D, s: number, tier: Tier): void {
   ctx.fillStyle = '#2A2F3A';
   ctx.beginPath();
   ctx.ellipse(0, -s * 0.1, s * 0.9, s * 0.34, 0, 0, Math.PI * 2);
@@ -523,8 +704,10 @@ function drawSingularity(ctx: CanvasRenderingContext2D, s: number): void {
   grad.addColorStop(1, '#6A4FA8');
   circle(ctx, 0, -s * 0.1, s * 0.5, grad as unknown as string, true);
 
-  ctx.strokeStyle = '#B79CF0';
-  ctx.lineWidth = s * 0.06;
+  // The containment ring — the only part of a singularity you can actually
+  // build, so it is the part that gets re-forged.
+  ctx.strokeStyle = mat(tier, '#B79CF0');
+  ctx.lineWidth = s * (tier.metal ? 0.09 : 0.06);
   ctx.beginPath();
   ctx.ellipse(0, -s * 0.1, s * 0.78, s * 0.26, 0.3, 0, Math.PI * 2);
   ctx.stroke();
@@ -533,7 +716,7 @@ function drawSingularity(ctx: CanvasRenderingContext2D, s: number): void {
 }
 
 /** A long rifle on a tripod. The scope glint is the tell. */
-function drawSniper(ctx: CanvasRenderingContext2D, s: number, aim: number): void {
+function drawSniper(ctx: CanvasRenderingContext2D, s: number, aim: number, tier: Tier): void {
   // Tripod legs, drawn before the weapon so it sits on top.
   ctx.strokeStyle = '#39424C';
   ctx.lineWidth = s * 0.12;
@@ -558,7 +741,7 @@ function drawSniper(ctx: CanvasRenderingContext2D, s: number, aim: number): void
   ctx.fill();
   ctx.stroke();
 
-  ctx.fillStyle = '#2F3640';
+  ctx.fillStyle = mat(tier, '#2F3640');
   ctx.beginPath();
   ctx.rect(s * 0.24, -s * 0.08, s * 1.5, s * 0.16);
   ctx.fill();
@@ -574,6 +757,51 @@ function drawSniper(ctx: CanvasRenderingContext2D, s: number, aim: number): void
   ctx.stroke();
   circle(ctx, s * 0.44, -s * 0.32, s * 0.1, '#35D6E8', false);
   ctx.restore();
+}
+
+/**
+ * The Tech Age economy building: a plant with a stack and a conveyor. Reads as
+ * industry rather than as a weapon, which is the point — nothing on it aims.
+ */
+function drawFactory(ctx: CanvasRenderingContext2D, s: number, tier: Tier): void {
+  // Shed with a sawtooth roof — the silhouette that says "works" instantly.
+  ctx.fillStyle = '#3E4A56';
+  ctx.beginPath();
+  ctx.rect(-s * 0.86, -s * 0.28, s * 1.5, s * 0.68);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = mat(tier, '#5E6B78');
+  ctx.beginPath();
+  for (let i = 0; i < 3; i++) {
+    const x = -s * 0.86 + i * s * 0.5;
+    ctx.moveTo(x, -s * 0.28);
+    ctx.lineTo(x + s * 0.22, -s * 0.56);
+    ctx.lineTo(x + s * 0.5, -s * 0.56);
+    ctx.lineTo(x + s * 0.5, -s * 0.28);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Chimney.
+  ctx.fillStyle = mat(tier, '#39424C');
+  ctx.beginPath();
+  ctx.rect(s * 0.52, -s * 0.98, s * 0.28, s * 0.74);
+  ctx.fill();
+  ctx.stroke();
+
+  // Lit windows: the tell that it is running and producing.
+  ctx.fillStyle = '#F5C842';
+  for (let i = 0; i < 3; i++) {
+    ctx.fillRect(-s * 0.7 + i * s * 0.44, -s * 0.14, s * 0.24, s * 0.2);
+  }
+
+  const glow = ctx.createRadialGradient(0, s * 0.0, 0, 0, s * 0.0, s * 0.9);
+  glow.addColorStop(0, 'rgba(245, 200, 70, 0.35)');
+  glow.addColorStop(1, 'rgba(245, 200, 70, 0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(-s * 1.0, -s * 1.0, s * 2.0, s * 2.0);
 }
 
 // --- Shared primitives -------------------------------------------------------
@@ -632,26 +860,6 @@ function spike(
   ctx.stroke();
 }
 
-/** Small notches showing upgrade level, so the board shows your investment. */
-function drawLevelPips(
-  ctx: CanvasRenderingContext2D,
-  s: number,
-  level: number,
-  accent: string,
-): void {
-  if (level <= 1) return;
-  ctx.fillStyle = accent;
-  ctx.strokeStyle = OUTLINE;
-  ctx.lineWidth = 1.5;
-  for (let i = 0; i < level - 1; i++) {
-    const x = (i - (level - 2) / 2) * s * 0.34;
-    ctx.beginPath();
-    ctx.arc(x, s * 0.88, s * 0.12, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Projectiles
 // ---------------------------------------------------------------------------
@@ -694,12 +902,24 @@ const SKINS: Record<string, EnemySkin> = {
   bossRegenerator: { body: '#7AC6D8', bodyDark: '#40808E', trim: '#1E4048' },
 };
 
-function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy): void {
+function drawEnemy(
+  ctx: CanvasRenderingContext2D,
+  e: Enemy,
+  pop: { sx: number; sy: number },
+): void {
   const { x, y } = e.pos;
   const r = e.radius;
   const a = Math.atan2(e.dir.y, e.dir.x);
   const skin = SKINS[e.kind] ?? SKINS.runner!;
   const isBoss = e.mechanic !== null;
+
+  // Squash and stretch, applied ABOUT the unit's own centre so the body
+  // deforms in place. Scaling around the origin instead would slide every
+  // enemy toward the top-left corner of the world.
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(pop.sx, pop.sy);
+  ctx.translate(-x, -y);
 
   ctx.lineJoin = 'round';
   ctx.lineWidth = r * 0.2;
@@ -772,6 +992,10 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy): void {
     ctx.fillStyle = `rgba(255, 250, 235, ${Math.min(0.85, e.flash * 6)})`;
     ctx.fill();
   }
+
+  // Out of the squash before the HP bar: a health bar that stretches with the
+  // body is a health bar you misread at exactly the wrong moment.
+  ctx.restore();
 
   if (isBoss || e.hp < e.maxHp) drawHpBar(ctx, e, isBoss);
 }

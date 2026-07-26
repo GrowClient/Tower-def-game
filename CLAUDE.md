@@ -71,6 +71,7 @@ src/
 │   ├── economy.ts        costs, kill bounty, wave clear reward
 │   ├── ages.ts           advancement: unlocks tiers, never transforms towers
 │   ├── perks.ts          the every-5-waves draft and its run-wide effects
+│   ├── combos.ts         overlapping tower fields -> named synergy bonuses
 │   └── events.ts         sim -> presentation event queue
 ├── render/               READS state, never mutates — see rule 2
 │   ├── viewport.ts       16:9 letterbox, DPR, screen <-> world
@@ -79,8 +80,12 @@ src/
 │   ├── renderer.ts       draw orchestration
 │   ├── drawMap.ts        dynamic map overlay: lattice, build mode, ghosts
 │   ├── drawEntities.ts   towers, enemies, projectiles
+│   ├── drawEffects.ts    particles, shockwaves, damage numbers, screen flash
 │   ├── hud.ts            stat strip, build bar, tower panel, button rects
-│   └── screens.ts        pause / run summary / rotate-device overlays
+│   └── screens.ts        pause / summary / perk draft / combos codex
+├── fx/
+│   └── effects.ts        particle + camera state. SECOND SimEvent consumer,
+│                         alongside audio. Wall-clock, never sim time.
 ├── audio/
 │   └── sfx.ts            synthesised SFX, driven by the SimEvent queue
 ├── input/
@@ -88,9 +93,6 @@ src/
 └── platform/
     └── storage.ts        localStorage high score (never touched by core)
 ```
-
-Landing in slice 6, as listed in GAME_DESIGN.md's build order:
-`render/drawEffects.ts`, `fx/effects.ts`.
 
 ---
 
@@ -164,6 +166,28 @@ Landing in slice 6, as listed in GAME_DESIGN.md's build order:
 - **Change one lever at a time.** Difficulty knobs interact: moving eleven
   numbers at once took the median run from wave 7 to wave 46 with no way to
   attribute it.
+- **Effects run on the wall clock, never on sim time.** `fx/` is updated with
+  the real frame delta, so smoke keeps drifting while the game is paused or a
+  perk draft holds the wave clock. Slow motion is `fx.timeScale` scaling the
+  *accumulator* — it feeds fewer whole steps into the loop and never touches
+  `SIM.dt`, so a boss dying dramatically cannot change the run.
+- **Screenshake moves the board, not the chrome.** The HUD is drawn outside the
+  shake transform: text that jitters is text you stop being able to read
+  exactly when a wave is going badly.
+- **An O(n²) sweep runs on a dirty flag, not per step.** Combos re-derive from
+  every tower pair, so `state.combosDirty` is set by placing, selling,
+  upgrading or taking a perk, and `updateTowers` clears it. Anything that can
+  change a range ring has to set it.
+- **A hidden synergy is a trap, not a mechanic.** Anything that silently
+  multiplies a tower must be visible on the board (named links), previewable
+  before purchase (the placement ghost), and listed somewhere the player can
+  read it. A player who never notices a bonus is playing a strictly worse game
+  with no way to find out.
+- **Pacing is not difficulty.** Threat cost per unit doesn't scale with the
+  wave, so the budget curve is really a unit-count curve, and a bigger budget on
+  a fixed spawn interval buys a *longer* wave rather than a harder one. Bound
+  the spawn window instead of hand-tuning the interval decay — it self-corrects
+  when the budget is retuned.
 - **Comment the non-obvious.** Explain *why* (e.g. why the map generator can't
   self-intersect), not *what* the next line does.
 

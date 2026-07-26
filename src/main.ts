@@ -19,8 +19,10 @@ import { step } from './core/sim';
 import { newRun } from './core/state';
 import type { GameState } from './core/types';
 import { isMuted, playEvents, setMuted, unlockAudio } from './audio/sfx';
+import { consumeEvents, newFx, trackEnemies, updateFx } from './fx/effects';
 import { attachInput } from './input/input';
 import { loadBestWave, saveBestWave } from './platform/storage';
+import { accentFor } from './render/palette';
 import { render } from './render/renderer';
 import { resizeCanvas, type Viewport } from './render/viewport';
 import { cycleSpeed, newUiState, speedMultiplier } from './uiState';
@@ -40,6 +42,7 @@ const pinnedSeed = urlSeed !== null && urlSeed !== '' ? Number(urlSeed) >>> 0 : 
 let seedCounter = pinnedSeed ?? Date.now() >>> 0;
 
 const ui = newUiState();
+let fx = newFx();
 let state: GameState = newRun(seedCounter);
 let viewport: Viewport = resizeCanvas(canvas);
 let bestWave = loadBestWave();
@@ -61,6 +64,10 @@ function restart(): void {
   ui.paused = false;
   ui.buildKind = null;
   ui.selectedTowerId = null;
+  ui.showCombos = false;
+  // Otherwise the previous run's smoke, shake and slow motion carry into the
+  // first frame of the new one.
+  fx = newFx();
   scoreBanked = false;
 }
 
@@ -162,7 +169,11 @@ function frame(nowMs: number): void {
   ui.fps += ((frameSec > 0 ? 1 / frameSec : 0) - ui.fps) * 0.1;
 
   if (!ui.paused && state.phase === 'playing') {
-    accumulator += frameSec * speedMultiplier(ui);
+    // fx.timeScale is how boss-kill slow motion works: it feeds FEWER whole
+    // steps into the accumulator. SIM.dt is never touched, so the simulation
+    // cannot tell that anything dramatic happened — a run replays identically
+    // whether or not the moment was ever drawn.
+    accumulator += frameSec * speedMultiplier(ui) * fx.timeScale;
     let steps = 0;
     while (accumulator >= SIM.dt && steps < SIM.maxStepsPerFrame) {
       step(state);
@@ -180,10 +191,17 @@ function frame(nowMs: number): void {
   }
 
   // The event queue must be drained every frame or it grows without bound.
-  // Audio consumes it now; the particle/shake layer joins in slice 6.
-  playEvents(drainEvents(state));
+  // Two consumers now, neither of which the sim knows about: sound and juice.
+  const events = drainEvents(state);
+  playEvents(events);
+  consumeEvents(fx, events, accentFor(state.age));
 
-  render(ctx!, viewport, state, ui, bestWave);
+  // Effects run on the WALL clock, not sim time, so smoke keeps drifting while
+  // the game is paused or a perk draft is holding the wave clock.
+  trackEnemies(fx, state.enemies);
+  updateFx(fx, frameSec, new Set(state.enemies.map((e) => e.id)));
+
+  render(ctx!, viewport, state, ui, bestWave, fx);
   requestAnimationFrame(frame);
 }
 

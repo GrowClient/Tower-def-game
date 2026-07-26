@@ -8,14 +8,16 @@
  * Render rule: reads game state, never mutates it.
  */
 
-import { TOWERS } from '../config/balance';
+import { COMBOS, TOWERS, type ComboKey } from '../config/balance';
+import { comboPartners, previewCombos } from '../core/combos';
 import { cellOrigin, cellCenter, inBounds } from '../core/grid';
 import { placementError } from '../core/towers';
 import { towerRange } from '../core/towers';
 import { CellKind, type GameState, type Tower } from '../core/types';
 import type { UiState } from '../uiState';
-import { COLORS } from './palette';
+import { COLORS, font } from './palette';
 import { drawTowerArt } from './drawEntities';
+import { roundRect } from './hud';
 import { biomeFor } from './palette';
 
 /**
@@ -122,6 +124,121 @@ export function drawPlacementGhost(
   ctx.translate(center.x, center.y);
   drawTowerArt(ctx, kind, layout.cellSize * 0.34, 0, 0, biomeFor(state.age));
   ctx.restore();
+}
+
+/**
+ * Combo links: a line between every pair of towers currently comboing.
+ *
+ * Shown only while a tower is selected or a build tool is armed, because a
+ * mature board has dozens of links and drawing them permanently turns the map
+ * into a cat's cradle. Those two moments are exactly when the player is asking
+ * "what does this touch?", which is the question the links answer.
+ */
+export function drawComboLinks(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  ui: UiState,
+  selected: Tower | null,
+): void {
+  if (selected === null && ui.buildKind === null) return;
+
+  ctx.save();
+  ctx.lineCap = 'round';
+
+  // For a selected tower: only its own links, so the answer is unambiguous.
+  if (selected) {
+    for (const { partner, keys } of comboPartners(state, selected)) {
+      linkLine(ctx, selected.pos, partner.pos, comboColor(keys[0]!), 3, 1);
+      labelMidpoint(ctx, selected.pos, partner.pos, keys, 1);
+    }
+    ctx.restore();
+    return;
+  }
+
+  // While building: preview what the tower under the cursor WOULD gain, so a
+  // combo can be seen before it is paid for rather than discovered after.
+  const kind = ui.buildKind;
+  if (kind === null || ui.pointer === null) {
+    ctx.restore();
+    return;
+  }
+  const { layout } = state;
+  const cx = Math.floor((ui.pointer.x - layout.originX) / layout.cellSize);
+  const cy = Math.floor((ui.pointer.y - layout.originY) / layout.cellSize);
+  if (!inBounds(state.map, cx, cy)) {
+    ctx.restore();
+    return;
+  }
+  const center = cellCenter(layout, cx, cy);
+  for (const { partner, keys } of previewCombos(state, kind, center)) {
+    linkLine(ctx, center, partner.pos, comboColor(keys[0]!), 3.5, 0.9);
+    labelMidpoint(ctx, center, partner.pos, keys, 0.9);
+  }
+  ctx.restore();
+}
+
+function linkLine(
+  ctx: CanvasRenderingContext2D,
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  color: string,
+  width: number,
+  alpha: number,
+): void {
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+  ctx.lineWidth = width + 2.5;
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(b.x, b.y);
+  ctx.stroke();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
+/** The combo's name, on the link itself — naming it is how it gets learned. */
+function labelMidpoint(
+  ctx: CanvasRenderingContext2D,
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  keys: ComboKey[],
+  alpha: number,
+): void {
+  const mx = (a.x + b.x) / 2;
+  const my = (a.y + b.y) / 2;
+  const text = keys.map((k) => COMBOS.find((c) => c.key === k)?.label ?? k).join(' + ');
+
+  ctx.globalAlpha = alpha;
+  ctx.font = font(13);
+  ctx.textAlign = 'center';
+  const w = ctx.measureText(text).width;
+  ctx.fillStyle = 'rgba(10, 8, 6, 0.82)';
+  roundRect(ctx, mx - w / 2 - 7, my - 11, w + 14, 20, 5);
+  ctx.fill();
+  ctx.fillStyle = comboColor(keys[0]!);
+  ctx.fillText(text, mx, my + 4);
+  ctx.textAlign = 'left';
+  ctx.globalAlpha = 1;
+}
+
+/** One colour per combo, so a link is identifiable before you read its label. */
+export function comboColor(key: ComboKey): string {
+  switch (key) {
+    case 'thermalShock':
+      return '#FF9A5C';
+    case 'shatter':
+      return '#9FD8F0';
+    case 'conduction':
+      return '#BFF4FF';
+    case 'spotter':
+      return '#C8E88A';
+    case 'killZone':
+      return '#F0C46A';
+    case 'foundry':
+      return '#E8B93D';
+  }
 }
 
 /** Range ring for the tower whose panel is open. */

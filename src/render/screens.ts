@@ -6,6 +6,7 @@
  */
 
 import {
+  COMBOS,
   ENEMIES,
   PERKS,
   TOWERS,
@@ -14,6 +15,7 @@ import {
   type TowerKind,
 } from '../config/balance';
 import type { GameState } from '../core/types';
+import { comboColor } from './drawMap';
 import { COLORS, font, type Biome } from './palette';
 import { roundRect, type Rect } from './hud';
 import type { Viewport } from './viewport';
@@ -115,6 +117,103 @@ function wrapText(
     }
   }
   if (line) ctx.fillText(line, cx, cursor);
+}
+
+/**
+ * The combos reference sheet.
+ *
+ * A hidden synergy is a trap, not a mechanic: a player who never notices that
+ * ice next to fire is worth 50% damage is playing a strictly worse game and
+ * has no way to find out. So every combo is listed up front, with the two tags
+ * that make it and what it pays — and the board draws the links live while you
+ * build, so the sheet is a reminder rather than something to memorise.
+ */
+export function drawCombosCodex(ctx: CanvasRenderingContext2D, biome: Biome): void {
+  scrim(ctx, 0.88);
+
+  ctx.textAlign = 'center';
+  ctx.font = font(42);
+  ctx.fillStyle = biome.accent;
+  ctx.fillText('TOWER COMBOS', WORLD.width / 2, 96);
+  ctx.font = font(18);
+  ctx.fillStyle = COLORS.textDim;
+  ctx.fillText(
+    'two towers whose rings overlap both get stronger — a combo counts once, however many partners',
+    WORLD.width / 2,
+    126,
+  );
+
+  const cols = 2;
+  const cardW = 690;
+  const cardH = 104;
+  const gapX = 28;
+  const gapY = 18;
+  const startX = (WORLD.width - (cols * cardW + (cols - 1) * gapX)) / 2;
+
+  COMBOS.forEach((combo, i) => {
+    const cx = startX + (i % cols) * (cardW + gapX);
+    const cy = 164 + Math.floor(i / cols) * (cardH + gapY);
+
+    ctx.fillStyle = 'rgba(26, 21, 15, 0.94)';
+    roundRect(ctx, cx, cy, cardW, cardH, 12);
+    ctx.fill();
+    ctx.strokeStyle = comboColor(combo.key);
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = comboColor(combo.key);
+    ctx.font = font(24);
+    ctx.fillText(combo.label, cx + 22, cy + 40);
+
+    // The two tags that form it, as chips, right-aligned on the title row.
+    // Laid out from the right edge because the chips vary a lot in width
+    // (ECONOMY vs ICE), and running them left-to-right pushed the description
+    // off the card for the widest pairs.
+    const tags = [combo.a, combo.b].map((t) => t.toUpperCase());
+    ctx.font = font(14);
+    const chipW = tags.map((t) => ctx.measureText(t).width + 18);
+    let tagX = cx + cardW - 22 - chipW.reduce((a, b) => a + b, 0) - (tags.length - 1) * 8;
+    tags.forEach((tag, k) => {
+      ctx.fillStyle = 'rgba(255,255,255,0.09)';
+      roundRect(ctx, tagX, cy + 22, chipW[k]!, 24, 6);
+      ctx.fill();
+      ctx.strokeStyle = comboColor(combo.key);
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      ctx.fillStyle = COLORS.text;
+      ctx.fillText(tag, tagX + 9, cy + 39);
+      tagX += chipW[k]! + 8;
+    });
+
+    // Description on its own full-width line, so no pairing can crowd it out.
+    ctx.fillStyle = COLORS.textDim;
+    ctx.font = font(16);
+    ctx.fillText(combo.detail, cx + 22, cy + 76);
+  });
+
+  // Which tower carries which tag — otherwise the tags above are abstractions.
+  const legendY = 164 + Math.ceil(COMBOS.length / cols) * (cardH + gapY) + 22;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = COLORS.textDim;
+  ctx.font = font(15);
+  ctx.fillText('WHICH TOWERS CARRY WHICH TAG', WORLD.width / 2, legendY);
+
+  const tags = [...new Set(COMBOS.flatMap((c) => [c.a, c.b]))];
+  ctx.font = font(14);
+  tags.forEach((tag, i) => {
+    const owners = (Object.keys(TOWERS) as TowerKind[])
+      .filter((k) => (TOWERS[k].tags as readonly string[]).includes(tag))
+      .map((k) => TOWERS[k].label)
+      .join(', ');
+    ctx.fillStyle = COLORS.text;
+    ctx.fillText(`${tag.toUpperCase()} — ${owners}`, WORLD.width / 2, legendY + 26 + i * 21);
+  });
+
+  ctx.font = font(19);
+  ctx.fillStyle = COLORS.textDim;
+  ctx.fillText('tap the button or press C to close', WORLD.width / 2, WORLD.height - 26);
+  ctx.textAlign = 'left';
 }
 
 export function drawPauseOverlay(ctx: CanvasRenderingContext2D): void {

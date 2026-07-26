@@ -59,6 +59,11 @@ export function choosePerk(state: GameState, key: PerkKey): boolean {
   // 'lives' is the one perk with an immediate effect rather than a multiplier.
   if (key === 'lives') state.lives += PERK_RULES.livesPerStack;
 
+  // Farsight widens every ring at once, which can form combos across the whole
+  // board. Cheaper to re-sweep on any perk than to special-case which ones
+  // move ranges and silently miss one added later.
+  state.combosDirty = true;
+
   emit(state, { type: 'perkChosen', key });
   return true;
 }
