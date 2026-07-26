@@ -302,9 +302,17 @@ the fx layer turns them into visuals.
 
 Each slice is independently runnable and gets its own commit.
 
-1. Scaffold, letterboxed canvas, seeded map generation, path, one enemy walking
-2. Tower placement, targeting, projectiles, economy
-3. Waves, scaling curves, lives, game over
-4. All six enemy types and bosses
-5. Age advancement and branching
-6. Juice, run summary, high score, balance tuning
+1. ✅ Scaffold, letterboxed canvas, seeded map generation, path, one enemy walking
+2. ✅ Tower placement, targeting, projectiles, economy
+3. ✅ Waves, scaling curves, lives, game over, run summary, high score
+4. ✅ All six enemy types and bosses
+5. ✅ All three ages, selling, the perk draft, synthesised sound
+6. ⬜ **Juice pass and balance tuning** — everything under *Feel*, above, plus
+   pricing the age advance against real playtests
+
+Slice 6 is the only one left. Everything it needs from the sim already exists:
+`core/events.ts` emits `hit`, `kill`, `bossKilled`, `lifeLost` and
+`ageAdvanced`, and `audio/sfx.ts` is currently the queue's only consumer. The
+work is to add a second consumer — `fx/effects.ts` holding the particle and
+camera state, drawn by `render/drawEffects.ts` — without the sim learning that
+either exists.

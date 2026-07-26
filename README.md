@@ -82,7 +82,7 @@ npm run preview     # serve the production build
 
 ## Status
 
-Built in vertical slices. Currently through **slice 3**:
+Built in vertical slices. Shipped so far:
 
 1. Seeded map generation, terrain, the path, enemies walking it
 2. Tower placement, targeting, projectiles, upgrades, gold
@@ -91,5 +91,14 @@ Built in vertical slices. Currently through **slice 3**:
 5. All three ages, selling towers, the perk draft, and synthesised sound
 6. Per-age tower art, Gold Mines, Snipers, and a costlier age advance
 
-Next: the juice and balance pass (slice 6) — screenshake, particles, damage
-numbers, and tuning against real playtests.
+**Still to do — the juice pass.** Screenshake, hit-flash, squash/stretch,
+particle bursts on death, floating damage numbers, slow-motion on a boss kill,
+and a full-screen flash + shockwave when an age advances. The sim already
+pushes every `SimEvent` these need; only `audio/sfx.ts` drains that queue
+today. The two files this pass adds — `src/fx/effects.ts` and
+`src/render/drawEffects.ts` — are already named in
+[CLAUDE.md](./CLAUDE.md)'s file map.
+
+Alongside it: balance tuning against real playtests, in particular whether
+advancing an age at 1000 gold *feels* worth it. A scripted bot can't answer
+that one — see [GAME_DESIGN.md](./GAME_DESIGN.md).
