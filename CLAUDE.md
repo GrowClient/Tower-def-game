@@ -76,7 +76,7 @@ src/
 │   ├── terrain.ts        procedural ground + track, baked once per run
 │   ├── renderer.ts       draw orchestration
 │   ├── drawMap.ts        dynamic map overlay: lattice, build mode, ghosts
-│   ├── drawEntities.ts   enemies (towers, projectiles later)
+│   ├── drawEntities.ts   towers, enemies, projectiles
 │   ├── hud.ts            stat strip, build bar, tower panel, button rects
 │   └── screens.ts        pause / run summary / rotate-device overlays
 ├── input/
