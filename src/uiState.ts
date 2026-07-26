@@ -23,6 +23,9 @@ export interface UiState {
   buildKind: TowerKind | null;
   /** Tower whose info panel is open, or null. */
   selectedTowerId: number | null;
+  /** True while the browser reports we own the screen. Mirrored from the
+   *  fullscreenchange event rather than queried per frame. */
+  fullscreen: boolean;
   /** Smoothed frames-per-second, for the debug corner. */
   fps: number;
 }
@@ -34,6 +37,7 @@ export function newUiState(): UiState {
     pointer: null,
     buildKind: null,
     selectedTowerId: null,
+    fullscreen: false,
     fps: 0,
   };
 }

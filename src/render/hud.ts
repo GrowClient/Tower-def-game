@@ -33,8 +33,24 @@ export interface Rect {
 }
 
 export interface HudButton extends Rect {
-  id: 'pause' | 'speed' | 'restart';
+  id: 'pause' | 'speed' | 'restart' | 'fullscreen';
 }
+
+/**
+ * Whether to offer a fullscreen control at all.
+ *
+ * The Fullscreen API is unavailable on iPhone Safari (iPad has it), and it is
+ * also blocked inside an iframe that wasn't granted the permission. A button
+ * that silently does nothing is worse than no button, so the control is only
+ * built when the browser actually reports the capability — and because input
+ * hit-tests this same array, it can't be tapped when it isn't drawn.
+ */
+const FULLSCREEN_AVAILABLE: boolean =
+  typeof document !== 'undefined' &&
+  Boolean(
+    document.fullscreenEnabled ||
+      (document as Document & { webkitFullscreenEnabled?: boolean }).webkitFullscreenEnabled,
+  );
 
 export interface BuildButton extends Rect {
   kind: TowerKind;
@@ -45,15 +61,20 @@ const BTN_H = 52;
 const BTN_GAP = 10;
 
 /** Right-aligned button cluster in the top strip. */
-export const HUD_BUTTONS: HudButton[] = (['pause', 'speed', 'restart'] as const).map(
-  (id, i) => ({
+const HUD_BUTTON_IDS: HudButton['id'][] = FULLSCREEN_AVAILABLE
+  ? ['fullscreen', 'pause', 'speed', 'restart']
+  : ['pause', 'speed', 'restart'];
+
+export const HUD_BUTTONS: HudButton[] = HUD_BUTTON_IDS.map((id, i) => {
+  const n = HUD_BUTTON_IDS.length;
+  return {
     id,
-    x: WORLD.width - 24 - (BTN_W * 3 + BTN_GAP * 2) + i * (BTN_W + BTN_GAP),
+    x: WORLD.width - 24 - (BTN_W * n + BTN_GAP * (n - 1)) + i * (BTN_W + BTN_GAP),
     y: (WORLD.hudTop - BTN_H) / 2,
     w: BTN_W,
     h: BTN_H,
-  }),
-);
+  };
+});
 
 const BUILD_W = 168;
 const BUILD_H = 84;
@@ -126,6 +147,8 @@ function drawTopStrip(
     if (b.id === 'pause') button(ctx, b, null, COLORS.text, ui.paused ? 'play' : 'pause');
     else if (b.id === 'speed')
       button(ctx, b, `${speedMultiplier(ui)}×`, ui.speedIndex > 0 ? accent : COLORS.text);
+    else if (b.id === 'fullscreen')
+      button(ctx, b, null, ui.fullscreen ? accent : COLORS.text, ui.fullscreen ? 'exitFull' : 'enterFull');
     else button(ctx, b, '↻', COLORS.text);
   }
 }
@@ -357,7 +380,7 @@ function button(
   b: HudButton,
   label: string | null,
   color: string,
-  icon?: 'play' | 'pause',
+  icon?: 'play' | 'pause' | 'enterFull' | 'exitFull',
 ): void {
   const grad = ctx.createLinearGradient(0, b.y, 0, b.y + b.h);
   grad.addColorStop(0, '#453B2C');
@@ -390,6 +413,32 @@ function button(
     ctx.lineTo(cx - 7, cy + 12);
     ctx.closePath();
     ctx.fill();
+    return;
+  }
+  if (icon === 'enterFull' || icon === 'exitFull') {
+    // Four corner brackets, pointing out to expand and in to collapse.
+    const out = icon === 'enterFull';
+    const o = 13;
+    const len = 8;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
+      const px = cx + sx * o;
+      const py = cy + sy * o;
+      ctx.beginPath();
+      if (out) {
+        ctx.moveTo(px - sx * len, py);
+        ctx.lineTo(px, py);
+        ctx.lineTo(px, py - sy * len);
+      } else {
+        ctx.moveTo(px, py - sy * len);
+        ctx.lineTo(px, py);
+        ctx.lineTo(px - sx * len, py);
+      }
+      ctx.stroke();
+    }
+    ctx.lineCap = 'butt';
     return;
   }
 

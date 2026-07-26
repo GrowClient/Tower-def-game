@@ -77,8 +77,52 @@ attachInput(
     placeTower: (kind, cx, cy) => queueIntent(state, { type: 'placeTower', kind, cx, cy }),
     upgradeTower: (towerId) => queueIntent(state, { type: 'upgradeTower', towerId }),
     cycleTargetMode: (towerId) => queueIntent(state, { type: 'cycleTargetMode', towerId }),
+    toggleFullscreen,
   },
 );
+
+/**
+ * Fullscreen, for playing on a phone without the browser's address bar eating
+ * a fifth of the screen.
+ *
+ * Must be called from inside a user gesture or browsers reject it, which is
+ * why it hangs off the tap handler rather than running at startup. Safari
+ * still uses the webkit-prefixed names. Failure is swallowed deliberately: a
+ * rejected fullscreen request is not a reason to interrupt a run.
+ */
+function toggleFullscreen(): void {
+  const doc = document as Document & {
+    webkitFullscreenElement?: Element | null;
+    webkitExitFullscreen?: () => Promise<void>;
+  };
+  const el = document.documentElement as HTMLElement & {
+    webkitRequestFullscreen?: () => Promise<void>;
+  };
+
+  const active = doc.fullscreenElement ?? doc.webkitFullscreenElement ?? null;
+  try {
+    if (active) {
+      void (doc.exitFullscreen?.() ?? doc.webkitExitFullscreen?.());
+    } else {
+      void (el.requestFullscreen?.() ?? el.webkitRequestFullscreen?.());
+    }
+  } catch {
+    // Blocked by the browser or the embedding frame — leave the run alone.
+  }
+}
+
+// Mirror the browser's actual state rather than assuming the toggle worked:
+// the user can leave fullscreen with the system back gesture or Esc, and the
+// button icon has to follow.
+for (const evt of ['fullscreenchange', 'webkitfullscreenchange']) {
+  document.addEventListener(evt, () => {
+    const doc = document as Document & { webkitFullscreenElement?: Element | null };
+    ui.fullscreen = Boolean(doc.fullscreenElement ?? doc.webkitFullscreenElement);
+    // The viewport changes size on entering/leaving, and orientationchange
+    // doesn't always fire for it.
+    viewport = resizeCanvas(canvas!);
+  });
+}
 
 /**
  * Dev-only inspection hook. `import.meta.env.DEV` is false in a production

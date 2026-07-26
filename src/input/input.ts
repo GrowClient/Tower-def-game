@@ -31,6 +31,7 @@ export interface InputActions {
   placeTower(kind: TowerKind, cx: number, cy: number): void;
   upgradeTower(towerId: number): void;
   cycleTargetMode(towerId: number): void;
+  toggleFullscreen(): void;
 }
 
 export function attachInput(
@@ -123,6 +124,7 @@ function handleTap(
     if (!hitTest(b, x, y)) continue;
     if (b.id === 'pause') actions.togglePause();
     else if (b.id === 'speed') actions.cycleSpeed();
+    else if (b.id === 'fullscreen') actions.toggleFullscreen();
     else actions.restart();
     return;
   }

@@ -19,6 +19,11 @@ The dev server binds all interfaces, so to play on a phone open the **Network**
 URL that Vite prints (e.g. `http://192.168.1.42:5173`) on a device on the same
 Wi-Fi. Hold the phone in landscape.
 
+Tap the **⛶** button in the top-right for fullscreen — worth it on a phone,
+where the browser's address bar otherwise eats a chunk of the board. The
+button is only shown when the browser actually supports it (iPhone Safari does
+not; iPad and Android Chrome do).
+
 ## Controls
 
 | Action | Mouse / keyboard | Touch |
@@ -30,6 +35,7 @@ Wi-Fi. Hold the phone in landscape.
 | Place it | click a highlighted cell | tap a highlighted cell |
 | Inspect / upgrade | click a placed tower | tap a placed tower |
 | Cancel | `Esc` | tap empty ground |
+| Fullscreen | the ⛶ button | tap ⛶ |
 
 ## Reproducing a run
 
