@@ -12,6 +12,12 @@ Deployed from the default branch on every push:
 
 **https://growclient.github.io/Tower-def-game/**
 
+> **One-time setup:** GitHub Pages must be enabled once, by hand, at
+> *Settings → Pages → Build and deployment → Source: **GitHub Actions***.
+> The workflow cannot do this itself — creating a Pages site needs admin
+> permission the default `GITHUB_TOKEN` doesn't carry. After that single
+> toggle, every push deploys automatically.
+
 That is a top-level page, which matters: the Fullscreen API is gated by a
 permission the embedding page must grant, so an embedded copy can never go
 fullscreen. From this URL the ⛶ button works, and on iOS — where the
