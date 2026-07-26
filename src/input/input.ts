@@ -9,18 +9,22 @@
  * or emits an Intent, which the sim applies at the start of its next step.
  */
 
-import { WORLD, type TowerKind } from '../config/balance';
+import { WORLD, type PerkKey, type TowerKind } from '../config/balance';
 import { worldToCell } from '../core/grid';
 import { inBounds } from '../core/grid';
 import type { GameState } from '../core/types';
 import {
-  BUILD_BUTTONS,
+  ADVANCE_BUTTON,
   HUD_BUTTONS,
   PANEL,
+  SELL_BUTTON,
   TARGET_BUTTON,
   UPGRADE_BUTTON,
+  buildButtons,
   hitTest,
 } from '../render/hud';
+import { PERK_CARDS } from '../render/screens';
+import { placementError } from '../core/towers';
 import { screenToWorld, type Viewport } from '../render/viewport';
 import { armBuild, selectTower, type UiState } from '../uiState';
 
@@ -30,8 +34,12 @@ export interface InputActions {
   restart(): void;
   placeTower(kind: TowerKind, cx: number, cy: number): void;
   upgradeTower(towerId: number): void;
+  sellTower(towerId: number): void;
   cycleTargetMode(towerId: number): void;
+  advanceAge(): void;
+  choosePerk(key: PerkKey): void;
   toggleFullscreen(): void;
+  toggleMute(): void;
 }
 
 export function attachInput(
@@ -93,12 +101,16 @@ export function attachInput(
         armBuild(ui, null);
         selectTower(ui, null);
         break;
+      case 'm':
+      case 'M':
+        actions.toggleMute();
+        break;
       // Number keys arm the build tools, matching the bar order.
       case '1':
       case '2':
       case '3':
       case '4': {
-        const btn = BUILD_BUTTONS[Number(e.key) - 1];
+        const btn = buildButtons(getState().age)[Number(e.key) - 1];
         if (btn) armBuild(ui, btn.kind);
         break;
       }
@@ -120,18 +132,34 @@ function handleTap(
   x: number,
   y: number,
 ): void {
+  // A perk draft is modal: it takes the whole screen and nothing behind it is
+  // reachable, so it must be resolved before anything else is considered.
+  if (state.perkChoices !== null) {
+    state.perkChoices.forEach((key, i) => {
+      const card = PERK_CARDS[i];
+      if (card && hitTest(card, x, y)) actions.choosePerk(key);
+    });
+    return;
+  }
+
   for (const b of HUD_BUTTONS) {
     if (!hitTest(b, x, y)) continue;
     if (b.id === 'pause') actions.togglePause();
     else if (b.id === 'speed') actions.cycleSpeed();
     else if (b.id === 'fullscreen') actions.toggleFullscreen();
+    else if (b.id === 'mute') actions.toggleMute();
     else actions.restart();
     return;
   }
 
-  for (const b of BUILD_BUTTONS) {
+  for (const b of buildButtons(state.age)) {
     if (!hitTest(b, x, y)) continue;
     armBuild(ui, b.kind);
+    return;
+  }
+
+  if (hitTest(ADVANCE_BUTTON, x, y)) {
+    actions.advanceAge();
     return;
   }
 
@@ -143,6 +171,11 @@ function handleTap(
     }
     if (hitTest(TARGET_BUTTON, x, y)) {
       actions.cycleTargetMode(ui.selectedTowerId);
+      return;
+    }
+    if (hitTest(SELL_BUTTON, x, y)) {
+      actions.sellTower(ui.selectedTowerId);
+      selectTower(ui, null); // the panel's subject no longer exists
       return;
     }
     if (hitTest(PANEL, x, y)) return;
@@ -160,6 +193,14 @@ function handleTap(
 
   if (ui.buildKind !== null) {
     actions.placeTower(ui.buildKind, cell.cx, cell.cy);
+    // Disarm after a placement that will actually succeed, so one tap on the
+    // build bar buys exactly one tower. Checked with the SAME placementError
+    // the simulation uses to accept the intent, so a rejected tap (no gold,
+    // occupied cell, wrong terrain) leaves the tool armed for a retry rather
+    // than silently dropping it.
+    if (placementError(state, ui.buildKind, cell.cx, cell.cy) === null) {
+      armBuild(ui, null);
+    }
     return;
   }
 

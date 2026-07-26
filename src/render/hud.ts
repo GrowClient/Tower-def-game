@@ -11,6 +11,7 @@
  */
 
 import {
+  AGES,
   BUILD_ORDER,
   TARGET_MODE_LABELS,
   TOWERS,
@@ -18,8 +19,9 @@ import {
   WORLD,
   type TowerKind,
 } from '../config/balance';
+import { advanceCost, isMaxAge } from '../core/ages';
 import { upgradeCost } from '../core/economy';
-import { towerDamage, towerRange } from '../core/towers';
+import { sellValue, towerDamage, towerRange } from '../core/towers';
 import type { GameState, Tower } from '../core/types';
 import type { UiState } from '../uiState';
 import { speedMultiplier } from '../uiState';
@@ -33,7 +35,7 @@ export interface Rect {
 }
 
 export interface HudButton extends Rect {
-  id: 'pause' | 'speed' | 'restart' | 'fullscreen';
+  id: 'pause' | 'speed' | 'restart' | 'fullscreen' | 'mute';
 }
 
 /**
@@ -62,8 +64,8 @@ const BTN_GAP = 10;
 
 /** Right-aligned button cluster in the top strip. */
 const HUD_BUTTON_IDS: HudButton['id'][] = FULLSCREEN_AVAILABLE
-  ? ['fullscreen', 'pause', 'speed', 'restart']
-  : ['pause', 'speed', 'restart'];
+  ? ['mute', 'fullscreen', 'pause', 'speed', 'restart']
+  : ['mute', 'pause', 'speed', 'restart'];
 
 export const HUD_BUTTONS: HudButton[] = HUD_BUTTON_IDS.map((id, i) => {
   const n = HUD_BUTTON_IDS.length;
@@ -85,21 +87,40 @@ const BUILD_GAP = 14;
  * at the smallest supported window this is still well over the ~44px minimum
  * comfortable touch target on a phone held in landscape.
  */
-export const BUILD_BUTTONS: BuildButton[] = BUILD_ORDER.map((kind, i) => {
-  const total = BUILD_ORDER.length * BUILD_W + (BUILD_ORDER.length - 1) * BUILD_GAP;
-  return {
+/**
+ * The build bar shows the CURRENT age's four towers. Geometry is identical
+ * across ages so the buttons never move under the player's thumb — only the
+ * contents change when you advance.
+ */
+export function buildButtons(age: number): BuildButton[] {
+  const kinds = BUILD_ORDER[Math.min(age, BUILD_ORDER.length - 1)]!;
+  const total = kinds.length * BUILD_W + (kinds.length - 1) * BUILD_GAP;
+  return kinds.map((kind, i) => ({
     kind,
     x: (WORLD.width - total) / 2 + i * (BUILD_W + BUILD_GAP),
     y: WORLD.height - WORLD.hudBottom + (WORLD.hudBottom - BUILD_H) / 2,
     w: BUILD_W,
     h: BUILD_H,
-  };
-});
+  }));
+}
 
 /** Buttons inside the selected-tower panel. */
-export const UPGRADE_BUTTON: Rect = { x: WORLD.width - 268, y: WORLD.hudTop + 126, w: 244, h: 50 };
-export const TARGET_BUTTON: Rect = { x: WORLD.width - 268, y: WORLD.hudTop + 182, w: 244, h: 42 };
-export const PANEL: Rect = { x: WORLD.width - 288, y: WORLD.hudTop + 16, w: 264, h: 222 };
+export const UPGRADE_BUTTON: Rect = { x: WORLD.width - 268, y: WORLD.hudTop + 126, w: 244, h: 48 };
+export const TARGET_BUTTON: Rect = { x: WORLD.width - 268, y: WORLD.hudTop + 180, w: 244, h: 40 };
+export const SELL_BUTTON: Rect = { x: WORLD.width - 268, y: WORLD.hudTop + 226, w: 244, h: 40 };
+export const PANEL: Rect = { x: WORLD.width - 288, y: WORLD.hudTop + 16, w: 264, h: 264 };
+
+/**
+ * Advance-age button, bottom-left of the board. Deliberately large and always
+ * visible rather than buried in a menu: it is the most important decision in
+ * the game and the player has to be able to see the price they're saving for.
+ */
+export const ADVANCE_BUTTON: Rect = {
+  x: 24,
+  y: WORLD.height - WORLD.hudBottom - 74,
+  w: 286,
+  h: 58,
+};
 
 export function drawHud(
   ctx: CanvasRenderingContext2D,
@@ -109,8 +130,54 @@ export function drawHud(
 ): void {
   const accent = biomeFor(ageIndex).accent;
   drawTopStrip(ctx, state, ui, ageIndex, accent);
+  drawAdvanceButton(ctx, state, accent);
   drawBuildBar(ctx, state, ui, accent);
   drawSelectionPanel(ctx, state, ui, accent);
+}
+
+/** The age button: what it costs, or that you're already at the last age. */
+function drawAdvanceButton(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  accent: string,
+): void {
+  const b = ADVANCE_BUTTON;
+  if (isMaxAge(state)) {
+    panel(ctx, b, 'rgba(26, 21, 15, 0.8)', 'rgba(0,0,0,0.5)', 2);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = COLORS.textDim;
+    ctx.font = font(17);
+    ctx.fillText('FINAL AGE', b.x + b.w / 2, b.y + 35);
+    ctx.textAlign = 'left';
+    return;
+  }
+
+  const cost = advanceCost(state) ?? 0;
+  const affordable = state.gold >= cost;
+  const nextName = AGES[state.age + 1]?.name ?? '';
+
+  panel(
+    ctx,
+    b,
+    affordable ? '#4A3D24' : 'rgba(26, 21, 15, 0.88)',
+    affordable ? accent : 'rgba(0,0,0,0.55)',
+    affordable ? 3 : 2,
+  );
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = COLORS.textDim;
+  ctx.font = font(12);
+  ctx.fillText('ADVANCE TO', b.x + 16, b.y + 21);
+
+  ctx.fillStyle = affordable ? COLORS.text : '#7A705F';
+  ctx.font = font(20);
+  ctx.fillText(nextName.toUpperCase(), b.x + 16, b.y + 45);
+
+  ctx.textAlign = 'right';
+  ctx.fillStyle = affordable ? '#F0C46A' : '#8A6E42';
+  ctx.font = font(23);
+  ctx.fillText(`${cost}g`, b.x + b.w - 16, b.y + 40);
+  ctx.textAlign = 'left';
 }
 
 // ---------------------------------------------------------------------------
@@ -149,6 +216,8 @@ function drawTopStrip(
       button(ctx, b, `${speedMultiplier(ui)}×`, ui.speedIndex > 0 ? accent : COLORS.text);
     else if (b.id === 'fullscreen')
       button(ctx, b, null, ui.fullscreen ? accent : COLORS.text, ui.fullscreen ? 'exitFull' : 'enterFull');
+    else if (b.id === 'mute')
+      button(ctx, b, null, ui.muted ? '#7A705F' : COLORS.text, ui.muted ? 'muted' : 'sound');
     else button(ctx, b, '↻', COLORS.text);
   }
 }
@@ -192,7 +261,7 @@ function drawBuildBar(
   const y = WORLD.height - WORLD.hudBottom;
   slab(ctx, 0, y, WORLD.width, WORLD.hudBottom, 'up', accent);
 
-  for (const b of BUILD_BUTTONS) {
+  for (const b of buildButtons(state.age)) {
     const def = TOWERS[b.kind]!;
     const affordable = state.gold >= def.cost;
     const armed = ui.buildKind === b.kind;
@@ -204,8 +273,10 @@ function drawBuildBar(
 
     ctx.textAlign = 'left';
     ctx.fillStyle = affordable ? COLORS.text : '#7A705F';
-    ctx.font = font(19);
-    ctx.fillText(def.label, b.x + 60, b.y + 34);
+    // Shrink to fit rather than clip: tower names vary a lot in length across
+    // ages ("Boulder" vs "Siege Cannon"), and a name cut off mid-word tells
+    // the player nothing.
+    fitText(ctx, def.label, b.x + 60, b.y + 34, b.w - 70, 19);
 
     ctx.fillStyle = affordable ? '#F0C46A' : '#8A6E42';
     ctx.font = font(20);
@@ -245,9 +316,9 @@ function drawSelectionPanel(
 
   ctx.fillStyle = COLORS.textDim;
   ctx.font = font(15);
-  const dmg = def.slowFactor < 1 ? 'slow' : Math.round(towerDamage(tower)).toString();
+  const dmg = def.slowFactor < 1 ? 'slow' : Math.round(towerDamage(state, tower)).toString();
   ctx.fillText(`dmg ${dmg}`, PANEL.x + 18, PANEL.y + 84);
-  ctx.fillText(`range ${Math.round(towerRange(tower))}`, PANEL.x + 110, PANEL.y + 84);
+  ctx.fillText(`range ${Math.round(towerRange(state, tower))}`, PANEL.x + 110, PANEL.y + 84);
   ctx.fillText(`kills ${tower.kills}`, PANEL.x + 18, PANEL.y + 106);
 
   const cost = upgradeCost(tower);
@@ -275,6 +346,15 @@ function drawSelectionPanel(
       UPGRADE_BUTTON.y + 33,
     );
   }
+
+  // Sell. Always available, and always shows the exact refund so the player
+  // can weigh scrapping an old-age tower against keeping it firing.
+  const refund = sellValue(state, tower);
+  panel(ctx, SELL_BUTTON, '#3A2A22', '#8A5A46', 2);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#E8A08A';
+  ctx.font = font(17);
+  ctx.fillText(`SELL  +${refund}g`, SELL_BUTTON.x + SELL_BUTTON.w / 2, SELL_BUTTON.y + 26);
 
   // Targeting mode. Slowers have no target — showing them a mode selector
   // would imply a choice that does nothing.
@@ -380,7 +460,7 @@ function button(
   b: HudButton,
   label: string | null,
   color: string,
-  icon?: 'play' | 'pause' | 'enterFull' | 'exitFull',
+  icon?: 'play' | 'pause' | 'enterFull' | 'exitFull' | 'sound' | 'muted',
 ): void {
   const grad = ctx.createLinearGradient(0, b.y, 0, b.y + b.h);
   grad.addColorStop(0, '#453B2C');
@@ -413,6 +493,38 @@ function button(
     ctx.lineTo(cx - 7, cy + 12);
     ctx.closePath();
     ctx.fill();
+    return;
+  }
+  if (icon === 'sound' || icon === 'muted') {
+    // Speaker cone plus either waves or a cross.
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(cx - 12, cy - 5);
+    ctx.lineTo(cx - 6, cy - 5);
+    ctx.lineTo(cx + 1, cy - 12);
+    ctx.lineTo(cx + 1, cy + 12);
+    ctx.lineTo(cx - 6, cy + 5);
+    ctx.lineTo(cx - 12, cy + 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    if (icon === 'sound') {
+      for (let i = 1; i <= 2; i++) {
+        ctx.beginPath();
+        ctx.arc(cx + 2, cy, 4 + i * 5, -0.9, 0.9);
+        ctx.stroke();
+      }
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(cx + 7, cy - 7);
+      ctx.lineTo(cx + 17, cy + 7);
+      ctx.moveTo(cx + 17, cy - 7);
+      ctx.lineTo(cx + 7, cy + 7);
+      ctx.stroke();
+    }
+    ctx.lineCap = 'butt';
     return;
   }
   if (icon === 'enterFull' || icon === 'exitFull') {
@@ -455,6 +567,21 @@ function button(
  * them twice from one function means the icon can never drift from the thing
  * it builds.
  */
+const FAMILY_GLYPH: Record<TowerKind, 'thrower' | 'trap' | 'slower' | 'heavy'> = {
+  thrower: 'thrower',
+  trap: 'trap',
+  slower: 'slower',
+  heavy: 'heavy',
+  ballista: 'thrower',
+  oilFire: 'trap',
+  frost: 'slower',
+  siegeCannon: 'heavy',
+  railgun: 'thrower',
+  teslaCoil: 'trap',
+  cryo: 'slower',
+  singularity: 'heavy',
+};
+
 export function towerGlyph(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -470,7 +597,7 @@ export function towerGlyph(
   ctx.lineWidth = r * 0.16;
   ctx.lineJoin = 'round';
 
-  switch (kind) {
+  switch (FAMILY_GLYPH[kind]) {
     case 'thrower': {
       // A sling arm over a base.
       ctx.beginPath();
@@ -530,6 +657,24 @@ export function towerGlyph(
     }
   }
   ctx.restore();
+}
+
+/** Draw text at the largest size (up to `size`) that fits `maxWidth`. */
+function fitText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  size: number,
+): void {
+  let px = size;
+  ctx.font = font(px);
+  while (ctx.measureText(text).width > maxWidth && px > 10) {
+    px -= 1;
+    ctx.font = font(px);
+  }
+  ctx.fillText(text, x, y);
 }
 
 export function roundRect(

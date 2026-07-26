@@ -16,7 +16,12 @@ import { drawEntities } from './drawEntities';
 import { drawGrid, drawPlacementGhost, drawSelectionRing } from './drawMap';
 import { drawHud, drawWaveBanner, findSelectedTower } from './hud';
 import { biomeFor, COLORS } from './palette';
-import { drawGameOverOverlay, drawPauseOverlay, drawRotateHint } from './screens';
+import {
+  drawGameOverOverlay,
+  drawPauseOverlay,
+  drawPerkDraft,
+  drawRotateHint,
+} from './screens';
 import { drawTerrain } from './terrain';
 import { applyWorldTransform, type Viewport } from './viewport';
 
@@ -39,15 +44,16 @@ export function render(
 
   applyWorldTransform(ctx, vp);
 
-  // Age index is fixed at 0 until slice 5 introduces advancement.
-  const ageIndex = 0;
+  // The whole board re-skins with the age: terrain.ts is keyed on this, so
+  // advancing re-bakes the ground, track and props for the new biome.
+  const ageIndex = state.age;
   const biome = biomeFor(ageIndex);
 
   drawTerrain(ctx, state, ageIndex, vp.scale * vp.dpr);
   drawGrid(ctx, state, ui, biome.accent);
 
   const selected = findSelectedTower(state, ui);
-  if (selected) drawSelectionRing(ctx, selected, biome.accent);
+  if (selected) drawSelectionRing(ctx, state, selected, biome.accent);
 
   drawEntities(ctx, state, biome, selected?.id ?? null);
   drawPlacementGhost(ctx, state, ui, biome.accent);
@@ -56,5 +62,6 @@ export function render(
   drawHud(ctx, state, ui, ageIndex);
 
   if (state.phase === 'gameover') drawGameOverOverlay(ctx, state, biome, bestWave);
+  else if (state.perkChoices !== null) drawPerkDraft(ctx, state.perkChoices, biome, state.perks);
   else if (ui.paused) drawPauseOverlay(ctx);
 }

@@ -8,11 +8,22 @@
  *   heavy   — huge hit, punishing reload, shrugs off armor
  */
 
-import { TARGET_MODES, TOWERS, UPGRADES } from '../config/balance';
+import { SELL_REFUND, TARGET_MODES, TOWERS, UPGRADES } from '../config/balance';
+import {
+  bonusPierce,
+  burnMul,
+  damageMul,
+  fireRateMul,
+  rangeMul,
+  refundRate,
+  slowBonus,
+  splashMul,
+} from './perks';
 import { cellCenter, cellIndex, inBounds, kindAt } from './grid';
-import { applySlow, damageEnemy } from './enemies';
+import { applyBurn, applyFreeze, applySlow, damageEnemy } from './enemies';
 import { emit } from './events';
 import { spend, towerCost, upgradeCost } from './economy';
+import { nextFloat } from './rng';
 import { spawnProjectile } from './projectiles';
 import { CellKind, type Enemy, type GameState, type Tower, type TowerKind } from './types';
 
@@ -22,25 +33,27 @@ import { CellKind, type Enemy, type GameState, type Tower, type TowerKind } from
 // Read per use rather than cached on the tower, so an upgrade takes effect
 // immediately and there is no stale copy to keep in sync.
 
-export function towerRange(tower: Tower): number {
+export function towerRange(state: GameState, tower: Tower): number {
   const def = TOWERS[tower.kind]!;
-  return def.range * (UPGRADES.rangeMul[tower.level - 1] ?? 1);
+  return def.range * (UPGRADES.rangeMul[tower.level - 1] ?? 1) * rangeMul(state);
 }
 
-export function towerDamage(tower: Tower): number {
+export function towerDamage(state: GameState, tower: Tower): number {
   const def = TOWERS[tower.kind]!;
-  return def.damage * (UPGRADES.damageMul[tower.level - 1] ?? 1);
+  return def.damage * (UPGRADES.damageMul[tower.level - 1] ?? 1) * damageMul(state);
 }
 
-export function towerFireRate(tower: Tower): number {
+export function towerFireRate(state: GameState, tower: Tower): number {
   const def = TOWERS[tower.kind]!;
-  return def.fireRate * (UPGRADES.fireRateMul[tower.level - 1] ?? 1);
+  return def.fireRate * (UPGRADES.fireRateMul[tower.level - 1] ?? 1) * fireRateMul(state);
 }
 
-export function towerSlowFactor(tower: Tower): number {
+export function towerSlowFactor(state: GameState, tower: Tower): number {
   const def = TOWERS[tower.kind]!;
   if (def.slowFactor >= 1) return 1;
-  return Math.max(0.15, def.slowFactor - (UPGRADES.slowBonus[tower.level - 1] ?? 0));
+  // Upgrades and the Deep Freeze perk both push the multiplier toward zero.
+  const strength = (UPGRADES.slowBonus[tower.level - 1] ?? 0) + slowBonus(state) * def.slowFactor;
+  return Math.max(0.1, def.slowFactor - strength);
 }
 
 // ---------------------------------------------------------------------------
@@ -122,6 +135,27 @@ export function upgradeTower(state: GameState, towerId: number): boolean {
   return true;
 }
 
+/**
+ * Refund for scrapping a tower: a fraction of everything sunk into it,
+ * upgrades included. Rounded down, so selling is never a way to gain value.
+ */
+export function sellValue(state: GameState, tower: Tower): number {
+  return Math.floor(tower.invested * refundRate(state, SELL_REFUND));
+}
+
+export function sellTower(state: GameState, towerId: number): boolean {
+  const index = state.towers.findIndex((t) => t.id === towerId);
+  if (index < 0) return false;
+
+  const tower = state.towers[index]!;
+  state.gold += sellValue(state, tower);
+  state.occupancy[cellIndex(state.map, tower.cell.cx, tower.cell.cy)] = 0;
+  state.towers.splice(index, 1);
+
+  emit(state, { type: 'towerSold', at: tower.pos, refund: sellValue(state, tower) });
+  return true;
+}
+
 // ---------------------------------------------------------------------------
 // Targeting
 // ---------------------------------------------------------------------------
@@ -200,7 +234,7 @@ export function updateTowers(state: GameState, dt: number): void {
       continue;
     }
     if (def.onPath) {
-      updateTrap(state, tower, dt);
+      updateTrap(state, tower);
       continue;
     }
     updateShooter(state, tower);
@@ -209,15 +243,23 @@ export function updateTowers(state: GameState, dt: number): void {
 
 /** Auras re-apply every step; the slow itself expires on a short timer. */
 function updateSlower(state: GameState, tower: Tower): void {
-  const range = towerRange(tower);
+  const def = TOWERS[tower.kind]!;
+  const range = towerRange(state, tower);
   const rangeSq = range * range;
-  const factor = towerSlowFactor(tower);
+  const factor = towerSlowFactor(state, tower);
 
   for (const e of state.enemies) {
     if (e.dead) continue;
     const dx = e.pos.x - tower.pos.x;
     const dy = e.pos.y - tower.pos.y;
-    if (dx * dx + dy * dy <= rangeSq) applySlow(e, factor);
+    if (dx * dx + dy * dy > rangeSq) continue;
+
+    applySlow(e, factor);
+    // Cryo occasionally locks a unit solid. Rolled from the run RNG so a seed
+    // reproduces exactly which enemies froze and when.
+    if (def.freezeChance > 0 && nextFloat(state.rng) < def.freezeChance) {
+      applyFreeze(e, def.freezeSeconds);
+    }
   }
 }
 
@@ -226,32 +268,77 @@ function updateSlower(state: GameState, tower: Tower): void {
  * and cannot overkill a single target, which is what makes it the cheap answer
  * to fast units that shooters struggle to track.
  */
-function updateTrap(state: GameState, tower: Tower, _dt: number): void {
+function updateTrap(state: GameState, tower: Tower): void {
   if (tower.cooldown > 0) return;
 
   const reach = state.layout.cellSize * 0.5;
   const reachSq = reach * reach;
   const def = TOWERS[tower.kind]!;
-  let triggered = false;
+  const damage = towerDamage(state, tower);
+  const struck: typeof state.enemies = [];
 
   for (const e of state.enemies) {
     if (e.dead) continue;
     const dx = e.pos.x - tower.pos.x;
     const dy = e.pos.y - tower.pos.y;
     if (dx * dx + dy * dy > reachSq) continue;
-    damageEnemy(state, e, towerDamage(tower), def.armorPierce, tower.id);
-    triggered = true;
+    damageEnemy(state, e, damage, def.armorPierce, tower.id);
+    if (def.burnDps > 0) applyBurn(e, def.burnDps * burnMul(state), def.burnSeconds);
+    struck.push(e);
   }
 
-  if (triggered) {
-    tower.cooldown = 1 / towerFireRate(tower);
-    tower.recoil = 0.15;
-    emit(state, { type: 'towerFired', at: tower.pos, kind: tower.kind });
+  if (struck.length === 0) return;
+
+  // Tesla chains outward from whatever it hit. Unlike splash this follows the
+  // enemies rather than a radius from the tower, so a strung-out line is a
+  // better target for it than a tight clump.
+  if (def.chainCount > 0) {
+    chainFrom(state, tower, struck, def.chainCount, def.chainRange, damage, def.armorPierce);
+  }
+
+  tower.cooldown = 1 / towerFireRate(state, tower);
+  tower.recoil = 0.15;
+  emit(state, { type: 'towerFired', at: tower.pos, kind: tower.kind });
+}
+
+function chainFrom(
+  state: GameState,
+  tower: Tower,
+  seeds: Enemy[],
+  count: number,
+  range: number,
+  damage: number,
+  armorPierce: number,
+): void {
+  const hit = new Set(seeds.map((e) => e.id));
+  let from = seeds[0]!;
+  const rangeSq = range * range;
+
+  for (let i = 0; i < count; i++) {
+    let best: Enemy | null = null;
+    let bestD = Infinity;
+    for (const e of state.enemies) {
+      if (e.dead || hit.has(e.id)) continue;
+      const dx = e.pos.x - from.pos.x;
+      const dy = e.pos.y - from.pos.y;
+      const d = dx * dx + dy * dy;
+      // Tie-break on id so the chain path is deterministic.
+      if (d <= rangeSq && (d < bestD || (d === bestD && best !== null && e.id < best.id))) {
+        best = e;
+        bestD = d;
+      }
+    }
+    if (!best) return;
+
+    hit.add(best.id);
+    damageEnemy(state, best, damage, armorPierce, tower.id);
+    emit(state, { type: 'chainArc', from: { ...from.pos }, to: { ...best.pos } });
+    from = best;
   }
 }
 
 function updateShooter(state: GameState, tower: Tower): void {
-  const range = towerRange(tower);
+  const range = towerRange(state, tower);
   const target = findTarget(state, tower, range);
   if (!target) return;
 
@@ -262,13 +349,18 @@ function updateShooter(state: GameState, tower: Tower): void {
 
   const def = TOWERS[tower.kind]!;
   spawnProjectile(state, tower, target, {
-    damage: towerDamage(tower),
-    splash: def.splash,
+    damage: towerDamage(state, tower),
+    splash: def.splash * splashMul(state),
     armorPierce: def.armorPierce,
     speed: def.projectileSpeed,
+    // Only towers that already pierce benefit from the perk; it shouldn't
+    // silently turn every Thrower into a lance.
+    pierce: def.pierce > 0 ? def.pierce + bonusPierce(state) : 0,
+    burnDps: def.burnDps * burnMul(state),
+    burnSeconds: def.burnSeconds,
   });
 
-  tower.cooldown = 1 / towerFireRate(tower);
+  tower.cooldown = 1 / towerFireRate(state, tower);
   tower.recoil = 0.12;
   emit(state, { type: 'towerFired', at: tower.pos, kind: tower.kind });
 }

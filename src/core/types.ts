@@ -5,10 +5,10 @@
  * no `window`, no `Date`, no `Math.random`.
  */
 
-import type { BossMechanic, EnemyKind, TargetMode, TowerKind } from '../config/balance';
+import type { BossMechanic, EnemyKind, PerkKey, TargetMode, TowerKind } from '../config/balance';
 import type { Rng } from './rng';
 
-export type { BossMechanic, EnemyKind, TargetMode, TowerKind };
+export type { BossMechanic, EnemyKind, PerkKey, TargetMode, TowerKind };
 
 // --- Geometry ---------------------------------------------------------------
 
@@ -129,6 +129,12 @@ export interface Enemy {
   /** regenerator: seconds until the next self-repair. */
   regenTimer: number;
 
+  /** Damage-over-time. Stored as one stack rather than a list: re-applying
+   *  refreshes the timer and keeps the stronger dps, which is far cheaper than
+   *  tracking N independent burns and reads the same in play. */
+  burnDps: number;
+  burnTimer: number;
+
   /** Counts down after taking damage; drives the renderer's hit flash. */
   flash: number;
 
@@ -171,6 +177,13 @@ export interface Projectile {
   armorPierce: number;
   /** Fired by which tower — so kill credit lands in the right place. */
   ownerId: number;
+  /** Enemies this shot may still pass through before stopping. */
+  pierce: number;
+  /** Already-hit enemy ids, so a piercing shot can't hit the same unit twice
+   *  as it travels along the line. */
+  hitIds: number[];
+  burnDps: number;
+  burnSeconds: number;
   life: number;
   dead: boolean;
 }
@@ -206,7 +219,9 @@ export type Intent =
   | { type: 'placeTower'; kind: TowerKind; cx: number; cy: number }
   | { type: 'upgradeTower'; towerId: number }
   | { type: 'cycleTargetMode'; towerId: number }
-  | { type: 'sellTower'; towerId: number };
+  | { type: 'sellTower'; towerId: number }
+  | { type: 'advanceAge' }
+  | { type: 'choosePerk'; key: PerkKey };
 
 // --- Run state --------------------------------------------------------------
 
@@ -234,6 +249,14 @@ export interface GameState {
   gold: number;
   lives: number;
   wave: WaveState;
+
+  /** 0 = Stone, 1 = Middle, 2 = Tech. Advancing unlocks; it never transforms. */
+  age: number;
+  /** Stacks taken per perk. */
+  perks: Partial<Record<PerkKey, number>>;
+  /** Perks currently offered, or null when no draft is open. While this is
+   *  non-null the wave clock is held — see core/perks.ts. */
+  perkChoices: PerkKey[] | null;
 
   /** Applied and cleared at the start of each step. */
   intents: Intent[];
@@ -264,6 +287,11 @@ export type SimEvent =
   | { type: 'towerPlaced'; at: Vec2; kind: TowerKind }
   | { type: 'towerFired'; at: Vec2; kind: TowerKind }
   | { type: 'towerUpgraded'; at: Vec2; level: number }
+  | { type: 'towerSold'; at: Vec2; refund: number }
+  | { type: 'chainArc'; from: Vec2; to: Vec2 }
+  | { type: 'ageAdvanced'; age: number }
+  | { type: 'perkDraftOpened' }
+  | { type: 'perkChosen'; key: PerkKey }
   | { type: 'purchaseDenied'; at: Vec2 }
   | { type: 'waveStarted'; number: number }
   | { type: 'waveCleared'; number: number; reward: number }

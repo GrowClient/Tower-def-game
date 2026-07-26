@@ -18,6 +18,7 @@ import { queueIntent } from './core/intents';
 import { step } from './core/sim';
 import { newRun } from './core/state';
 import type { GameState } from './core/types';
+import { isMuted, playEvents, setMuted, unlockAudio } from './audio/sfx';
 import { attachInput } from './input/input';
 import { loadBestWave, saveBestWave } from './platform/storage';
 import { render } from './render/renderer';
@@ -76,10 +77,22 @@ attachInput(
     restart,
     placeTower: (kind, cx, cy) => queueIntent(state, { type: 'placeTower', kind, cx, cy }),
     upgradeTower: (towerId) => queueIntent(state, { type: 'upgradeTower', towerId }),
+    sellTower: (towerId) => queueIntent(state, { type: 'sellTower', towerId }),
     cycleTargetMode: (towerId) => queueIntent(state, { type: 'cycleTargetMode', towerId }),
+    advanceAge: () => queueIntent(state, { type: 'advanceAge' }),
+    choosePerk: (key) => queueIntent(state, { type: 'choosePerk', key }),
     toggleFullscreen,
+    toggleMute: () => {
+      setMuted(!isMuted());
+      ui.muted = isMuted();
+    },
   },
 );
+
+// Browsers refuse to start audio outside a user gesture, so the context is
+// created on the first touch of the canvas rather than at load. Registered in
+// the capture phase so it runs before the game's own pointerdown handler.
+canvas.addEventListener('pointerdown', () => unlockAudio(), { capture: true });
 
 /**
  * Fullscreen, for playing on a phone without the browser's address bar eating
@@ -166,9 +179,9 @@ function frame(nowMs: number): void {
     scoreBanked = true;
   }
 
-  // No fx layer until slice 6, but the queue must still be emptied or it grows
-  // without bound. Slice 6 replaces this with the particle/shake feed.
-  drainEvents(state);
+  // The event queue must be drained every frame or it grows without bound.
+  // Audio consumes it now; the particle/shake layer joins in slice 6.
+  playEvents(drainEvents(state));
 
   render(ctx!, viewport, state, ui, bestWave);
   requestAnimationFrame(frame);

@@ -69,6 +69,8 @@ src/
 │   ├── projectiles.ts    flight and impact (incl. splash)
 │   ├── waves.ts          threat budget, composition draw, pacing
 │   ├── economy.ts        costs, kill bounty, wave clear reward
+│   ├── ages.ts           advancement: unlocks tiers, never transforms towers
+│   ├── perks.ts          the every-5-waves draft and its run-wide effects
 │   └── events.ts         sim -> presentation event queue
 ├── render/               READS state, never mutates — see rule 2
 │   ├── viewport.ts       16:9 letterbox, DPR, screen <-> world
@@ -79,6 +81,8 @@ src/
 │   ├── drawEntities.ts   towers, enemies, projectiles
 │   ├── hud.ts            stat strip, build bar, tower panel, button rects
 │   └── screens.ts        pause / run summary / rotate-device overlays
+├── audio/
+│   └── sfx.ts            synthesised SFX, driven by the SimEvent queue
 ├── input/
 │   └── input.ts          Pointer Events -> world coords -> intents
 └── platform/
@@ -106,8 +110,16 @@ Landing in later slices, as listed in GAME_DESIGN.md's build order:
   produce identical actions. There is no separate touch code path.
 - **Button geometry is exported.** `render/hud.ts` exports the rectangles it
   draws so `input/` hit-tests the exact same geometry. Never duplicate a rect.
-- **No assets.** All art is geometry drawn in code. Do not add image or audio
-  files, and do not reference any.
+- **No assets.** All art is geometry drawn in code, and all SOUND is
+  synthesised in `audio/sfx.ts` from oscillators and noise. Do not add image or
+  audio files, and do not reference any.
+- **Audio is a SimEvent consumer, exactly like fx.** The sim must never know
+  sound exists. Sounds are throttled per type and capped per frame, because a
+  busy wave emits dozens of events and playing them all is both deafening and a
+  CPU sink.
+- **Advancing an age unlocks, it never transforms.** Towers you already own
+  keep working unchanged; selling them at a partial refund is how the
+  transition is funded. That loss is the strategic cost of advancing.
 - **Texture is baked, never per-frame.** The ground is a few thousand small
   shapes. `render/terrain.ts` scatters them once into an offscreen canvas and
   blits that every frame; it re-bakes only when the seed, age or display
@@ -141,6 +153,14 @@ Landing in later slices, as listed in GAME_DESIGN.md's build order:
   import there gets a *second* instance of `balance.ts`, so mutating `SCALING`
   changes nothing and every sweep row comes back identical). Assert that a
   mutation actually moves a sim output before trusting a sweep.
+- **Measure the economy before pricing anything.** Every guess about an
+  advance cost is really a guess about how much gold a run generates. Ask the
+  driver for cumulative income per wave instead of picking a number and
+  re-rolling the whole sweep.
+- **A scripted probe must play the strategy the design intends.** The probe
+  measured advancing as strictly bad until it was taught to sell old towers to
+  fund the transition — until then it was benchmarking a strategy the game was
+  never built around.
 - **Change one lever at a time.** Difficulty knobs interact: moving eleven
   numbers at once took the median run from wave 7 to wave 46 with no way to
   attribute it.

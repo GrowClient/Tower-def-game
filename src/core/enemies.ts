@@ -88,12 +88,15 @@ export function spawnEnemy(
     baseSpeed: def.speed * speedMultiplier(wave),
     radius: def.radius,
     armor: def.armor + armorBonus(wave),
-    bounty: killReward(def.bounty, wave),
+    bounty: killReward(state, def.bounty, wave),
     leak: def.leak,
 
     slowFactor: 1,
     slowTimer: 0,
     slowImmune: def.slowImmune,
+
+    burnDps: 0,
+    burnTimer: 0,
 
     shield: def.shieldHits,
     maxShield: def.shieldHits,
@@ -138,6 +141,14 @@ export function updateEnemies(state: GameState, dt: number): void {
       if (e.slowTimer <= 0) e.slowFactor = 1;
     }
     if (e.flash > 0) e.flash -= dt;
+
+    // Burn ticks before movement so a unit that burns to death this step
+    // doesn't also get a step of travel out of it.
+    if (e.burnTimer > 0) {
+      e.burnTimer -= dt;
+      tickBurn(state, e, dt);
+      if (e.dead) continue;
+    }
 
     e.dist += e.baseSpeed * e.slowFactor * dt;
 
@@ -295,11 +306,43 @@ export function damageEnemy(
 }
 
 /** Apply (or refresh) a slow. The strongest active slow wins. */
-export function applySlow(enemy: Enemy, factor: number): void {
+export function applySlow(enemy: Enemy, factor: number, seconds: number = COMBAT.slowLinger): void {
   if (enemy.slowImmune) return;
   if (enemy.slowTimer <= 0) enemy.slowFactor = factor;
   else enemy.slowFactor = Math.min(enemy.slowFactor, factor);
-  enemy.slowTimer = COMBAT.slowLinger;
+  // Never shorten an existing, longer slow — a freeze must not be cut short by
+  // the aura that keeps re-applying a mild slow on top of it.
+  enemy.slowTimer = Math.max(enemy.slowTimer, seconds);
+}
+
+/** Freeze solid: a very hard slow for a fixed time. Slow-immune units resist. */
+export function applyFreeze(enemy: Enemy, seconds: number): void {
+  applySlow(enemy, COMBAT.freezeFactor, seconds);
+}
+
+/**
+ * Apply a burn. Stacks are collapsed into one: refresh the timer and keep the
+ * stronger damage. Tracking every burn independently would multiply bookkeeping
+ * for an effect the player reads as a single "it's on fire".
+ */
+export function applyBurn(enemy: Enemy, dps: number, seconds: number): void {
+  if (enemy.dead || dps <= 0) return;
+  enemy.burnDps = Math.max(enemy.burnDps, dps);
+  enemy.burnTimer = Math.max(enemy.burnTimer, seconds);
+}
+
+/**
+ * Burn damage bypasses armor. That's deliberate: it is what makes the Oil Fire
+ * an answer to Armored, whose whole point is blunting per-hit damage.
+ */
+function tickBurn(state: GameState, enemy: Enemy, dt: number): void {
+  if (enemy.burnDps <= 0) return;
+  enemy.hp -= enemy.burnDps * dt;
+  if (enemy.burnTimer <= 0) {
+    enemy.burnDps = 0;
+    enemy.burnTimer = 0;
+  }
+  if (enemy.hp <= 0) kill(state, enemy, 0);
 }
 
 function kill(state: GameState, enemy: Enemy, ownerTowerId: number): void {

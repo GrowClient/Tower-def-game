@@ -331,7 +331,14 @@ function scatterProps(
   rng: Rng,
   band: number,
 ): void {
-  if (biome.props !== 'stone') return;
+  if (biome.props === 'medieval') {
+    scatterMedieval(g, field, biome, rng, band);
+    return;
+  }
+  if (biome.props === 'tech') {
+    scatterTech(g, field, rng, band);
+    return;
+  }
 
   let placedStones = 0;
   for (let attempt = 0; attempt < 120 && placedStones < 5; attempt++) {
@@ -349,6 +356,171 @@ function scatterProps(
     if (fieldAt(field, x, y) < band * 1.8) continue;
     log(g, x, y, nextRange(rng, 30, 52), nextRange(rng, -0.9, 0.9), rng);
     placedLogs++;
+  }
+}
+
+/** Middle Age dressing: fence stakes and hay bales on trodden turf. */
+function scatterMedieval(
+  g: CanvasRenderingContext2D,
+  field: DistField,
+  biome: Biome,
+  rng: Rng,
+  band: number,
+): void {
+  // Stake lines: a run of posts, which reads as enclosure rather than scatter.
+  for (let line = 0; line < 5; line++) {
+    const x0 = nextRange(rng, 60, WORLD.width - 200);
+    const y0 = nextRange(rng, WORLD.hudTop + 40, WORLD.height - WORLD.hudBottom - 40);
+    const horizontal = nextFloat(rng) < 0.5;
+    const count = nextInt(rng, 3, 7);
+    for (let i = 0; i < count; i++) {
+      const x = x0 + (horizontal ? i * 26 : nextRange(rng, -4, 4));
+      const y = y0 + (horizontal ? nextRange(rng, -4, 4) : i * 26);
+      if (x > WORLD.width - 20 || y > WORLD.height - 20) break;
+      if (fieldAt(field, x, y) < band * 1.6) continue;
+      stake(g, x, y, nextRange(rng, 16, 26));
+    }
+  }
+
+  for (let i = 0; i < 10; i++) {
+    const x = nextRange(rng, 40, WORLD.width - 40);
+    const y = nextRange(rng, WORLD.hudTop + 40, WORLD.height - WORLD.hudBottom - 30);
+    if (fieldAt(field, x, y) < band * 1.8) continue;
+    hayBale(g, x, y, nextRange(rng, 14, 22), rng);
+  }
+
+  for (let i = 0; i < 90; i++) {
+    const x = nextRange(rng, 10, WORLD.width - 10);
+    const y = nextRange(rng, 10, WORLD.height - 10);
+    if (fieldAt(field, x, y) < band) continue;
+    rock(g, x, y, nextRange(rng, 2, 5), biome, rng);
+  }
+}
+
+function stake(g: CanvasRenderingContext2D, x: number, y: number, h: number): void {
+  g.beginPath();
+  g.ellipse(x + 2, y + 2, h * 0.22, h * 0.1, 0, 0, Math.PI * 2);
+  g.fillStyle = 'rgba(0,0,0,0.32)';
+  g.fill();
+
+  g.fillStyle = '#6B5233';
+  g.fillRect(x - h * 0.09, y - h, h * 0.18, h);
+  g.fillStyle = '#8A6C46';
+  g.fillRect(x - h * 0.09, y - h, h * 0.08, h);
+  g.strokeStyle = 'rgba(0,0,0,0.45)';
+  g.lineWidth = 1.2;
+  g.strokeRect(x - h * 0.09, y - h, h * 0.18, h);
+}
+
+function hayBale(
+  g: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  r: number,
+  rng: Rng,
+): void {
+  g.beginPath();
+  g.ellipse(x, y + r * 0.4, r * 1.05, r * 0.38, 0, 0, Math.PI * 2);
+  g.fillStyle = 'rgba(0,0,0,0.3)';
+  g.fill();
+
+  g.beginPath();
+  g.ellipse(x, y, r, r * 0.8, 0, 0, Math.PI * 2);
+  g.fillStyle = '#B79A56';
+  g.fill();
+  g.strokeStyle = 'rgba(0,0,0,0.45)';
+  g.lineWidth = 1.6;
+  g.stroke();
+
+  g.strokeStyle = 'rgba(90, 70, 30, 0.6)';
+  g.lineWidth = 1.2;
+  for (let i = 0; i < 3; i++) {
+    const oy = (i - 1) * r * 0.4;
+    g.beginPath();
+    g.moveTo(x - r * 0.85, y + oy + nextRange(rng, -1, 1));
+    g.lineTo(x + r * 0.85, y + oy + nextRange(rng, -1, 1));
+    g.stroke();
+  }
+}
+
+/** Tech Age dressing: pylons and vent grates set into concrete. */
+function scatterTech(
+  g: CanvasRenderingContext2D,
+  field: DistField,
+  rng: Rng,
+  band: number,
+): void {
+  // Panel seams: long faint lines, the thing that makes poured concrete read
+  // as poured concrete rather than as grey paint.
+  g.strokeStyle = 'rgba(255,255,255,0.045)';
+  g.lineWidth = 2;
+  for (let i = 0; i < 26; i++) {
+    const horizontal = nextFloat(rng) < 0.5;
+    const p = nextRange(rng, 0, horizontal ? WORLD.height : WORLD.width);
+    g.beginPath();
+    if (horizontal) {
+      g.moveTo(0, p);
+      g.lineTo(WORLD.width, p);
+    } else {
+      g.moveTo(p, 0);
+      g.lineTo(p, WORLD.height);
+    }
+    g.stroke();
+  }
+
+  for (let i = 0; i < 8; i++) {
+    const x = nextRange(rng, 50, WORLD.width - 50);
+    const y = nextRange(rng, WORLD.hudTop + 50, WORLD.height - WORLD.hudBottom - 30);
+    if (fieldAt(field, x, y) < band * 2) continue;
+    pylon(g, x, y, nextRange(rng, 30, 48));
+  }
+
+  for (let i = 0; i < 16; i++) {
+    const x = nextRange(rng, 30, WORLD.width - 30);
+    const y = nextRange(rng, 30, WORLD.height - 30);
+    if (fieldAt(field, x, y) < band * 1.4) continue;
+    vent(g, x, y, nextRange(rng, 14, 24));
+  }
+}
+
+function pylon(g: CanvasRenderingContext2D, x: number, y: number, h: number): void {
+  g.beginPath();
+  g.ellipse(x, y, h * 0.34, h * 0.14, 0, 0, Math.PI * 2);
+  g.fillStyle = 'rgba(0,0,0,0.38)';
+  g.fill();
+
+  g.fillStyle = '#4A535E';
+  g.beginPath();
+  g.moveTo(x - h * 0.26, y);
+  g.lineTo(x - h * 0.1, y - h);
+  g.lineTo(x + h * 0.1, y - h);
+  g.lineTo(x + h * 0.26, y);
+  g.closePath();
+  g.fill();
+  g.strokeStyle = 'rgba(0,0,0,0.5)';
+  g.lineWidth = 1.8;
+  g.stroke();
+
+  // A single lit element — the only emissive thing in the biome, so it reads
+  // as powered rather than as another grey block.
+  g.fillStyle = '#35D6E8';
+  g.fillRect(x - h * 0.06, y - h * 0.92, h * 0.12, h * 0.14);
+}
+
+function vent(g: CanvasRenderingContext2D, x: number, y: number, w: number): void {
+  g.fillStyle = '#333A43';
+  g.fillRect(x - w / 2, y - w * 0.36, w, w * 0.72);
+  g.strokeStyle = 'rgba(0,0,0,0.45)';
+  g.lineWidth = 1.4;
+  g.strokeRect(x - w / 2, y - w * 0.36, w, w * 0.72);
+  g.strokeStyle = 'rgba(140,160,180,0.35)';
+  g.lineWidth = 1.6;
+  for (let i = 1; i <= 3; i++) {
+    const yy = y - w * 0.36 + (i * w * 0.72) / 4;
+    g.beginPath();
+    g.moveTo(x - w * 0.4, yy);
+    g.lineTo(x + w * 0.4, yy);
+    g.stroke();
   }
 }
 

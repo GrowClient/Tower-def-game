@@ -124,10 +124,11 @@ export function drawPlacementGhost(
 /** Range ring for the tower whose panel is open. */
 export function drawSelectionRing(
   ctx: CanvasRenderingContext2D,
+  state: GameState,
   tower: Tower,
   accent: string,
 ): void {
-  const range = towerRange(tower);
+  const range = towerRange(state, tower);
   if (range <= 0) return;
 
   ctx.beginPath();

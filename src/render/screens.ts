@@ -5,11 +5,117 @@
  * point is that the world rectangle is currently a bad fit for the window.
  */
 
-import { ENEMIES, TOWERS, WORLD, type TowerKind } from '../config/balance';
+import {
+  ENEMIES,
+  PERKS,
+  TOWERS,
+  WORLD,
+  type PerkKey,
+  type TowerKind,
+} from '../config/balance';
 import type { GameState } from '../core/types';
 import { COLORS, font, type Biome } from './palette';
-import { roundRect } from './hud';
+import { roundRect, type Rect } from './hud';
 import type { Viewport } from './viewport';
+
+/**
+ * Perk draft cards. Exported so input hit-tests exactly what was drawn — the
+ * same one-source-of-truth rule as every other button in the game.
+ */
+const CARD_W = 340;
+const CARD_H = 260;
+const CARD_GAP = 26;
+
+export const PERK_CARDS: Rect[] = [0, 1, 2].map((i) => {
+  const total = 3 * CARD_W + 2 * CARD_GAP;
+  return {
+    x: (WORLD.width - total) / 2 + i * (CARD_W + CARD_GAP),
+    y: WORLD.height / 2 - CARD_H / 2 + 26,
+    w: CARD_W,
+    h: CARD_H,
+  };
+});
+
+/**
+ * The draft. Wave progression is held while this is open, so the player can
+ * actually read three options instead of being punished for looking.
+ */
+export function drawPerkDraft(
+  ctx: CanvasRenderingContext2D,
+  choices: PerkKey[],
+  biome: Biome,
+  stacks: Partial<Record<PerkKey, number>>,
+): void {
+  scrim(ctx, 0.82);
+
+  ctx.textAlign = 'center';
+  ctx.font = font(46);
+  ctx.fillStyle = biome.accent;
+  ctx.fillText('CHOOSE A PERK', WORLD.width / 2, 150);
+  ctx.font = font(18);
+  ctx.fillStyle = COLORS.textDim;
+  ctx.fillText('lasts the whole run', WORLD.width / 2, 182);
+
+  choices.forEach((key, i) => {
+    const card = PERK_CARDS[i];
+    const def = PERKS.find((p) => p.key === key);
+    if (!card || !def) return;
+
+    ctx.fillStyle = 'rgba(26, 21, 15, 0.96)';
+    roundRect(ctx, card.x, card.y, card.w, card.h, 14);
+    ctx.fill();
+    ctx.strokeStyle = biome.accent;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = COLORS.text;
+    ctx.font = font(30);
+    ctx.fillText(def.label, card.x + card.w / 2, card.y + 76);
+
+    ctx.fillStyle = biome.accent;
+    ctx.font = font(19);
+    wrapText(ctx, def.detail, card.x + card.w / 2, card.y + 126, card.w - 48, 28);
+
+    // Show what you already hold, so stacking is a visible decision rather
+    // than a hidden one.
+    const held = stacks[key] ?? 0;
+    ctx.fillStyle = COLORS.textDim;
+    ctx.font = font(15);
+    ctx.fillText(
+      held > 0 ? `owned ${held}/${def.maxStacks}` : `up to ${def.maxStacks}`,
+      card.x + card.w / 2,
+      card.y + card.h - 30,
+    );
+  });
+
+  ctx.textAlign = 'left';
+}
+
+/** Centre-aligned word wrap; canvas has no text layout of its own. */
+function wrapText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  cx: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number,
+): void {
+  const words = text.split(' ');
+  let line = '';
+  let cursor = y;
+  for (const word of words) {
+    const attempt = line ? `${line} ${word}` : word;
+    if (ctx.measureText(attempt).width > maxWidth && line) {
+      ctx.fillText(line, cx, cursor);
+      line = word;
+      cursor += lineHeight;
+    } else {
+      line = attempt;
+    }
+  }
+  if (line) ctx.fillText(line, cx, cursor);
+}
 
 export function drawPauseOverlay(ctx: CanvasRenderingContext2D): void {
   scrim(ctx, 0.55);
@@ -46,16 +152,20 @@ export function drawGameOverOverlay(
   ctx.fillStyle = isBest ? biome.accent : COLORS.textDim;
   ctx.fillText(isBest ? 'NEW BEST' : `best  wave ${bestWave}`, cx, top + 76);
 
+  ctx.font = font(19);
+  ctx.fillStyle = biome.accent;
+  ctx.fillText(`reached the ${biome.name}`, cx, top + 100);
+
   // What killed you.
   const killer = state.killedBy ? ENEMIES[state.killedBy]?.label ?? state.killedBy : 'nothing';
   ctx.font = font(19);
   ctx.fillStyle = COLORS.textDim;
-  ctx.fillText('the last life went to a', cx, top + 116);
+  ctx.fillText('the last life went to a', cx, top + 134);
   ctx.font = font(28);
   ctx.fillStyle = '#F4664F';
-  ctx.fillText(killer.toUpperCase(), cx, top + 148);
+  ctx.fillText(killer.toUpperCase(), cx, top + 164);
 
-  drawLoadout(ctx, state, biome, top + 188);
+  drawLoadout(ctx, state, biome, top + 200);
 
   ctx.textAlign = 'center';
   ctx.font = font(20);

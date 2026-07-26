@@ -300,6 +300,8 @@ export const BOSS_MECHANICS = {
 // ---------------------------------------------------------------------------
 export interface TowerDef {
   label: string;
+  /** Which age unlocks this tower. Towers from earlier ages keep working. */
+  age: number;
   cost: number;
   /** Range in world units. Traps ignore this (they act on their own cell). */
   range: number;
@@ -316,12 +318,48 @@ export interface TowerDef {
   slowFactor: number;
   /** True for towers that sit ON the path instead of beside it. */
   onPath: boolean;
+
+  /** Extra enemies a shot passes through before stopping. 0 = stops at first. */
+  pierce: number;
+  /** Damage-over-time applied on hit. */
+  burnDps: number;
+  burnSeconds: number;
+  /** Extra nearby enemies struck when this tower hits. */
+  chainCount: number;
+  chainRange: number;
+  /** Chance per hit to freeze an enemy nearly solid, and for how long. */
+  freezeChance: number;
+  freezeSeconds: number;
 }
 
+const PLAIN = {
+  pierce: 0,
+  burnDps: 0,
+  burnSeconds: 0,
+  chainCount: 0,
+  chainRange: 0,
+  freezeChance: 0,
+  freezeSeconds: 0,
+};
+
+/**
+ * Twelve towers: four families across three ages.
+ *
+ * Advancing UNLOCKS the next age's set to build; it does not transform what
+ * you already own. Old towers keep working exactly as they were, so the
+ * transition is paid for by selling them — which is the strategic cost of
+ * advancing early.
+ *
+ * Each age's take on a family plays differently rather than just hitting
+ * harder: the Thrower line goes single-target -> piercing bolt -> full-lane
+ * rail, and the Trap line goes flat damage -> burn -> chain lightning.
+ */
 export const TOWERS = {
-  // Cheap, reliable single target. The tower you open with.
+  // --- Age 0: Stone -------------------------------------------------------
   thrower: {
+    ...PLAIN,
     label: 'Thrower',
+    age: 0,
     cost: 90,
     range: 165,
     damage: 14,
@@ -332,10 +370,10 @@ export const TOWERS = {
     slowFactor: 1,
     onPath: false,
   },
-  // Sits on the path and hits everything walking over it. No targeting, so it
-  // never wastes a shot, but it only covers one cell.
   trap: {
+    ...PLAIN,
     label: 'Spike Pit',
+    age: 0,
     cost: 75,
     range: 0,
     damage: 30,
@@ -346,9 +384,10 @@ export const TOWERS = {
     slowFactor: 1,
     onPath: true,
   },
-  // Deals no damage at all. Pure force multiplier for everything else.
   slower: {
+    ...PLAIN,
     label: 'Cold Mud',
+    age: 0,
     cost: 120,
     range: 135,
     damage: 0,
@@ -359,10 +398,10 @@ export const TOWERS = {
     slowFactor: 0.55,
     onPath: false,
   },
-  // Huge damage, punishing fire rate. Overkills small units, so it wants to
-  // be pointed at the things nothing else can dent.
   heavy: {
+    ...PLAIN,
     label: 'Boulder',
+    age: 0,
     cost: 195,
     range: 195,
     damage: 78,
@@ -370,6 +409,138 @@ export const TOWERS = {
     projectileSpeed: 320,
     splash: 34,
     armorPierce: 12,
+    slowFactor: 1,
+    onPath: false,
+  },
+
+  // --- Age 1: Middle ------------------------------------------------------
+  // A bolt that runs THROUGH a line of enemies. Against a column marching down
+  // a straight it is worth several Throwers; against stragglers, one.
+  ballista: {
+    ...PLAIN,
+    label: 'Ballista',
+    age: 1,
+    cost: 215,
+    range: 215,
+    damage: 66,
+    fireRate: 1.45,
+    projectileSpeed: 640,
+    splash: 0,
+    armorPierce: 8,
+    slowFactor: 1,
+    onPath: false,
+    pierce: 3,
+  },
+  // Small hit, big burn. Beats armor in practice because the damage arrives as
+  // a stack of ticks rather than as one blunted hit.
+  oilFire: {
+    ...PLAIN,
+    label: 'Oil Fire',
+    age: 1,
+    cost: 190,
+    range: 0,
+    damage: 22,
+    fireRate: 0.85,
+    projectileSpeed: 0,
+    splash: 0,
+    armorPierce: 0,
+    slowFactor: 1,
+    onPath: true,
+    burnDps: 46,
+    burnSeconds: 3.5,
+  },
+  frost: {
+    ...PLAIN,
+    label: 'Frost Tower',
+    age: 1,
+    cost: 270,
+    range: 170,
+    damage: 0,
+    fireRate: 0,
+    projectileSpeed: 0,
+    splash: 0,
+    armorPierce: 0,
+    slowFactor: 0.4,
+    onPath: false,
+  },
+  // Ignores armor entirely — the dedicated answer to Armored and to Warlord
+  // escorts, and nothing else in this age does that.
+  siegeCannon: {
+    ...PLAIN,
+    label: 'Siege Cannon',
+    age: 1,
+    cost: 440,
+    range: 235,
+    damage: 470,
+    fireRate: 0.36,
+    projectileSpeed: 380,
+    splash: 22,
+    armorPierce: 9999,
+    slowFactor: 1,
+    onPath: false,
+  },
+
+  // --- Age 2: Tech --------------------------------------------------------
+  railgun: {
+    ...PLAIN,
+    label: 'Railgun',
+    age: 2,
+    cost: 540,
+    range: 290,
+    damage: 240,
+    fireRate: 1.7,
+    projectileSpeed: 1500,
+    splash: 0,
+    armorPierce: 24,
+    slowFactor: 1,
+    onPath: false,
+    pierce: 8,
+  },
+  // Chains between nearby enemies, so a swarm is BETTER for it than a lone
+  // target — the inverse of every other tower in the game.
+  teslaCoil: {
+    ...PLAIN,
+    label: 'Tesla Coil',
+    age: 2,
+    cost: 480,
+    range: 0,
+    damage: 155,
+    fireRate: 1.1,
+    projectileSpeed: 0,
+    splash: 0,
+    armorPierce: 10,
+    slowFactor: 1,
+    onPath: true,
+    chainCount: 4,
+    chainRange: 135,
+  },
+  cryo: {
+    ...PLAIN,
+    label: 'Cryo Field',
+    age: 2,
+    cost: 620,
+    range: 200,
+    damage: 0,
+    fireRate: 0,
+    projectileSpeed: 0,
+    splash: 0,
+    armorPierce: 0,
+    slowFactor: 0.34,
+    onPath: false,
+    freezeChance: 0.1,
+    freezeSeconds: 1.1,
+  },
+  singularity: {
+    ...PLAIN,
+    label: 'Singularity',
+    age: 2,
+    cost: 1000,
+    range: 260,
+    damage: 1800,
+    fireRate: 0.3,
+    projectileSpeed: 420,
+    splash: 92,
+    armorPierce: 9999,
     slowFactor: 1,
     onPath: false,
   },
@@ -391,13 +562,105 @@ export const TARGET_MODE_LABELS: Record<TargetMode, string> = {
   healers: 'HEALERS',
 };
 
-/** Order of the build bar buttons, left to right. */
-export const BUILD_ORDER: TowerKind[] = ['thrower', 'trap', 'slower', 'heavy'];
+// ---------------------------------------------------------------------------
+// Ages
+// ---------------------------------------------------------------------------
+/**
+ * Advancing is the central strategic decision, so the cost is many times a
+ * tower on purpose: paying it means fielding nothing new for several waves
+ * while you sell off and rebuild. Advance early and you are weak now and
+ * strong later; never advance and you out-scale nothing.
+ */
+export const AGES = [
+  { name: 'Stone Age', advanceCost: 0 },
+  { name: 'Middle Age', advanceCost: 550 },
+  { name: 'Tech Age', advanceCost: 1750 },
+] as const;
 
 /**
- * In-age upgrades. Level 1 is the tower as placed; levels 2 and 3 are bought.
- * Multipliers are indexed by level - 1, so index 0 is always 1.
+ * A note on why the later towers cost more AND hit disproportionately harder:
+ * advancing has to be worth doing. When each age's towers had the same
+ * damage-per-gold as the last, paying to advance bought nothing but bigger
+ * price tags, and a scripted player that never advanced beat one that did by
+ * eight whole waves. Each tier is now roughly 1.75x the previous tier's
+ * damage per gold.
  */
+
+/** Build bar contents per age — the four towers unlocked at that tier. */
+export const BUILD_ORDER: TowerKind[][] = [
+  ['thrower', 'trap', 'slower', 'heavy'],
+  ['ballista', 'oilFire', 'frost', 'siegeCannon'],
+  ['railgun', 'teslaCoil', 'cryo', 'singularity'],
+];
+
+/**
+ * Fraction of everything sunk into a tower (purchase plus upgrades) returned
+ * when selling it. Well under 1 on purpose: if selling were free, replacing
+ * your whole board the instant you advanced would be an obvious no-brainer
+ * instead of a cost you weigh against leaving the old towers firing.
+ */
+export const SELL_REFUND = 0.6;
+
+// ---------------------------------------------------------------------------
+// Perks
+// ---------------------------------------------------------------------------
+/**
+ * After clearing every Nth wave the player picks one of three randomly drawn
+ * perks. These are run-wide, so a run compounds in a direction instead of
+ * being the same build every time — which is the point: the board you end
+ * with should be a consequence of choices, not of the tower list.
+ */
+export type PerkKey =
+  | 'damage'
+  | 'fireRate'
+  | 'range'
+  | 'splash'
+  | 'bounty'
+  | 'slow'
+  | 'pierce'
+  | 'lives'
+  | 'refund'
+  | 'burn';
+
+export interface PerkDef {
+  key: PerkKey;
+  label: string;
+  detail: string;
+  /** Times this perk can be taken in one run. */
+  maxStacks: number;
+}
+
+export const PERKS: PerkDef[] = [
+  { key: 'damage', label: 'Sharpened', detail: '+15% tower damage', maxStacks: 4 },
+  { key: 'fireRate', label: 'Quickened', detail: '+12% fire rate', maxStacks: 4 },
+  { key: 'range', label: 'Farsight', detail: '+12% tower range', maxStacks: 3 },
+  { key: 'splash', label: 'Wider Blast', detail: '+30% splash radius', maxStacks: 3 },
+  { key: 'bounty', label: 'Scavenger', detail: '+20% gold from kills', maxStacks: 4 },
+  { key: 'slow', label: 'Deep Freeze', detail: 'Slows bite 20% harder', maxStacks: 3 },
+  { key: 'pierce', label: 'Punch Through', detail: 'Piercing shots hit +1 enemy', maxStacks: 3 },
+  { key: 'lives', label: 'Rally', detail: 'Restore 3 lives', maxStacks: 4 },
+  { key: 'refund', label: 'Salvage', detail: 'Sell towers for 85%, not 60%', maxStacks: 1 },
+  { key: 'burn', label: 'Accelerant', detail: '+40% burn damage', maxStacks: 3 },
+];
+
+export const PERK_RULES = {
+  /** A draft happens after clearing every Nth wave. */
+  everyWaves: 5,
+  /** How many options to offer. */
+  choices: 3,
+  /** Per-stack effect sizes. */
+  damagePerStack: 0.15,
+  fireRatePerStack: 0.12,
+  rangePerStack: 0.12,
+  splashPerStack: 0.3,
+  bountyPerStack: 0.2,
+  slowPerStack: 0.2,
+  piercePerStack: 1,
+  livesPerStack: 3,
+  refundBoost: 0.85,
+  burnPerStack: 0.4,
+} as const;
+
 export const UPGRADES = {
   maxLevel: 3,
   /** Cost of reaching level i+1, as a multiple of the tower's base cost. */
@@ -417,6 +680,9 @@ export const COMBAT = {
   minDamage: 1,
   /** How long a slow lingers after leaving the aura. Also the refresh window. */
   slowLinger: 0.25,
+  /** Movement multiplier while frozen solid — not quite zero, so a frozen
+   *  enemy still reads as an enemy rather than a decoration. */
+  freezeFactor: 0.06,
   /** Projectiles self-destruct after this long, in case a target vanishes. */
   projectileLifetime: 3,
   /** A projectile counts as hitting when this close to its target. */
@@ -495,7 +761,7 @@ export const WAVES = {
   budgetBase: 6,
   budgetLinear: 1.8,
   budgetQuadratic: 0.15,
-  budgetExpGrowth: 1.05,
+  budgetExpGrowth: 1.038,
 
   /**
    * Intro waves are chosen against where runs actually END, not against a
@@ -526,15 +792,24 @@ export const WAVES = {
  */
 export const SCALING = {
   /** hp x= 1 + linear*(w-1) + quad*(w-1)^2 */
-  hpLinear: 0.10,
-  hpQuadratic: 0.016,
+  hpLinear: 0.085,
+  hpQuadratic: 0.012,
 
   /** Speed creeps up slowly and caps, or late waves become unreactable. */
   speedLinear: 0.012,
   speedMax: 1.7,
 
-  /** Armor is added flat, and only starts mattering after a few waves. */
-  armorPerWave: 0.22,
+  /**
+   * Armor added flat per wave, once past armorStartWave.
+   *
+   * This is the pressure that makes advancing an age necessary rather than
+   * optional. Cheap towers deal small hits, and small hits are exactly what
+   * flat armor blunts to the damage floor — so a board of Stone Age Throwers
+   * stops working somewhere in the mid-teens no matter how many you own.
+   * With this at 0.22 a scripted player who NEVER advanced beat one who did
+   * by eight waves, because quantity of cheap towers had no ceiling.
+   */
+  armorPerWave: 2.2,
   armorStartWave: 6,
 
   /** Bounty grows slower than HP, so income tightens as waves escalate. */

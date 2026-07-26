@@ -15,6 +15,7 @@
 import { ENEMIES, WAVES } from '../config/balance';
 import { bossForWave } from './enemies';
 import { waveClearReward } from './economy';
+import { openDraft, shouldDraft } from './perks';
 import { spawnEnemy } from './enemies';
 import { emit } from './events';
 import { nextFloat, nextInt } from './rng';
@@ -26,6 +27,10 @@ export function newWaveState(): GameState['wave'] {
 
 export function updateWaves(state: GameState, dt: number): void {
   const wave = state.wave;
+
+  // A perk draft holds everything. Letting the countdown run while the player
+  // reads three options would punish them for engaging with the choice.
+  if (state.perkChoices !== null) return;
 
   // Between waves: count down, then compose and schedule the next one.
   if (!wave.active) {
@@ -48,6 +53,8 @@ export function updateWaves(state: GameState, dt: number): void {
     wave.active = false;
     wave.timer = WAVES.betweenWaves;
     emit(state, { type: 'waveCleared', number: wave.number, reward });
+
+    if (shouldDraft(wave.number)) openDraft(state);
   }
 }
 

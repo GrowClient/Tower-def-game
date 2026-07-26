@@ -10,8 +10,9 @@
  *    result than the same click landing between two other ones.
  */
 
-import { emit } from './events';
-import { cycleTargetMode, placeTower, upgradeTower } from './towers';
+import { advanceAge } from './ages';
+import { choosePerk } from './perks';
+import { cycleTargetMode, placeTower, sellTower, upgradeTower } from './towers';
 import type { GameState, Intent } from './types';
 
 export function queueIntent(state: GameState, intent: Intent): void {
@@ -33,9 +34,13 @@ export function applyIntents(state: GameState): void {
         cycleTargetMode(state, intent.towerId);
         break;
       case 'sellTower':
-        // Selling isn't in the design yet. Swallow it rather than crash, and
-        // make the rejection visible so a stray intent can't fail silently.
-        emit(state, { type: 'purchaseDenied', at: { x: 0, y: 0 } });
+        sellTower(state, intent.towerId);
+        break;
+      case 'advanceAge':
+        advanceAge(state);
+        break;
+      case 'choosePerk':
+        choosePerk(state, intent.key);
         break;
     }
   }

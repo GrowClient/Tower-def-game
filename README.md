@@ -54,6 +54,9 @@ not; iPad and Android Chrome do).
 | Inspect / upgrade | click a placed tower | tap a placed tower |
 | Cancel | `Esc` | tap empty ground |
 | Fullscreen | the ⛶ button | tap ⛶ |
+| Mute | `M`, or the speaker button | tap the speaker |
+| Sell a tower | select it, then SELL | same |
+| Advance an age | the button, lower left | same |
 
 ## Reproducing a run
 
@@ -85,6 +88,7 @@ Built in vertical slices. Currently through **slice 3**:
 2. Tower placement, targeting, projectiles, upgrades, gold
 3. Waves, difficulty curves, lives, run summary, local high score
 4. All six enemy types, bosses every 10 waves, tower targeting modes
+5. All three ages, selling towers, the perk draft, and synthesised sound
 
-Next: age advancement and branching (slice 5), then the juice and balance
-pass (slice 6).
+Next: the juice and balance pass (slice 6) — screenshake, particles, damage
+numbers, and tuning against real playtests.

@@ -26,6 +26,8 @@ export interface UiState {
   /** True while the browser reports we own the screen. Mirrored from the
    *  fullscreenchange event rather than queried per frame. */
   fullscreen: boolean;
+  /** Sound off. Mirrors the audio layer so the HUD can draw the right icon. */
+  muted: boolean;
   /** Smoothed frames-per-second, for the debug corner. */
   fps: number;
 }
@@ -38,6 +40,7 @@ export function newUiState(): UiState {
     buildKind: null,
     selectedTowerId: null,
     fullscreen: false,
+    muted: false,
     fps: 0,
   };
 }

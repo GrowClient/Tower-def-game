@@ -9,9 +9,31 @@
  * at a glance, because that's the information the player acts on.
  */
 
-import { TOWERS } from '../config/balance';
+import { TOWERS, type TowerKind } from '../config/balance';
+
 import type { Enemy, GameState, Projectile, Tower } from '../core/types';
 import { COLORS, type Biome } from './palette';
+
+/**
+ * Which silhouette a tower uses. Keeping one shape per FAMILY across all three
+ * ages is deliberate: a player who has learned that the frame-with-an-arm is
+ * their single-target tower shouldn't have to relearn the board after
+ * advancing. The age changes the palette and the detailing, not the read.
+ */
+const FAMILY: Record<TowerKind, 'thrower' | 'trap' | 'slower' | 'heavy'> = {
+  thrower: 'thrower',
+  trap: 'trap',
+  slower: 'slower',
+  heavy: 'heavy',
+  ballista: 'thrower',
+  oilFire: 'trap',
+  frost: 'slower',
+  siegeCannon: 'heavy',
+  railgun: 'thrower',
+  teslaCoil: 'trap',
+  cryo: 'slower',
+  singularity: 'heavy',
+};
 
 export function drawEntities(
   ctx: CanvasRenderingContext2D,
@@ -72,7 +94,7 @@ function drawTower(
 
   if (!def.onPath) drawPlinth(ctx, s, biome);
 
-  switch (tower.kind) {
+  switch (FAMILY[tower.kind]) {
     case 'thrower':
       drawThrower(ctx, s, tower.aim, biome);
       break;
@@ -85,6 +107,25 @@ function drawTower(
     case 'heavy':
       drawHeavy(ctx, s, tower.aim, biome);
       break;
+  }
+
+  // Age pips: a small mark per age above Stone, so a Middle Age tower standing
+  // next to a Stone Age one is distinguishable at a glance. That matters
+  // precisely because advancing leaves the old towers on the board.
+  const towerAge = TOWERS[tower.kind]!.age;
+  if (towerAge > 0) {
+    ctx.fillStyle = biome.accent;
+    ctx.strokeStyle = '#14100B';
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < towerAge; i++) {
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.9 + i * s * 0.3, -s * 0.85);
+      ctx.lineTo(-s * 0.75 + i * s * 0.3, -s * 1.1);
+      ctx.lineTo(-s * 0.6 + i * s * 0.3, -s * 0.85);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
   }
 
   drawLevelPips(ctx, s, tower.level, biome.accent);

@@ -104,22 +104,52 @@ and leaking is `dist >= pathLength`.
 ## Ages
 
 Three ages: **Stone → Middle → Tech**. One accent colour each (amber, crimson,
-cyan).
+cyan), and a full biome each — advancing re-skins the ground, the road and the
+props, not just a colour.
 
 Advancement is **player-triggered by spending gold**, never automatic on a wave
-number. This is the central strategic decision of the game:
+number. Prices are many times a tower (550, then 1750) so paying is a real
+commitment.
 
-> Advancing early = weaker now, stronger later.
+**Advancing UNLOCKS the next age's four towers to build. It does not transform,
+remove or refund the towers you already own.** They keep standing and keep
+firing exactly as before. That is what makes advancing a decision rather than a
+reward:
 
-The gold spent on advancing is gold not spent on towers for the wave in front
-of you, but every tower you own becomes a stronger form.
+- The gold is gone, and the new towers cost more than the old ones.
+- Your board is still the old board until you sell it off piece by piece.
+- Selling refunds only **60%** of everything sunk in (85% with the Salvage
+  perk), so rebuilding is a real loss, not a free respec.
 
-**On advancement:** full-screen flash + shockwave, then every existing tower
-instantly transforms into the next age's **base** form. Each transformed tower
-then shows a pulsing `?` badge. Clicking a badged tower opens a 2-card panel to
-lock in one of two **branches**. The game keeps running while badges are
-pending — the player may pause to decide, and may deliberately delay a choice
-to see what the next waves bring.
+> Advance early = weaker now, stronger later.
+
+### Why the later towers must be more gold-efficient
+
+Each tier deals roughly **1.75× the previous tier's damage per gold**. This is
+not flavour, it is load-bearing. When every age had the same damage per gold,
+advancing bought nothing but bigger price tags, and a scripted player that
+never advanced beat one that did by eight whole waves.
+
+### Why armor scaling is what forces the decision
+
+Flat armor per wave climbs steeply from wave 6. Small hits are exactly what
+flat armor blunts to the damage floor, so a board of Stone Age Throwers stops
+working somewhere in the mid-teens **no matter how many you own**. Without that
+ceiling, stacking cheap towers was strictly better than advancing, and the age
+system was decorative.
+
+---
+
+## Perks
+
+After clearing every **5th** wave the run pauses and offers **3 of 10** perks;
+the player takes one. They are run-wide and stack, so a run compounds in a
+direction rather than every run converging on the same board.
+
+Damage, fire rate, range, splash radius, kill gold, slow strength, extra
+pierce, restored lives, a better sell refund, and burn damage. The draft holds
+wave progression while it is open — a player must never be punished for reading
+their options.
 
 ---
 

@@ -7,6 +7,7 @@
  */
 
 import { SCALING, TOWERS, UPGRADES } from '../config/balance';
+import { bountyMul } from './perks';
 import type { GameState, Tower, TowerKind } from './types';
 
 export function towerCost(kind: TowerKind): number {
@@ -37,9 +38,13 @@ export function spend(state: GameState, cost: number): boolean {
  * as waves escalate — that pressure is what forces the age-advancement
  * decision later rather than letting you buy everything.
  */
-export function killReward(baseBounty: number, waveNumber: number): number {
+export function killReward(
+  state: GameState,
+  baseBounty: number,
+  waveNumber: number,
+): number {
   const mul = 1 + SCALING.bountyLinear * Math.max(0, waveNumber - 1);
-  return Math.round(baseBounty * mul);
+  return Math.round(baseBounty * mul * bountyMul(state));
 }
 
 export function waveClearReward(waveNumber: number): number {

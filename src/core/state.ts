@@ -48,6 +48,10 @@ export function newRun(seed: number): GameState {
     lives: RUN.startingLives,
     wave: newWaveState(),
 
+    age: 0,
+    perks: {},
+    perkChoices: null,
+
     intents: [],
     killedBy: null,
 
