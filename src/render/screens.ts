@@ -371,6 +371,9 @@ const ENEMY_ANSWER: Record<string, string> = {
   armored: 'Flat armor blunts every hit. Piercing or armor-ignoring towers.',
   shielded: 'Eats whole hits regardless of size. Fire RATE strips it; big hits are wasted.',
   healer: 'Undoes your damage on everything nearby. Focus it — set a tower to HEALERS.',
+  zealot: 'Charges once below half HP. Chip damage makes it worse — kill it or leave it.',
+  splitter: 'Bursts into two Swarm on death. Splash that catches the pieces beats overkill.',
+  juggernaut: 'Heals itself unless kept under fire. Needs concentrated damage, not spread.',
 };
 
 function drawEnemyGuide(ctx: CanvasRenderingContext2D, biome: Biome): void {

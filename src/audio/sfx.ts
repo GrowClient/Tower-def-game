@@ -303,17 +303,31 @@ function play(id: SoundId): boolean {
       noise(now, 0.26, 0.13, 'bandpass', 700, 0.9);
       tone(now, 'sawtooth', 90, 190, 0.24, 0.05);
       break;
-    // Ice: a struck crystal ringing, high and clean.
+    // Ice, as a crisp crackle rather than a ringing bell.
+    //
+    // It WAS two long sine tones held at 1760/2640 Hz. In isolation that reads
+    // as "crystal"; at this tower's fire rate it was a pure sustained pitch
+    // retriggering twice a second, which beats against itself and turns into a
+    // whine that dominates everything else on screen. Short filtered noise with
+    // a fast downward blip on top says "ice" without ever holding a note.
     case 'frostRing':
-      tone(now, 'sine', 1760, 1720, 0.42, 0.09);
-      tone(now + 0.02, 'sine', 2640, 2600, 0.3, 0.05);
+      noise(now, 0.13, 0.12, 'highpass', 3400, 0.8);
+      noise(now, 0.07, 0.09, 'bandpass', 1500, 2.2);
+      tone(now, 'triangle', 1500, 620, 0.09, 0.05);
       break;
-    // Gunpowder: a real bang needs a sharp transient over the low body, or a
-    // phone speaker with no bass response renders it as a thud.
+    // Gunpowder: weight without volume.
+    //
+    // The first version simply pushed every gain up — a 0.36 sine under a 0.32
+    // noise burst — which is loud rather than powerful, and on a busy wave it
+    // buried the whole mix and clipped. What actually reads as heft is the
+    // SHAPE: a tight transient, a short body that drops fast, and a low tail
+    // you feel more than hear. Roughly half the peak level of the old one and
+    // considerably punchier for it.
     case 'cannonBoom':
-      noise(now, 0.03, 0.32, 'highpass', 1800, 0.7);
-      tone(now, 'sine', 190, 42, 0.34, 0.36);
-      noise(now, 0.22, 0.2, 'lowpass', 420, 1);
+      noise(now, 0.02, 0.16, 'highpass', 2200, 0.7);
+      tone(now, 'sine', 165, 38, 0.2, 0.19);
+      tone(now, 'triangle', 92, 30, 0.32, 0.1);
+      noise(now, 0.14, 0.08, 'lowpass', 320, 1);
       break;
     // A pick striking ore.
     case 'minePick':

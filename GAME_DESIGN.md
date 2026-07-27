@@ -152,10 +152,22 @@ After clearing every **5th** wave the run pauses and offers **3 of 10** perks;
 the player takes one. They are run-wide and stack, so a run compounds in a
 direction rather than every run converging on the same board.
 
-Damage, fire rate, range, splash radius, kill gold, slow duration, extra
-pierce, restored lives, a better sell refund, and burn damage. The draft holds
-wave progression while it is open — a player must never be punished for reading
-their options.
+**Every draft offers one power perk against one economy perk**, plus a
+wildcard. That is the whole design: more killing power, or more money? A round
+of three damage perks is not a decision.
+
+Perk sizes are deliberately single digits (5-10% a stack). They used to be
+12-40%, four stacks deep — maxed Scavenger alone reached +80% gold, which on
+top of a runaway kill count is most of how a run ended up sitting on 200k with
+nothing left to buy. A perk should tilt a run, not decide it; the compounding
+across ten drafts is the reward.
+
+"Punch Through" (+1 pierced enemy) was deleted: it did nothing at all for the
+towers that do not already pierce, so on most boards it was a blank card
+wasting one of your three options.
+
+The draft holds wave progression while it is open — a player must never be
+punished for reading their options.
 
 ---
 
@@ -320,8 +332,8 @@ table, what each enemy type demands, and every unlocked tower's real numbers.
 
 ## Enemies
 
-Six types. Each must demand a **different answer** — no type should be solvable
-by "more of the same tower".
+Nine types, banded by age. Each must demand a **different answer** — no type
+should be solvable by "more of the same tower".
 
 | Type | Behaviour | The answer |
 |---|---|---|
@@ -331,6 +343,17 @@ by "more of the same tower".
 | **Swarm** | Spawns in groups, individually weak | AoE / splash |
 | **Shielded** | Absorbs the first N hits regardless of damage | Fast fire rate to strip the shield; big single hits are wasted |
 | **Healer** | Heals nearby enemies on a tick | Must be focused down — targeting priority matters |
+| **Zealot** | Charges once below half HP | Kill it or leave it — chip damage makes it worse |
+| **Splitter** | Bursts into two Swarm on death | Splash that catches the pieces; overkill is wasted |
+| **Juggernaut** | Heals itself unless kept under fire | Concentrated damage, not spread |
+
+### Reactive, not just statted
+
+The last three **react to what the player does**, which is the difference
+between an enemy and scenery. A Zealot punishes spreading fire across a pack, a
+Splitter punishes single-target overkill, and a Juggernaut punishes a board of
+many weak towers that cannot finish anything. They also arrive with the later
+ages, so a wave 30 is not a wave 5 with bigger numbers.
 
 ### Bosses
 
@@ -371,6 +394,21 @@ The budget also carries an exponential term. A purely polynomial curve is
 eventually out-scaled by a full board — the grid has a finite number of cells,
 so without exponential growth the run reaches a state where nothing can end
 it.
+
+### A wave's budget buys danger, not bodies
+
+Threat cost per unit **scales with the wave**, on the same curve as HP.
+
+It used to be flat — a Brute cost 6 threat whether it had 280 HP or 6000 —
+which quietly made the budget curve a unit-COUNT curve. An exponential budget
+then meant an exponential number of bodies: wave 40 spawned around 600 units.
+Waves got longer and more tedious rather than harder, every extra body was
+another bounty (which is where the runaway economy came from), and no
+individual enemy was ever a threat.
+
+Now the same budget buys the same total HP as fewer, far tougher units —
+measured, wave 40 went from ~600 spawns to about 20. Total HP per wave still
+climbs steeply; the head count barely moves.
 
 ### The late-game surge
 

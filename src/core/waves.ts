@@ -13,7 +13,7 @@
  */
 
 import { ENEMIES, WAVES } from '../config/balance';
-import { bossForWave } from './enemies';
+import { bossForWave, hpMultiplier } from './enemies';
 import { waveClearReward } from './economy';
 import { openDraft, shouldDraft } from './perks';
 import { spawnEnemy } from './enemies';
@@ -70,7 +70,7 @@ export function updateWaves(state: GameState, dt: number): void {
 function collectIncome(state: GameState): number {
   let total = 0;
   for (const tower of state.towers) {
-    const income = towerIncome(tower);
+    const income = towerIncome(state, tower);
     if (income <= 0) continue;
     total += income;
     // Tracked per tower so the panel can show lifetime earnings against what
@@ -171,12 +171,16 @@ function drawUnits(state: GameState, waveNumber: number, budgetMul: number): Ene
     Math.max(0.05, r.weight + r.weightGrowth * (waveNumber - r.introWave)),
   );
 
+  // A unit is worth what it actually costs the player to kill, so its threat
+  // rises with the same curve as its HP. See WAVES.threatScaleExponent.
+  const threatScale = Math.pow(hpMultiplier(waveNumber), WAVES.threatScaleExponent);
+
   const out: EnemyKind[] = [];
   // Guard against a balance edit that leaves every threat at zero.
   for (let guard = 0; guard < 500 && budget > 0; guard++) {
     const pick = weightedPick(state, pool, weights);
     const def = ENEMIES[pick.kind]!;
-    const cost = def.threat * pick.groupSize;
+    const cost = def.threat * threatScale * pick.groupSize;
 
     // Near the end of the budget, only take what still fits — otherwise the
     // last pick can overshoot by a whole brute and spike the wave.

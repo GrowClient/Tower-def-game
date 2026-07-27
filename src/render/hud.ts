@@ -410,7 +410,7 @@ function drawSelectionPanel(
     // An economy building has no damage to report. Its numbers are what it
     // pays and whether it has paid for itself yet — which is the only question
     // a player actually has about a mine.
-    const income = towerIncome(tower);
+    const income = towerIncome(state, tower);
     const profit = tower.earned - tower.invested;
     ctx.fillStyle = '#F0C46A';
     ctx.fillText(`+${income}g per wave`, P.x + PANEL_PAD, P.y + 84);

@@ -11,7 +11,7 @@
  * players for reading the options.
  */
 
-import { PERK_RULES, PERKS, type PerkKey } from '../config/balance';
+import { PERK_RULES, PERKS, type PerkDef, type PerkKey } from '../config/balance';
 import { emit } from './events';
 import { nextInt } from './rng';
 import type { GameState } from './types';
@@ -30,18 +30,37 @@ export function shouldDraft(waveNumber: number): boolean {
  * RNG so a seed always offers the same choices — a replay has to be able to
  * make the same decisions.
  */
+/**
+ * Draw the offered perks.
+ *
+ * Structured rather than uniformly random: one power option, one economy
+ * option, then a wildcard. A purely random draw regularly produced three
+ * damage perks, which is not a choice — the point of the draft is to ask "more
+ * killing power, or more money?" every five waves, and you can only ask that
+ * if both are on the table.
+ *
+ * Uses the run RNG so a seed always offers the same cards; a replay has to be
+ * able to make the same decisions.
+ */
 export function openDraft(state: GameState): void {
   const eligible = PERKS.filter((p) => perkStacks(state, p.key) < p.maxStacks);
   if (eligible.length === 0) return;
 
   const pool = [...eligible];
   const offered: PerkKey[] = [];
-  const n = Math.min(PERK_RULES.choices, pool.length);
-  for (let i = 0; i < n; i++) {
-    const idx = nextInt(state.rng, 0, pool.length - 1);
-    offered.push(pool[idx]!.key);
-    pool.splice(idx, 1);
-  }
+
+  const take = (from: PerkDef[]): void => {
+    if (from.length === 0) return;
+    const pick = from[nextInt(state.rng, 0, from.length - 1)]!;
+    offered.push(pick.key);
+    pool.splice(pool.indexOf(pick), 1);
+  };
+
+  take(pool.filter((p) => p.category === 'power'));
+  take(pool.filter((p) => p.category === 'economy'));
+  // Wildcard from whatever is left, so utility perks still show up and a run
+  // that has maxed one whole category still gets a full hand.
+  while (offered.length < Math.min(PERK_RULES.choices, eligible.length)) take(pool);
 
   state.perkChoices = offered;
   emit(state, { type: 'perkDraftOpened' });
@@ -98,8 +117,9 @@ export function burnMul(state: GameState): number {
   return 1 + perkStacks(state, 'burn') * PERK_RULES.burnPerStack;
 }
 
-export function bonusPierce(state: GameState): number {
-  return perkStacks(state, 'pierce') * PERK_RULES.piercePerStack;
+/** Economy buildings pay more. The economy-side counterpart to Sharpened. */
+export function interestMul(state: GameState): number {
+  return 1 + perkStacks(state, 'interest') * PERK_RULES.interestPerStack;
 }
 
 /**

@@ -11,10 +11,10 @@
 import { SELL_REFUND, TARGET_MODES, TOWERS, UPGRADES } from '../config/balance';
 import { comboEffect, refreshCombos } from './combos';
 import {
-  bonusPierce,
   burnMul,
   damageMul,
   fireRateMul,
+  interestMul,
   rangeMul,
   refundRate,
   slowDurationMul,
@@ -112,11 +112,14 @@ export function towerSlowSeconds(state: GameState, tower: Tower): number {
  * Gold this economy building pays when a wave is cleared. Upgrades raise output
  * instead of damage, since it has no damage to raise.
  */
-export function towerIncome(tower: Tower): number {
+export function towerIncome(state: GameState, tower: Tower): number {
   const def = TOWERS[tower.kind]!;
   if (def.goldPerWave <= 0) return 0;
   return Math.round(
-    def.goldPerWave * (UPGRADES.damageMul[tower.level - 1] ?? 1) * comboEffect(tower).goldMul,
+    def.goldPerWave *
+      (UPGRADES.damageMul[tower.level - 1] ?? 1) *
+      comboEffect(tower).goldMul *
+      interestMul(state),
   );
 }
 
@@ -431,9 +434,7 @@ function updateShooter(state: GameState, tower: Tower): void {
     splash: def.splash * splashMul(state),
     armorPierce: def.armorPierce,
     speed: def.projectileSpeed,
-    // Only towers that already pierce benefit from the perk; it shouldn't
-    // silently turn every Thrower into a lance.
-    pierce: def.pierce > 0 ? def.pierce + bonusPierce(state) : 0,
+    pierce: def.pierce,
     burnDps: def.burnDps * burnMul(state) * combo.burnMul,
     burnSeconds: def.burnSeconds,
     slowFactor: towerSlowFactor(tower),

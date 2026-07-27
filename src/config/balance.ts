@@ -124,6 +124,32 @@ export interface EnemyDef {
   /** Flat armor granted to other enemies within armorAuraRadius. */
   armorAura: number;
   armorAuraRadius: number;
+
+  // --- Reactive behaviours -------------------------------------------------
+  // Enemies that only walk are scenery. These make a unit respond to what the
+  // player is doing to it, so the fight has a shape rather than being a queue.
+
+  /** Below this fraction of max HP the unit speeds up by `enrageSpeedMul`.
+   *  Reacts to being hurt: chip damage makes it MORE dangerous, so half-killing
+   *  a pack of them is worse than killing half of them. */
+  enrageBelowHp: number;
+  enrageSpeedMul: number;
+
+  /** On death, spawn this many of `splitInto` at the same spot. Reacts to
+   *  dying: splash that wipes a group instantly is now worth more than
+   *  single-target overkill, and leaks compound if you ignore the pieces.
+   *
+   *  Typed as a plain string rather than EnemyKind on purpose: EnemyKind is
+   *  derived from this very table, so naming a sibling here would make the
+   *  table's type reference itself. Validated at spawn instead. */
+  splitInto: string | null;
+  splitCount: number;
+
+  /** Restores this much HP per second after `regenDelay` seconds without being
+   *  hit. Reacts to being ignored: spread, weak fire never finishes it, and
+   *  it punishes a board that cannot concentrate damage. */
+  regenPerSecond: number;
+  regenDelay: number;
 }
 
 const NO_SPECIALS = {
@@ -133,6 +159,12 @@ const NO_SPECIALS = {
   slowImmune: false,
   armorAura: 0,
   armorAuraRadius: 0,
+  enrageBelowHp: 0,
+  enrageSpeedMul: 1,
+  splitInto: null as string | null,
+  splitCount: 0,
+  regenPerSecond: 0,
+  regenDelay: 0,
 };
 
 export const ENEMIES = {
@@ -215,6 +247,64 @@ export const ENEMIES = {
     threat: 4.5,
     healPerSecond: 26,
     healRadius: 130,
+  },
+
+  // --- Middle Age arrivals -------------------------------------------------
+  /**
+   * Reacts to being hurt: drops below half and charges. Chip damage makes a
+   * Zealot worse, so a board that spreads its fire across a pack turns six
+   * walkers into six sprinters and gets run over.
+   */
+  zealot: {
+    ...NO_SPECIALS,
+    label: 'Zealot',
+    maxHp: 260,
+    speed: 58,
+    radius: 17,
+    armor: 3,
+    bounty: 22,
+    leak: 2,
+    threat: 5,
+    enrageBelowHp: 0.5,
+    enrageSpeedMul: 2.1,
+  },
+
+  // --- Tech Age arrivals ---------------------------------------------------
+  /**
+   * Reacts to dying: bursts into two Swarm units. Overkilling one with a
+   * Singularity just hands you two more problems slightly further back, so
+   * splash that catches the pieces is worth more than raw single-target size.
+   */
+  splitter: {
+    ...NO_SPECIALS,
+    label: 'Splitter',
+    maxHp: 420,
+    speed: 66,
+    radius: 20,
+    armor: 4,
+    bounty: 30,
+    leak: 2,
+    threat: 7,
+    splitInto: 'swarm',
+    splitCount: 2,
+  },
+  /**
+   * Reacts to being ignored: heals back up unless it is kept under fire.
+   * A board of many weak towers cannot finish one, which is precisely the
+   * board this unit exists to retire.
+   */
+  juggernaut: {
+    ...NO_SPECIALS,
+    label: 'Juggernaut',
+    maxHp: 1400,
+    speed: 34,
+    radius: 26,
+    armor: 14,
+    bounty: 58,
+    leak: 3,
+    threat: 14,
+    regenPerSecond: 70,
+    regenDelay: 1.6,
   },
 
   // --- Bosses -------------------------------------------------------------
@@ -933,34 +1023,63 @@ export type PerkKey =
   | 'range'
   | 'splash'
   | 'bounty'
+  | 'interest'
   | 'slow'
-  | 'pierce'
   | 'lives'
   | 'refund'
   | 'burn';
+
+/**
+ * Every perk belongs to a side of one question: do you want to kill things
+ * better, or do you want more money?
+ *
+ * The draft deliberately offers one of each plus a wildcard, so the pick is
+ * always that trade rather than "take the biggest number on screen". A round
+ * of three power perks is not a decision.
+ */
+export type PerkCategory = 'power' | 'economy' | 'utility';
 
 export interface PerkDef {
   key: PerkKey;
   label: string;
   detail: string;
+  category: PerkCategory;
   /** Times this perk can be taken in one run. */
   maxStacks: number;
 }
 
+/**
+ * Perk sizes are single digits on purpose.
+ *
+ * They used to be 12-40% a stack, four stacks deep. Scavenger alone reached
+ * +80% gold, which on top of a runaway kill count is most of why a run ended
+ * up sitting on 200k with nothing to buy. A perk should tilt a run, not
+ * decide it — the compounding across ten waves of drafts is the reward, not
+ * any single pick.
+ *
+ * 'pierce' was removed outright. It only did anything for the three towers
+ * that already pierce, so on most boards it was a blank card that wasted one
+ * of your three options.
+ */
 export const PERKS: PerkDef[] = [
-  { key: 'damage', label: 'Sharpened', detail: '+15% tower damage', maxStacks: 4 },
-  { key: 'fireRate', label: 'Quickened', detail: '+12% fire rate', maxStacks: 4 },
-  { key: 'range', label: 'Farsight', detail: '+12% tower range', maxStacks: 3 },
-  { key: 'splash', label: 'Wider Blast', detail: '+30% splash radius', maxStacks: 3 },
-  { key: 'bounty', label: 'Scavenger', detail: '+20% gold from kills', maxStacks: 4 },
+  // --- Power ---------------------------------------------------------------
+  { key: 'damage', label: 'Sharpened', detail: '+7% tower damage', category: 'power', maxStacks: 5 },
+  { key: 'fireRate', label: 'Quickened', detail: '+6% fire rate', category: 'power', maxStacks: 5 },
+  { key: 'range', label: 'Farsight', detail: '+5% tower range', category: 'power', maxStacks: 4 },
+  { key: 'splash', label: 'Wider Blast', detail: '+9% splash radius', category: 'power', maxStacks: 4 },
+  { key: 'burn', label: 'Accelerant', detail: '+10% burn damage', category: 'power', maxStacks: 4 },
+
+  // --- Economy -------------------------------------------------------------
+  { key: 'bounty', label: 'Scavenger', detail: '+6% gold from kills', category: 'economy', maxStacks: 4 },
+  { key: 'interest', label: 'Reserves', detail: '+8% from economy buildings', category: 'economy', maxStacks: 4 },
+  { key: 'refund', label: 'Salvage', detail: 'Sell towers for 75%, not 60%', category: 'economy', maxStacks: 1 },
+
+  // --- Utility -------------------------------------------------------------
   // Duration, not strength. Slow strength is fixed everywhere on purpose, so a
   // perk that deepened it would reintroduce exactly the pinned-wave problem
   // the slower rework exists to remove.
-  { key: 'slow', label: 'Lingering Chill', detail: 'Slows last 30% longer', maxStacks: 3 },
-  { key: 'pierce', label: 'Punch Through', detail: 'Piercing shots hit +1 enemy', maxStacks: 3 },
-  { key: 'lives', label: 'Rally', detail: 'Restore 3 lives', maxStacks: 4 },
-  { key: 'refund', label: 'Salvage', detail: 'Sell towers for 85%, not 60%', maxStacks: 1 },
-  { key: 'burn', label: 'Accelerant', detail: '+40% burn damage', maxStacks: 3 },
+  { key: 'slow', label: 'Lingering Chill', detail: 'Slows last 10% longer', category: 'utility', maxStacks: 4 },
+  { key: 'lives', label: 'Rally', detail: 'Restore 2 lives', category: 'utility', maxStacks: 4 },
 ];
 
 export const PERK_RULES = {
@@ -969,16 +1088,16 @@ export const PERK_RULES = {
   /** How many options to offer. */
   choices: 3,
   /** Per-stack effect sizes. */
-  damagePerStack: 0.15,
-  fireRatePerStack: 0.12,
-  rangePerStack: 0.12,
-  splashPerStack: 0.3,
-  bountyPerStack: 0.2,
-  slowDurationPerStack: 0.3,
-  piercePerStack: 1,
-  livesPerStack: 3,
-  refundBoost: 0.85,
-  burnPerStack: 0.4,
+  damagePerStack: 0.07,
+  fireRatePerStack: 0.06,
+  rangePerStack: 0.05,
+  splashPerStack: 0.09,
+  bountyPerStack: 0.06,
+  interestPerStack: 0.08,
+  slowDurationPerStack: 0.1,
+  livesPerStack: 2,
+  refundBoost: 0.75,
+  burnPerStack: 0.1,
 } as const;
 
 /**
@@ -1145,14 +1264,47 @@ export const WAVES = {
    * wave 14 is content almost nobody sees, so every type has to land before
    * then — and the boss at wave 10 has to be reachable.
    */
+  /**
+   * The roster is banded by AGE, not just spread along a ramp. Waves 1-12 are
+   * the Stone Age's problem set, the Middle Age band adds units that answer a
+   * Middle Age board, and the Tech band adds the reactive ones. Runners fade
+   * out hard: a wave 30 made of the same units as a wave 5 is why the enemies
+   * stopped feeling like a threat.
+   */
   roster: [
-    { kind: 'runner', introWave: 1, weight: 10, weightGrowth: -0.3, groupSize: 1 },
+    // Stone Age band
+    { kind: 'runner', introWave: 1, weight: 10, weightGrowth: -0.55, groupSize: 1 },
     { kind: 'brute', introWave: 6, weight: 2, weightGrowth: 0.3, groupSize: 1 },
-    { kind: 'swarm', introWave: 7, weight: 4, weightGrowth: 0.5, groupSize: 5 },
+    { kind: 'swarm', introWave: 7, weight: 4, weightGrowth: 0.35, groupSize: 5 },
     { kind: 'armored', introWave: 9, weight: 2, weightGrowth: 0.4, groupSize: 1 },
+    // Middle Age band
     { kind: 'shielded', introWave: 11, weight: 2, weightGrowth: 0.4, groupSize: 1 },
     { kind: 'healer', introWave: 13, weight: 1.2, weightGrowth: 0.25, groupSize: 1 },
+    { kind: 'zealot', introWave: 14, weight: 2.5, weightGrowth: 0.45, groupSize: 2 },
+    // Tech Age band
+    { kind: 'splitter', introWave: 22, weight: 3, weightGrowth: 0.5, groupSize: 1 },
+    { kind: 'juggernaut', introWave: 27, weight: 2.5, weightGrowth: 0.5, groupSize: 1 },
   ] as RosterEntry[],
+
+  /**
+   * How much a unit's THREAT COST grows with the wave.
+   *
+   * This is the fix for "600 enemies at wave 40". Threat cost used to be flat —
+   * a Brute cost 6 whether it had 280 HP or 6000 — so the budget curve was
+   * secretly a unit-COUNT curve, and an exponential budget meant an exponential
+   * number of bodies. Waves got longer and more tedious rather than harder, and
+   * every extra body was another bounty, which is where the runaway economy
+   * came from too.
+   *
+   * Scaling threat with the same curve that scales HP means a wave's budget
+   * buys a fixed amount of DANGER: the total HP walking down the road is
+   * unchanged, but it arrives as far fewer, far tougher units. Measured, wave
+   * 40 drops from ~900 spawns to a few dozen.
+   *
+   * The exponent is below 1 so unit counts still creep up slowly — a wave 40
+   * should feel busier than a wave 7, just not two-orders-of-magnitude busier.
+   */
+  threatScaleExponent: 0.85,
 
   /** Boss every N waves. */
   bossEvery: 10,
@@ -1230,10 +1382,29 @@ export const SCALING = {
   armorLateStartWave: 20,
   armorLatePerWave: 0.9,
 
-  /** Bounty grows slower than HP, so income tightens as waves escalate. */
-  bountyLinear: 0.02,
+  /**
+   * How kill bounty scales, as an exponent on the HP curve.
+   *
+   * Below 1 on purpose: a wave-30 unit has ~14x the HP of a wave-1 unit but
+   * pays only ~5x the gold, so gold per point of HP killed falls steadily and
+   * the run gets economically tighter exactly as it gets harder.
+   *
+   * This replaced a flat +2%/wave, which looked conservative and was not: the
+   * OLD wave curve delivered exponentially more bodies, so a small per-kill
+   * bonus multiplied by an exploding kill count produced 200k gold with
+   * nothing left to spend it on. Bounty is now tied to what a unit is worth
+   * rather than to how many of them happened to show up.
+   *
+   * Measured: at 0.62 the cut was far too deep — a run could not bank the
+   * 3000 gold an age costs before dying, so the age system became unreachable
+   * rather than merely expensive, which is the exact failure GAME_DESIGN warns
+   * about. At 0.85 a played-as-designed run reaches the Tech Age and still
+   * earns roughly a third of what the old runaway curve paid.
+   */
+  bountyHpExponent: 0.85,
 
-  /** Flat gold for clearing a wave, plus a per-wave bonus. */
-  waveClearBase: 20,
-  waveClearPerWave: 3,
+  /** Flat gold for clearing a wave, plus a per-wave bonus. Deliberately small:
+   *  this is a nudge, not an income stream. */
+  waveClearBase: 15,
+  waveClearPerWave: 2,
 } as const;

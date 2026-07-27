@@ -137,6 +137,15 @@ export function spawnEnemy(
     armorAuraRadius: def.armorAuraRadius,
     auraArmor: 0,
 
+    enrageBelowHp: def.enrageBelowHp,
+    enrageSpeedMul: def.enrageSpeedMul,
+    enraged: false,
+    splitInto: def.splitInto,
+    splitCount: def.splitCount,
+    regenPerSecond: def.regenPerSecond,
+    regenDelay: def.regenDelay,
+    sinceHit: 0,
+
     mechanic,
     summonsFired: 0,
     // A later Ancient repairs itself more often, so out-damaging it stays the
@@ -175,6 +184,21 @@ export function updateEnemies(state: GameState, dt: number): void {
       if (e.slowTimer <= 0) e.slowFactor = 1;
     }
     if (e.flash > 0) e.flash -= dt;
+    e.sinceHit += dt;
+
+    // Reacts to being hurt. Applied once, on the step it crosses the
+    // threshold, rather than re-derived each step — an enrage that could
+    // switch off again if a healer topped it up would read as a bug.
+    if (!e.enraged && e.enrageBelowHp > 0 && e.hp <= e.maxHp * e.enrageBelowHp) {
+      e.enraged = true;
+      e.baseSpeed *= e.enrageSpeedMul;
+    }
+
+    // Reacts to being ignored. Deliberately gated on time since the LAST hit,
+    // so keeping it under fire — even lightly — stops the healing entirely.
+    if (e.regenPerSecond > 0 && e.sinceHit >= e.regenDelay && e.hp < e.maxHp) {
+      e.hp = Math.min(e.maxHp, e.hp + e.regenPerSecond * dt);
+    }
 
     // Burn ticks before movement so a unit that burns to death this step
     // doesn't also get a step of travel out of it.
@@ -334,6 +358,7 @@ export function damageEnemy(
 
   enemy.hp -= dealt;
   enemy.flash = 0.12;
+  enemy.sinceHit = 0;
   emit(state, { type: 'enemyHit', at: { ...enemy.pos }, damage: Math.round(dealt) });
 
   if (enemy.hp <= 0) kill(state, enemy, ownerTowerId);
@@ -393,6 +418,25 @@ function kill(state: GameState, enemy: Enemy, ownerTowerId: number): void {
   });
   if (enemy.mechanic) {
     emit(state, { type: 'bossKilled', at: { ...enemy.pos }, kind: enemy.kind });
+  }
+
+  // Reacts to dying. The pieces are appended to state.enemies mid-iteration,
+  // which is safe precisely because of the flag-then-sweep rule: nothing is
+  // spliced out until the end of the step, so appending cannot shift anyone
+  // else's index. They spawn slightly BEHIND the parent so killing the parent
+  // is still progress rather than an instant teleport past your towers.
+  // Validated here rather than in the type, because EnemyKind is derived from
+  // the very table that names the split target.
+  const pieceKind = enemy.splitInto as EnemyKind | null;
+  if (pieceKind !== null && pieceKind in ENEMIES && enemy.splitCount > 0) {
+    for (let i = 0; i < enemy.splitCount; i++) {
+      const behind = Math.max(0, enemy.dist - 8 - i * 10);
+      const piece = spawnEnemy(state, pieceKind, state.wave.number, behind);
+      // A split piece must not itself split, or one Splitter can cascade into
+      // an unbounded shower of units.
+      piece.splitInto = null;
+      piece.splitCount = 0;
+    }
   }
 }
 

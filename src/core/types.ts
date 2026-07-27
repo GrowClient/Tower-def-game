@@ -147,6 +147,24 @@ export interface Enemy {
   burnDps: number;
   burnTimer: number;
 
+  /** Reacts to being hurt: below `enrageBelowHp` of max, speed multiplies. */
+  enrageBelowHp: number;
+  enrageSpeedMul: number;
+  /** True once enraged, so the renderer can show it and the speed change is
+   *  applied exactly once rather than re-derived every step. */
+  enraged: boolean;
+
+  /** Reacts to dying: bursts into `splitCount` of `splitInto`. Kept as a plain
+   *  string to match the balance table, and validated at the point of use. */
+  splitInto: string | null;
+  splitCount: number;
+
+  /** Reacts to being ignored: heals once untouched for `regenDelay` seconds. */
+  regenPerSecond: number;
+  regenDelay: number;
+  /** Seconds since this unit last took damage. */
+  sinceHit: number;
+
   /** Counts down after taking damage; drives the renderer's hit flash. */
   flash: number;
 

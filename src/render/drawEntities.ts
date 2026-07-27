@@ -912,6 +912,9 @@ const SKINS: Record<string, EnemySkin> = {
   armored: { body: '#9AA3AC', bodyDark: '#5E666E', trim: '#33393F' },
   shielded: { body: '#B8A6C8', bodyDark: '#7C6A8E', trim: '#463A55' },
   healer: { body: '#A8D89A', bodyDark: '#6A9C60', trim: '#3A5A34' },
+  zealot: { body: '#E0A05A', bodyDark: '#A66830', trim: '#5A3418' },
+  splitter: { body: '#C88ACC', bodyDark: '#8A5090', trim: '#4A2850' },
+  juggernaut: { body: '#8894A8', bodyDark: '#4E5A6E', trim: '#262E3C' },
   bossSummoner: { body: '#D89A6A', bodyDark: '#95603A', trim: '#4A2E1A' },
   bossWarlord: { body: '#D07070', bodyDark: '#8E4040', trim: '#4A2020' },
   bossRegenerator: { body: '#7AC6D8', bodyDark: '#40808E', trim: '#1E4048' },
@@ -1093,6 +1096,64 @@ function drawTypeMark(
       ctx.beginPath();
       ctx.arc(x, y, r * 0.34, 0, Math.PI * 2);
       ctx.fill();
+      break;
+    }
+    case 'zealot': {
+      // Forward-swept horns. Once enraged they glow, because a unit that has
+      // just doubled its speed must announce it or the player only finds out
+      // when it reaches the exit.
+      ctx.strokeStyle = e.enraged ? '#FFD24A' : COLORS.enemyEdge;
+      ctx.lineWidth = r * (e.enraged ? 0.22 : 0.16);
+      ctx.lineCap = 'round';
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(x + Math.cos(a + side * 0.9) * r * 0.7, y + Math.sin(a + side * 0.9) * r * 0.7);
+        ctx.lineTo(x + Math.cos(a + side * 0.35) * r * 1.5, y + Math.sin(a + side * 0.35) * r * 1.5);
+        ctx.stroke();
+      }
+      ctx.lineCap = 'butt';
+      if (e.enraged) {
+        ctx.beginPath();
+        ctx.arc(x, y, r * 1.2, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255, 160, 60, 0.55)';
+        ctx.lineWidth = r * 0.12;
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'splitter': {
+      // A visible seam: this thing is going to come apart.
+      ctx.strokeStyle = '#F0DCF4';
+      ctx.lineWidth = r * 0.14;
+      ctx.beginPath();
+      ctx.moveTo(x + Math.cos(a + Math.PI / 2) * r * 0.9, y + Math.sin(a + Math.PI / 2) * r * 0.9);
+      ctx.lineTo(x + Math.cos(a - Math.PI / 2) * r * 0.9, y + Math.sin(a - Math.PI / 2) * r * 0.9);
+      ctx.stroke();
+      ctx.fillStyle = skin.trim;
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.arc(x + Math.cos(a + side * 1.57) * r * 0.45, y + Math.sin(a + side * 1.57) * r * 0.45, r * 0.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
+    case 'juggernaut': {
+      // Heavy plating, plus a repair glow whenever it is actually healing —
+      // that is the tell that you have stopped shooting it for too long.
+      ctx.fillStyle = skin.trim;
+      for (let i = 0; i < 4; i++) {
+        const ang = (i / 4) * Math.PI * 2 + a + 0.4;
+        ctx.beginPath();
+        ctx.rect(x + Math.cos(ang) * r * 0.6 - r * 0.16, y + Math.sin(ang) * r * 0.6 - r * 0.16, r * 0.32, r * 0.32);
+        ctx.fill();
+      }
+      if (e.regenPerSecond > 0 && e.sinceHit >= e.regenDelay && e.hp < e.maxHp) {
+        ctx.beginPath();
+        ctx.arc(x, y, r * 1.25, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(120, 230, 160, 0.75)';
+        ctx.lineWidth = r * 0.14;
+        ctx.stroke();
+      }
       break;
     }
     default:
