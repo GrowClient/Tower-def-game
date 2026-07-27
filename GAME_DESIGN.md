@@ -108,10 +108,15 @@ cyan), and a full biome each — advancing re-skins the ground, the road and the
 props, not just a colour.
 
 Advancement is **player-triggered by spending gold**, never automatic on a wave
-number. Prices are many times a tower (**6,000**, then **70,000**) so paying
+number. Prices are many times a tower (**10,000**, then **100,000**) so paying
 is a real commitment — you are giving up a board's worth of defence for it. See
 "Prices, and why they went up tenfold" below for what that cost is measured
 against.
+
+Measured, a played-as-designed run reaches the Middle Age around wave 16 and
+the Tech Age around wave 32. Those two waves are the constraint any future
+re-price has to satisfy: **a price that cannot be banked is a removed age, not
+an expensive one**, and this project has made that mistake twice.
 
 **Advancing UNLOCKS the next age's towers to build. It does not transform,
 remove or refund the towers you already own.** They keep standing and keep

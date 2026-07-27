@@ -1141,8 +1141,8 @@ export const TARGET_MODE_LABELS: Record<TargetMode, string> = {
  */
 export const AGES = [
   { name: 'Stone Age', advanceCost: 0 },
-  { name: 'Middle Age', advanceCost: 6000 },
-  { name: 'Tech Age', advanceCost: 70000 },
+  { name: 'Middle Age', advanceCost: 10000 },
+  { name: 'Tech Age', advanceCost: 100000 },
 ] as const;
 
 /**
