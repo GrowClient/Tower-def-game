@@ -357,15 +357,17 @@ function drawBuildBar(
   slab(ctx, 0, y, WORLD.width, WORLD.hudBottom, 'up', accent);
 
   // Say why the bar is dead rather than letting the player tap a greyed button
-  // and guess. Sell something or advance an age — both are real answers.
+  // and guess. Sell something, upgrade, advance — and TRAPS, which the cap
+  // does not apply to at all and which the banner used to fail to mention
+  // while their buttons sat greyed out beside it.
   if (atCapacity(state)) {
     ctx.textAlign = 'center';
     ctx.fillStyle = '#F4664F';
     ctx.font = font(15);
     ctx.fillText(
       isMaxAge(state)
-        ? 'TOWER LIMIT REACHED — sell one, or upgrade what you have'
-        : 'TOWER LIMIT REACHED — sell one, upgrade what you have, or advance an age',
+        ? 'TOWER LIMIT REACHED — sell one, upgrade what you have, or lay traps'
+        : 'TOWER LIMIT REACHED — sell one, upgrade, advance an age, or lay traps',
       WORLD.width / 2,
       y + 15,
     );
@@ -375,7 +377,11 @@ function drawBuildBar(
   for (const b of buildButtons(state.age)) {
     const def = TOWERS[b.kind]!;
     const price = towerCost(b.kind);
-    const full = atCapacity(state);
+    // Per KIND, not per board. Traps are exempt from the cap (they can only
+    // go on the path, so the map already bounds them) — greying their buttons
+    // out alongside everything else told the player the exact opposite of the
+    // rule, and left them unable to work out that traps were still available.
+    const full = atCapacity(state, b.kind);
     const affordable = state.gold >= price && !full;
     const armed = ui.buildKind === b.kind;
 

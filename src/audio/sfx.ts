@@ -419,10 +419,17 @@ function play(id: SoundId): boolean {
       tone(now, 'sine', 660, 420, 0.14, 0.022);
       break;
     // Something collapsing inward: a pitch that falls away rather than decays.
+    // A dull, short thump. Nothing that rings.
+    //
+    // This was a half-second sine sweeping 420Hz down to 30 with a sawtooth
+    // under it — an echoing descending whine, and with several Singularities
+    // firing it never stopped. The Tech Age is SUPPOSED to be busy and that
+    // busyness is the reward, but one voice with a long ringing tail sits on
+    // top of everything else and turns it into noise. Now it is a single low
+    // knock with a fast decay: still weighty, over before the next one starts.
     case 'singularityHum':
-      tone(now, 'sine', 420, 30, 0.5, 0.3);
-      tone(now + 0.04, 'sawtooth', 210, 24, 0.42, 0.12);
-      noise(now, 0.3, 0.12, 'lowpass', 300, 1);
+      tone(now, 'sine', 96, 52, 0.13, 0.1);
+      noise(now, 0.07, 0.045, 'lowpass', 240, 1);
       break;
     // A supersonic round: crack first, then the long tail of the report.
     // A distant report rather than a rifle going off next to your head.
