@@ -142,9 +142,14 @@ src/
   spawned it. Keying behaviour off the surrounding situation means the same
   entity silently loses it when spawned any other way.
 - **Assert mechanics, don't eyeball them.** `core/` is pure, so every rule
-  ("a shield eats one whole hit regardless of size", "a healer never heals
+  ("a shield eats one whole hit regardless of size", "a Warchief never buffs
   itself") is directly testable headlessly. A rule with no assertion is a rule
   that will quietly stop holding.
+- **Enforce a rule where the damage happens, not only where it is decided.**
+  Blunt towers refuse to *target* plated units, but the "no damage through
+  plating" check lives in `damageEnemy` too — splash, pierce and chain
+  lightning all reach enemies no tower ever aimed at, and a rule enforced only
+  at the targeting layer is one those three quietly break.
 - **`window.__td` exists in dev only.** `main.ts` exposes the live state behind
   `import.meta.env.DEV` so tooling can drive real runs; it is dead-code
   eliminated from production builds. Verify that with a grep after building,

@@ -103,6 +103,17 @@ export interface EnemyDef {
   radius: number;
   /** Flat damage subtracted from every hit. */
   armor: number;
+  /**
+   * Plated units cannot be harmed AT ALL by a tower with no armor-piercing —
+   * and, crucially, such towers will not even target them. A Thrower facing a
+   * column of Armored simply sits idle, which says "I cannot hurt that" far
+   * more clearly than shots landing for zero ever could.
+   *
+   * This is what turns armor from a soft tax into a real requirement: by the
+   * wave they arrive you must own something that pierces, or nothing on your
+   * board can touch them.
+   */
+  plated: boolean;
   /** Gold granted on kill, before the wave bounty curve. */
   bounty: number;
   /** Lives removed if it reaches the exit. */
@@ -116,14 +127,16 @@ export interface EnemyDef {
    * layer exactly as a pebble does, so the answer is fire RATE, not damage.
    */
   shieldHits: number;
-  /** HP per second restored to OTHER enemies within healRadius. */
-  healPerSecond: number;
-  healRadius: number;
   /** Slows have no effect on this unit. */
   slowImmune: boolean;
   /** Flat armor granted to other enemies within armorAuraRadius. */
   armorAura: number;
   armorAuraRadius: number;
+  /** Speed multiplier granted to OTHER enemies within speedAuraRadius. The
+   *  Warchief's whole mechanic: visible, immediately dangerous, and it stops
+   *  the moment you kill the carrier. */
+  speedAura: number;
+  speedAuraRadius: number;
 
   // --- Reactive behaviours -------------------------------------------------
   // Enemies that only walk are scenery. These make a unit respond to what the
@@ -153,12 +166,13 @@ export interface EnemyDef {
 }
 
 const NO_SPECIALS = {
+  plated: false,
   shieldHits: 0,
-  healPerSecond: 0,
-  healRadius: 0,
   slowImmune: false,
   armorAura: 0,
   armorAuraRadius: 0,
+  speedAura: 0,
+  speedAuraRadius: 0,
   enrageBelowHp: 0,
   enrageSpeedMul: 1,
   splitInto: null as string | null,
@@ -211,6 +225,7 @@ export const ENEMIES = {
   armored: {
     ...NO_SPECIALS,
     label: 'Armored',
+    plated: true,
     maxHp: 190,
     speed: 62,
     radius: 18,
@@ -233,20 +248,28 @@ export const ENEMIES = {
     threat: 3.5,
     shieldHits: 4,
   },
-  // Undoes your damage on everything around it. Must be killed FIRST, which
-  // is why towers have a targeting mode at all.
-  healer: {
+
+  /**
+   * Speeds up everything around it. Replaces the Healer, which was the reason
+   * targeting modes existed but failed at the job: healing was an invisible
+   * number ticking up, so players never noticed it and never focused it.
+   * A speed aura is the readable version of the same idea — you can SEE the
+   * pack accelerate, and see it drop back the moment the Warchief dies — and
+   * it is directly threatening rather than merely wasteful, because faster
+   * enemies mean less time to kill them.
+   */
+  warchief: {
     ...NO_SPECIALS,
-    label: 'Healer',
-    maxHp: 150,
-    speed: 64,
-    radius: 16,
-    armor: 1,
-    bounty: 24,
-    leak: 1,
+    label: 'Warchief',
+    maxHp: 210,
+    speed: 60,
+    radius: 17,
+    armor: 2,
+    bounty: 26,
+    leak: 2,
     threat: 4.5,
-    healPerSecond: 26,
-    healRadius: 130,
+    speedAura: 1.5,
+    speedAuraRadius: 155,
   },
 
   // --- Middle Age arrivals -------------------------------------------------
@@ -824,16 +847,17 @@ export type TowerKind = keyof typeof TOWERS;
 
 /**
  * Targeting modes, cycled per tower. `first` (furthest along the path) is the
- * safe default; `healers` exists specifically because a Healer that isn't
- * focused undoes the damage every other tower is doing.
+ * safe default; `support` exists because a unit that buffs the pack around it
+ * is worth killing before the pack, and left alone it makes every other enemy
+ * on the board harder to stop.
  */
-export const TARGET_MODES = ['first', 'strongest', 'healers'] as const;
+export const TARGET_MODES = ['first', 'strongest', 'support'] as const;
 export type TargetMode = (typeof TARGET_MODES)[number];
 
 export const TARGET_MODE_LABELS: Record<TargetMode, string> = {
   first: 'FIRST',
   strongest: 'STRONGEST',
-  healers: 'HEALERS',
+  support: 'SUPPORT',
 };
 
 // ---------------------------------------------------------------------------
@@ -1219,6 +1243,24 @@ export const WAVES = {
   firstWaveDelay: 8,
   /** Breather between waves. */
   betweenWaves: 5.5,
+
+  /**
+   * The wave that teaches plating, and the much longer break granted before it.
+   *
+   * Wave 7 is nothing but Armored, and Armored cannot be touched by a board of
+   * Throwers and Spike Pits. That is a strong lesson and a fair one — but only
+   * if the player is told before it lands and has time to act on the telling.
+   * The standard 5.5-second breather is enough to read a banner and nothing
+   * else; this one is long enough to read it, look at the build bar, and go
+   * buy the tower it points at.
+   *
+   * Held in the sim rather than the renderer because it changes the run clock,
+   * and anything that changes the run clock has to be identical for the same
+   * seed. See render/screens.ts for the briefing this pause exists to give
+   * room for.
+   */
+  armorBriefingWave: 7,
+  armorBriefingPause: 24,
   /** Seconds between spawns inside a wave. */
   spawnInterval: 0.85,
   /** Spawn interval shrinks as waves go up, to a floor. */
@@ -1260,6 +1302,11 @@ export const WAVES = {
     [{ kind: 'runner', count: 13 }],
     [{ kind: 'runner', count: 10 }, { kind: 'brute', count: 1 }],
     [{ kind: 'runner', count: 14 }, { kind: 'brute', count: 2 }],
+    // Wave 7 is a TEACHING wave: nothing but Armored. A board with no
+    // armor-piercing tower will watch every one of its towers stand idle,
+    // which is the lesson delivered as an experience rather than a tooltip.
+    // The warning is shown during the break before it — see render/screens.ts.
+    [{ kind: 'armored', count: 9 }],
   ] as { kind: EnemyKind; count: number }[][],
 
   /**
@@ -1328,10 +1375,10 @@ export const WAVES = {
     { kind: 'runner', introWave: 1, weight: 10, weightGrowth: -0.55, groupSize: 1 },
     { kind: 'brute', introWave: 6, weight: 2, weightGrowth: 0.3, groupSize: 1 },
     { kind: 'swarm', introWave: 7, weight: 4, weightGrowth: 0.35, groupSize: 5 },
-    { kind: 'armored', introWave: 9, weight: 2, weightGrowth: 0.4, groupSize: 1 },
+    { kind: 'armored', introWave: 7, weight: 2, weightGrowth: 0.4, groupSize: 1 },
     // Middle Age band
     { kind: 'shielded', introWave: 11, weight: 2, weightGrowth: 0.4, groupSize: 1 },
-    { kind: 'healer', introWave: 13, weight: 1.2, weightGrowth: 0.25, groupSize: 1 },
+    { kind: 'warchief', introWave: 13, weight: 1.4, weightGrowth: 0.3, groupSize: 1 },
     { kind: 'zealot', introWave: 14, weight: 2.5, weightGrowth: 0.45, groupSize: 2 },
     // Tech Age band
     { kind: 'splitter', introWave: 22, weight: 3, weightGrowth: 0.5, groupSize: 1 },

@@ -19,6 +19,7 @@ import { drawComboLinks, drawGrid, drawPlacementGhost, drawSelectionRing } from 
 import { drawHud, drawWaveBanner, findSelectedTower } from './hud';
 import { biomeFor, COLORS } from './palette';
 import {
+  drawArmorBriefing,
   drawCombosCodex,
   drawGameOverOverlay,
   drawPauseMenu,
@@ -74,6 +75,9 @@ export function render(
   ctx.restore();
 
   drawWaveBanner(ctx, state);
+  // Outside the shake transform with the rest of the chrome, and BEFORE the
+  // HUD so the build bar it tells you to use is never covered by it.
+  if (state.phase === 'playing') drawArmorBriefing(ctx, state, biome);
   drawHud(ctx, state, ui, ageIndex);
 
   if (state.phase === 'gameover') drawGameOverOverlay(ctx, state, biome, bestWave);

@@ -274,9 +274,17 @@ Three properties keep this a mechanic rather than a hidden spreadsheet:
   pay for it, and a combos sheet lists all of them.
 
 Each damage-dealing tower also has a **targeting mode** — first, strongest, or
-healers. Without the healer mode, towers shoot the front of the pack while the
-healer at the back undoes the damage. Slowers and mines have no target and are
-not offered the choice.
+support. Without the support mode, towers shoot the front of the pack while the
+Warchief at the back makes everything else on the board harder to stop. Mines
+have no target and are not offered the choice.
+
+**Slowers ignore the mode in one respect: they never shoot the same unit
+twice in a row, and they prefer a unit that is not already chilled.** Left on
+`first` a slower re-froze whichever enemy was furthest along, every single
+shot — one enemy crawled and the twenty behind it walked past untouched, and a
+second slower added nothing because the first had already claimed the target.
+Sweeping instead of pinning is also what lets a chill actually expire, which is
+the only reason "the enemies keep flowing" survives contact with four slowers.
 
 Any tower can be **sold** for 60% of everything sunk into it.
 
@@ -348,6 +356,15 @@ There is also a hard floor on how slow anything can be made, because a parked
 enemy is not a handled enemy — the wave has to keep flowing. The Cryo Field's
 freeze-solid roll was deleted outright for the same reason.
 
+**And a slower sweeps rather than pins.** It never fires at the same unit
+twice running, and it prefers a target that is not already chilled. Without
+that rule the floor above was doing nothing useful: a slower on `first` simply
+re-chilled whichever enemy was furthest along, forever, so one unit crawled,
+everything behind it walked past untouched, and a second slower was worth
+nothing because the first had already taken the only target it wanted. The
+repeat ban is absolute — it outranks even an explicit `support` targeting
+choice — because "hit something else" is the entire mechanic.
+
 ### Why crowding is taxed
 
 Every tower you own makes the **next** one cost more (+2% each).
@@ -377,6 +394,18 @@ The build bar always quotes the live price, never the list price.
   the whole board lit up red while holding a perfectly legal tower.
 - **The tower panel hangs off its tower**, with a leader line, rather than
   living in a corner with nothing connecting the numbers to the thing.
+- **Every weapon fires something recognisably its own** — a rock, a boulder, a
+  clod of cold mud, an arrow, a cannonball trailing smoke, a frost shard, a
+  laser, a cryo orb, a black hole, a rail lance. They were all one grey pebble
+  tinted by splash radius, which quietly undid the tower art: a Singularity and
+  a Thrower became indistinguishable the instant a shot left the barrel. A
+  projectile crosses most of the board, so it is on screen far longer than the
+  muzzle flash and is doing more identity work than the tower it came from.
+- **A buff is drawn on the units receiving it, not just on its source.** Every
+  enemy inside a Warchief's banner wears speed lines. "Why is that pack
+  outrunning my slowers" is the question, so the answer has to be attached to
+  the units doing the outrunning — the aura ring on the carrier alone is the
+  second half of the sentence, not the first.
 
 ### The pause menu
 
@@ -395,13 +424,50 @@ should be solvable by "more of the same tower".
 |---|---|---|
 | **Runner** | Fast, low HP | Slowers and traps; raw DPS can't track them |
 | **Brute** | Slow, very high HP | Heavy towers |
-| **Armored** | Flat armor subtracted from every hit | Piercing or armor-ignoring heavy; many small hits are useless |
+| **Armored** | **PLATED** — blunt towers cannot hurt it and refuse to aim at it | Armor piercing, armor-ignoring, or burn |
 | **Swarm** | Spawns in groups, individually weak | AoE / splash |
 | **Shielded** | Absorbs the first N hits regardless of damage | Fast fire rate to strip the shield; big single hits are wasted |
-| **Healer** | Heals nearby enemies on a tick | Must be focused down — targeting priority matters |
+| **Warchief** | Speeds up every enemy around it | Kill the carrier — the pack drops back instantly |
 | **Zealot** | Charges once below half HP | Kill it or leave it — chip damage makes it worse |
 | **Splitter** | Bursts into two Swarm on death | Splash that catches the pieces; overkill is wasted |
 | **Juggernaut** | Heals itself unless kept under fire | Concentrated damage, not spread |
+
+### Plating: the one hard requirement
+
+Armored is not a tax, it is a **wall**. A tower with no armor piercing and no
+burn cannot damage it *at all* — not reduced damage, not minimum damage,
+nothing — and, crucially, **will not target it**. The Thrower simply stands
+still while the column walks past.
+
+Zero damage was the obvious version and the wrong one: numbers ticking up as
+`1` look like the tower is working badly, not like the tower cannot work. A
+weapon that visibly declines to aim says "I cannot hurt that" in a way no
+damage number does.
+
+Three exemptions, each load-bearing:
+
+- **Burn passes through plating.** Fire seeps in rather than striking. This is
+  the Oil Cauldron's entire reason to exist and the Middle Age's cheap answer.
+- **Slowers may still chill plated units.** They deal no damage, so they were
+  never trying to hurt anything — and without this the wave built to teach the
+  rule would also be immune to every slower on the board.
+- **Nothing else.** Splash, pierce and chain lightning all funnel through
+  `damageEnemy`, which enforces the rule at the source. The targeting layer
+  keeps a blunt tower from *aiming*; this keeps stray AoE from chipping.
+
+**Wave 7 is nothing but Armored, and it is preceded by a 24-second briefing**
+rather than the usual 5.5-second breather. The briefing states the rule, names
+the answers by reading the balance table, and — the part that actually saves
+runs — checks your board and tells you in red if nothing on it can hurt them.
+The long pause exists so the warning can be *acted on*: a lesson you cannot
+afford to answer is just a loss with a caption. Wave 7 costs lives, not the
+run; a board with no answer typically dies somewhere around wave 10–17.
+
+Measured, this is the single largest strategic decision in the early game. A
+scripted player that keeps ~40% of its damage towers able to pierce reaches a
+median wave 56; one that buys purely on damage-per-gold — which picks the
+Thrower — collapses to a median wave **14**. Before plating, those two probes
+were two waves apart.
 
 ### Reactive, not just statted
 
@@ -410,6 +476,24 @@ between an enemy and scenery. A Zealot punishes spreading fire across a pack, a
 Splitter punishes single-target overkill, and a Juggernaut punishes a board of
 many weak towers that cannot finish anything. They also arrive with the later
 ages, so a wave 30 is not a wave 5 with bigger numbers.
+
+### Why the Healer became the Warchief
+
+The Healer was the reason targeting modes existed, and it failed at the job:
+its effect was a number ticking upward. Players never noticed it, never
+focused it, and so the mode it justified went unused — a mechanic nobody can
+see is a mechanic nobody plays around.
+
+The Warchief carries the same idea in a form you can watch. Everything near it
+moves faster, every buffed unit wears speed lines, and the pack visibly drops
+back to its own pace the instant the carrier dies. It is also *threatening*
+rather than merely wasteful: faster enemies mean less time to kill them, so
+ignoring it costs you the wave rather than costing you some damage.
+
+Two rules make it readable. It never buffs itself, so it is always the thing
+you can catch. And two Warchiefs do not multiply — the strongest aura wins —
+so a pack with a pair of them is twice as many bodies to kill, not a pack
+moving at 2.25×.
 
 ### Bosses
 
@@ -456,11 +540,11 @@ Scaling is **not** HP multiplication. Two independent systems:
    draw that spends the budget.
 
 The result is that the **mix genuinely shifts** over time: new types unlock,
-and ratios drift toward nastier combinations (e.g. healers behind brutes,
+and ratios drift toward nastier combinations (e.g. a Warchief behind brutes,
 shielded escorting swarms). A build that answered wave 8 should not answer
 wave 20.
 
-Waves 1–6 are hand-authored so the opening is gentle and teaches. The
+Waves 1–7 are hand-authored so the opening is gentle and teaches. The
 generated curve must **hand over continuously** from the last scripted wave:
 an unmatched handoff put wave 7 at 2.4× the threat of wave 6, and every run
 died there no matter how the rest of the curve was tuned.

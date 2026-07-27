@@ -4,9 +4,9 @@
  * Movement is a single scalar per enemy (`dist` along the path), so a slow is
  * one multiply and "who is furthest along" is one compare.
  *
- * The six types exist to demand six different answers. The mechanics that make
- * that true — shields that eat whole hits, healers that undo damage, armor
- * that blunts small hits — all live in this file.
+ * Each type exists to demand a different answer. The mechanics that make that
+ * true — shields that eat whole hits, plating nothing blunt can touch, a
+ * Warchief that makes the pack around it sprint — all live in this file.
  */
 
 import {
@@ -118,6 +118,7 @@ export function spawnEnemy(
     baseSpeed: def.speed * speedMultiplier(wave),
     radius: def.radius,
     armor: def.armor + armorBonus(wave) + bossArmor,
+    plated: def.plated,
     bounty: killReward(state, def.bounty, wave),
     leak: def.leak,
 
@@ -131,12 +132,13 @@ export function spawnEnemy(
     shield: def.shieldHits,
     maxShield: def.shieldHits,
 
-    healPerSecond: def.healPerSecond,
-    healRadius: def.healRadius,
-
     armorAura: def.armorAura + bossAura,
     armorAuraRadius: def.armorAuraRadius,
     auraArmor: 0,
+
+    speedAura: def.speedAura,
+    speedAuraRadius: def.speedAuraRadius,
+    auraSpeed: 1,
 
     enrageBelowHp: def.enrageBelowHp,
     enrageSpeedMul: def.enrageSpeedMul,
@@ -171,7 +173,7 @@ export function spawnEnemy(
 // ---------------------------------------------------------------------------
 
 export function updateEnemies(state: GameState, dt: number): void {
-  applyAuras(state, dt);
+  applyAuras(state);
   updateBosses(state, dt);
 
   for (const e of state.enemies) {
@@ -189,7 +191,7 @@ export function updateEnemies(state: GameState, dt: number): void {
 
     // Reacts to being hurt. Applied once, on the step it crosses the
     // threshold, rather than re-derived each step — an enrage that could
-    // switch off again if a healer topped it up would read as a bug.
+    // switch off again if the unit were topped up would read as a bug.
     if (!e.enraged && e.enrageBelowHp > 0 && e.hp <= e.maxHp * e.enrageBelowHp) {
       e.enraged = true;
       e.baseSpeed *= e.enrageSpeedMul;
@@ -209,7 +211,7 @@ export function updateEnemies(state: GameState, dt: number): void {
       if (e.dead) continue;
     }
 
-    e.dist += e.baseSpeed * e.slowFactor * dt;
+    e.dist += e.baseSpeed * e.slowFactor * e.auraSpeed * dt;
 
     if (e.dist >= state.path.length) {
       e.dist = state.path.length;
@@ -225,15 +227,24 @@ export function updateEnemies(state: GameState, dt: number): void {
 }
 
 /**
- * Healer and armor auras.
+ * Support auras: armor from a Warlord, speed from a Warchief.
  *
- * `auraArmor` is zeroed and rebuilt from scratch every step rather than being
- * added to and subtracted from. Accumulating it would drift as sources come
- * and go, and a unit could end a run permanently armored by an aura that died
- * twenty seconds ago.
+ * Both are zeroed and rebuilt from scratch every step rather than being added
+ * to and subtracted from. Accumulating them would drift as sources come and
+ * go, and a unit could end a run permanently armored — or permanently
+ * sprinting — because of an aura that died twenty seconds ago. Rebuilding is
+ * also what makes killing the carrier feel like it did something: the pack
+ * drops back to its own speed on the very next step.
+ *
+ * Neither aura applies to its own source. A buff that stacked onto the unit
+ * carrying it would make the Warchief the fastest thing on the board, which
+ * inverts the read — you are supposed to be able to catch it.
  */
-function applyAuras(state: GameState, dt: number): void {
-  for (const e of state.enemies) e.auraArmor = 0;
+function applyAuras(state: GameState): void {
+  for (const e of state.enemies) {
+    e.auraArmor = 0;
+    e.auraSpeed = 1;
+  }
 
   for (const source of state.enemies) {
     if (source.dead) continue;
@@ -248,22 +259,14 @@ function applyAuras(state: GameState, dt: number): void {
       }
     }
 
-    if (source.healPerSecond > 0) {
-      const rSq = source.healRadius * source.healRadius;
-      const amount = source.healPerSecond * dt;
+    if (source.speedAura > 1) {
+      const rSq = source.speedAuraRadius * source.speedAuraRadius;
       for (const target of state.enemies) {
-        // A healer never heals itself — otherwise it out-sustains focused fire
-        // and the "kill it first" answer stops working.
         if (target.dead || target === source) continue;
-        if (target.hp >= target.maxHp) continue;
-        if (distSq(source, target) > rSq) continue;
-
-        const before = target.hp;
-        target.hp = Math.min(target.maxHp, target.hp + amount);
-        // Only announce a heal that crossed a whole HP, or the fx layer gets
-        // an event every frame for every unit in range.
-        if (Math.floor(target.hp) > Math.floor(before) && Math.floor(target.hp) % 10 === 0) {
-          emit(state, { type: 'enemyHealed', at: { ...target.pos } });
+        // Strongest wins rather than multiplying: two Warchiefs in one pack
+        // should be twice as many bodies to kill, not a pack moving at 2.25x.
+        if (distSq(source, target) <= rSq) {
+          target.auraSpeed = Math.max(target.auraSpeed, source.speedAura);
         }
       }
     }
@@ -346,6 +349,13 @@ function updateBosses(state: GameState, dt: number): void {
  *
  * Armor is then subtracted flat and floors at COMBAT.minDamage, so armor blunts
  * many small hits without ever making a tower literally useless.
+ *
+ * PLATING is the exception to that floor, and deliberately so. A blunt hit on
+ * a plated unit does not do minimum damage — it does nothing at all, and says
+ * nothing about it. Enforced here rather than only at the targeting layer so
+ * the rule is TRUE rather than merely usually observed: splash, pierce and
+ * chain lightning all funnel through this function, and any of them could
+ * otherwise chip an Armored unit that no tower ever aimed at.
  */
 export function damageEnemy(
   state: GameState,
@@ -355,6 +365,7 @@ export function damageEnemy(
   ownerTowerId: number,
 ): void {
   if (enemy.dead) return;
+  if (enemy.plated && armorPierce <= 0) return;
 
   if (enemy.shield > 0) {
     enemy.shield--;

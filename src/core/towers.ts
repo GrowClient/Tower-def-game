@@ -41,23 +41,35 @@ import {
   type TowerKind,
 } from './types';
 
-/** What each tower's shot looks like in flight. Presentation, but it belongs
- *  with the tower identity rather than being re-derived in the renderer. */
-const PROJECTILE_LOOK: Record<TowerKind, ProjectileLook> = {
+/**
+ * What each tower's shot looks like in flight. Presentation, but it belongs
+ * with the tower identity rather than being re-derived in the renderer.
+ *
+ * Every entry is distinct on purpose. These all used to collapse onto 'rock'
+ * or 'bullet', which meant a Singularity and a Thrower were indistinguishable
+ * from the instant they fired — and a shot crossing the board is visible for
+ * far longer than the tower that launched it.
+ *
+ * The entries for towers that never fire (economy buildings, and the traps
+ * that resolve on their own cell) are inert. They exist because the map is
+ * exhaustive over TowerKind, which is what makes adding a tower without
+ * choosing its ammunition a compile error rather than a silent grey pebble.
+ */
+export const PROJECTILE_LOOK: Record<TowerKind, ProjectileLook> = {
   thrower: 'rock',
   trap: 'rock',
-  slower: 'rock',
+  slower: 'slush',
   heavy: 'boulder',
   campfire: 'rock',
   ballista: 'arrow',
   oilFire: 'rock',
-  frost: 'rock',
+  frost: 'frostShard',
   siegeCannon: 'cannonball',
   goldMine: 'rock',
-  railgun: 'bullet',
-  teslaCoil: 'bullet',
-  cryo: 'bullet',
-  singularity: 'cannonball',
+  railgun: 'laser',
+  teslaCoil: 'rock',
+  cryo: 'cryoOrb',
+  singularity: 'blackHole',
   sniper: 'rail',
   factory: 'rock',
 };
@@ -239,6 +251,7 @@ export function placeTower(
     aim: 0,
     recoil: 0,
     targetMode: 'first',
+    lastTargetId: 0,
     combos: [],
   };
   state.towers.push(tower);
@@ -305,25 +318,72 @@ export function cycleTargetMode(state: GameState, towerId: number): boolean {
 }
 
 /**
+ * Can this tower hurt this enemy AT ALL?
+ *
+ * Plated units are the one hard wall in the game. A tower with no armor
+ * piercing and no burn cannot scratch them, so rather than firing shots that
+ * land for nothing it declines to aim in the first place — the Thrower sits
+ * still while the Armored column walks past, and "I cannot hurt that" is
+ * delivered as something you watch instead of something you read.
+ *
+ * Two deliberate exemptions:
+ *   - burn (`burnDps`), because fire seeps past plating rather than striking
+ *     it. This is the Oil Cauldron's whole reason to exist.
+ *   - damage-free towers (slowers), which are not trying to hurt anything.
+ *     Excluding them would leave an all-Armored wave immune to chills too,
+ *     and turn the one wave built to teach the rule into an unanswerable one.
+ */
+function canHarm(def: (typeof TOWERS)[TowerKind], enemy: Enemy): boolean {
+  if (!enemy.plated) return true;
+  return def.armorPierce > 0 || def.burnDps > 0 || def.damage <= 0;
+}
+
+/**
+ * Can a tower of this kind get through plating at all?
+ *
+ * Exported so the wave-7 briefing and the build bar can name the answers from
+ * the balance table instead of from a hand-written list that drifts the first
+ * time a tower's armorPierce changes. Slowers are deliberately false: they are
+ * allowed to chill an Armored unit, but a chill is not an answer to one.
+ */
+export function piercesPlating(kind: TowerKind): boolean {
+  const def = TOWERS[kind]!;
+  return def.armorPierce > 0 || def.burnDps > 0;
+}
+
+/**
  * Target selection.
  *
  * `first` — furthest along the path, i.e. closest to leaking. The safe default.
  * `strongest` — most current HP; points slow heavy hitters at the thing worth
  *   hitting instead of whichever runner happened to get ahead.
- * `healers` — prefers anything with a heal aura, falling back to `first`.
- *   This mode is the reason healers are answerable at all: without it, towers
- *   shoot the front of the pack while the healer at the back undoes it.
+ * `support` — prefers anything carrying an aura (a Warchief's speed buff, a
+ *   Warlord's armor), falling back to `first`. That unit is worth killing
+ *   before the pack it is buffing, and nothing else on the board makes that
+ *   choice for you.
+ *
+ * On top of the mode, a SLOWER spreads its work. Left to `first` it re-chills
+ * whichever unit is furthest along every single shot, so one enemy crawls and
+ * the twenty behind it are untouched. Preferring an un-chilled target — and
+ * refusing to shoot the unit it just fired at, whose shot is still in flight —
+ * turns a slower from a pin into a sweep, which is also what lets a slow
+ * actually expire and lets a second slower contribute something.
  *
  * Every comparison ends in an id tiebreak so selection is deterministic
  * regardless of array order.
  */
 function findTarget(state: GameState, tower: Tower, range: number): Enemy | null {
+  const def = TOWERS[tower.kind]!;
+  // A pure slower: no damage, but it does apply a chill.
+  const spreads = def.damage <= 0 && def.slowFactor < 1;
+
   let best: Enemy | null = null;
   let bestScore = -Infinity;
   const rangeSq = range * range;
 
   for (const e of state.enemies) {
     if (e.dead) continue;
+    if (!canHarm(def, e)) continue;
     const dx = e.pos.x - tower.pos.x;
     const dy = e.pos.y - tower.pos.y;
     if (dx * dx + dy * dy > rangeSq) continue;
@@ -333,16 +393,30 @@ function findTarget(state: GameState, tower: Tower, range: number): Enemy | null
       case 'strongest':
         score = e.hp;
         break;
-      case 'healers':
-        // Huge constant bias rather than a separate pass: any healer in range
-        // outranks every non-healer, and among equals it falls back to
-        // progress along the path.
-        score = (e.healPerSecond > 0 ? 1e9 : 0) + e.dist;
+      case 'support':
+        // Huge constant bias rather than a separate pass: any aura carrier in
+        // range outranks every ordinary unit, and among equals it falls back
+        // to progress along the path.
+        score = (e.speedAura > 1 || e.armorAura > 0 ? 1e9 : 0) + e.dist;
         break;
       case 'first':
       default:
         score = e.dist;
         break;
+    }
+
+    if (spreads) {
+      // Both terms dwarf `dist` (the path is a few thousand units long), so
+      // they sort the candidates into bands: fresh targets first, then already
+      // chilled ones, and the unit we just shot at dead last. Within a band it
+      // is still whatever the mode asked for.
+      //
+      // The repeat penalty deliberately outweighs even the `support` bias, so
+      // "never twice in a row" holds unconditionally. A slower with exactly
+      // one enemy in reach still fires at it — everything is penalised
+      // equally, so the best score is simply a negative one.
+      if (e.slowTimer > 0) score -= 1e6;
+      if (e.id === tower.lastTargetId) score -= 5e9;
     }
 
     if (score > bestScore || (score === bestScore && best !== null && e.id < best.id)) {
@@ -400,6 +474,12 @@ function updateTrap(state: GameState, tower: Tower): void {
 
   for (const e of state.enemies) {
     if (e.dead) continue;
+    // A Spike Pit under a plated unit does not merely deal nothing — it does
+    // not trigger at all, so it visibly sits armed while the column walks over
+    // it. Skipping here rather than relying on damageEnemy's guard is what
+    // keeps the trap from spending its cooldown and playing its sound on a
+    // target it was never going to hurt.
+    if (!canHarm(def, e)) continue;
     const dx = e.pos.x - tower.pos.x;
     const dy = e.pos.y - tower.pos.y;
     if (dx * dx + dy * dy > reachSq) continue;
@@ -496,6 +576,10 @@ function updateShooter(state: GameState, tower: Tower): void {
     slowSeconds: towerSlowSeconds(state, tower),
   });
 
+  // Remembered so a slower can refuse to shoot the same unit twice running.
+  // Recorded for every tower rather than only slowers: a field that is only
+  // sometimes maintained is a field that lies the moment anything else reads it.
+  tower.lastTargetId = target.id;
   tower.cooldown = 1 / towerFireRate(state, tower);
   tower.recoil = 0.12;
   emit(state, { type: 'towerFired', at: tower.pos, kind: tower.kind });

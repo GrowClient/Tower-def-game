@@ -11,10 +11,12 @@ import {
   ENEMIES,
   PERKS,
   TOWERS,
+  WAVES,
   WORLD,
   type PerkKey,
   type TowerKind,
 } from '../config/balance';
+import { piercesPlating } from '../core/towers';
 import type { GameState } from '../core/types';
 import { PAUSE_TABS, speedMultiplier, type PauseTab, type UiState } from '../uiState';
 import { comboColor } from './drawMap';
@@ -377,9 +379,9 @@ const ENEMY_ANSWER: Record<string, string> = {
   runner: 'Fast, fragile. Slowers and traps — raw DPS struggles to track them.',
   brute: 'Slow, enormous HP. Heavy towers, not more small hits.',
   swarm: 'Arrives as a block of weaklings. Splash damage.',
-  armored: 'Flat armor blunts every hit. Piercing or armor-ignoring towers.',
+  armored: 'PLATED — blunt towers cannot hurt it and will not aim at it. Bring piercing or burn.',
   shielded: 'Eats whole hits regardless of size. Fire RATE strips it; big hits are wasted.',
-  healer: 'Undoes your damage on everything nearby. Focus it — set a tower to HEALERS.',
+  warchief: 'Makes everything near it move faster. Kill the carrier and the pack drops back — set a tower to SUPPORT.',
   zealot: 'Charges once below half HP. Chip damage makes it worse — kill it or leave it.',
   splitter: 'Bursts into two Swarm on death. Splash that catches the pieces beats overkill.',
   juggernaut: 'Heals itself unless kept under fire. Needs concentrated damage, not spread.',
@@ -387,15 +389,19 @@ const ENEMY_ANSWER: Record<string, string> = {
 
 function drawEnemyGuide(ctx: CanvasRenderingContext2D, biome: Biome): void {
   const kinds = Object.keys(ENEMY_ANSWER) as (keyof typeof ENEMIES)[];
-  const rowH = 74;
-  const top = 220;
+  // Sized so the WHOLE roster fits on one screen. The list has no scroll, so a
+  // row height that leaves the last enemy hanging off the bottom edge simply
+  // hides a unit from the one screen whose job is to explain the units.
+  const gap = 6;
+  const top = 196;
+  const rowH = Math.min(74, (WORLD.height - top - 40) / kinds.length - gap);
   const x = 150;
   const w = WORLD.width - 300;
 
   ctx.textAlign = 'left';
   kinds.forEach((kind, i) => {
     const def = ENEMIES[kind];
-    const y = top + i * (rowH + 8);
+    const y = top + i * (rowH + gap);
 
     ctx.fillStyle = 'rgba(26, 21, 15, 0.92)';
     roundRect(ctx, x, y, w, rowH, 10);
@@ -412,8 +418,9 @@ function drawEnemyGuide(ctx: CanvasRenderingContext2D, biome: Biome): void {
     ctx.font = font(14);
     ctx.fillText(
       `hp ${def.maxHp}   speed ${def.speed}   armor ${def.armor}   bounty ${def.bounty}g` +
+        (def.plated ? '   PLATED' : '') +
         (def.shieldHits > 0 ? `   shield ${def.shieldHits}` : '') +
-        (def.healPerSecond > 0 ? `   heals ${def.healPerSecond}/s` : ''),
+        (def.speedAura > 1 ? `   rallies x${def.speedAura}` : ''),
       x + 20,
       y + 56,
     );
@@ -632,6 +639,99 @@ export function drawRotateHint(ctx: CanvasRenderingContext2D, vp: Viewport): voi
   ctx.font = font(Math.max(12, Math.min(vp.cssW, vp.cssH) * 0.032), 500);
   ctx.fillText('this game is played in landscape', cx, cy + s * 1.6);
   ctx.textAlign = 'left';
+}
+
+// ---------------------------------------------------------------------------
+// The armor briefing
+// ---------------------------------------------------------------------------
+
+/**
+ * The one tutorial in the game, and it exists because plating is the one rule
+ * that can end a run through ignorance rather than through a bad decision.
+ *
+ * Shown during the extended break before the all-Armored wave (see
+ * WAVES.armorBriefingPause, which exists to give this room). It deliberately
+ * does three things a static tooltip cannot:
+ *
+ *   1. States the rule in the terms the player will SEE — towers standing
+ *      idle, not damage numbers reading zero.
+ *   2. Names the answers by reading the balance table, so the list cannot
+ *      drift out of date the first time a tower's armorPierce changes.
+ *   3. Checks the player's ACTUAL BOARD and says whether they are ready.
+ *      "You have no answer to this" is the sentence that saves the run, and
+ *      it is worth more than the other two put together.
+ *
+ * It draws no scrim and swallows no input: the whole point of the long pause
+ * is that you can go and buy the tower while reading about it.
+ */
+export function drawArmorBriefing(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  biome: Biome,
+): void {
+  if (state.wave.active) return;
+  if (state.wave.number + 1 !== WAVES.armorBriefingWave) return;
+  if (state.perkChoices !== null) return;
+
+  const unlocked: TowerKind[] = [];
+  for (let a = 0; a <= state.age; a++) unlocked.push(...BUILD_ORDER[a]!);
+  const answers = unlocked.filter(piercesPlating);
+  const ready = state.towers.some((t) => piercesPlating(t.kind));
+
+  const w = 760;
+  const h = 250;
+  const x = (WORLD.width - w) / 2;
+  const y = 150;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(18, 15, 11, 0.93)';
+  roundRect(ctx, x, y, w, h, 14);
+  ctx.fill();
+  ctx.strokeStyle = ready ? biome.accent : '#F4664F';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.textAlign = 'center';
+  const cx = x + w / 2;
+
+  ctx.font = font(30);
+  ctx.fillStyle = '#F4664F';
+  ctx.fillText(`WAVE ${WAVES.armorBriefingWave}: ARMORED COLUMN`, cx, y + 46);
+
+  ctx.font = font(17, 500);
+  ctx.fillStyle = COLORS.text;
+  ctx.fillText('Armored units are PLATED. Blunt weapons cannot hurt them —', cx, y + 84);
+  ctx.fillText('and will not even aim at them. Your Throwers will stand idle.', cx, y + 108);
+
+  ctx.font = font(16, 500);
+  ctx.fillStyle = COLORS.textDim;
+  ctx.fillText(
+    `Plating is answered by: ${answers.map((k) => TOWERS[k]!.label).join(', ')}`,
+    cx,
+    y + 146,
+  );
+
+  // The verdict on the board as it stands right now.
+  ctx.font = font(20);
+  ctx.fillStyle = ready ? '#8ED28A' : '#F4664F';
+  ctx.fillText(
+    ready
+      ? 'Your board can answer this wave.'
+      : 'NOTHING ON YOUR BOARD CAN HURT THEM. Build one now.',
+    cx,
+    y + 190,
+  );
+
+  ctx.font = font(15, 500);
+  ctx.fillStyle = COLORS.textDim;
+  ctx.fillText(
+    `The wave starts in ${state.wave.timer.toFixed(0)}s — build while you read.`,
+    cx,
+    y + 222,
+  );
+
+  ctx.textAlign = 'left';
+  ctx.restore();
 }
 
 function scrim(ctx: CanvasRenderingContext2D, alpha: number): void {

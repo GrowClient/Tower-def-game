@@ -908,15 +908,290 @@ function spike(
 // Projectiles
 // ---------------------------------------------------------------------------
 
+/**
+ * Every weapon fires something recognisably its own.
+ *
+ * This used to be one circle for all twelve towers, tinted by whether it had
+ * splash — which meant the Singularity and the Thrower were the same grey
+ * pebble the instant the shot left the barrel. A projectile is on screen for
+ * most of its flight across the board, so it is doing more identity work than
+ * the tower art ever gets to.
+ *
+ * Everything is drawn in the shot's own frame: translate to the position,
+ * rotate to the heading, then draw pointing along +x. That keeps each look's
+ * geometry readable as a shape instead of a pile of trigonometry, and it means
+ * an arrow always flies point-first without every vertex being computed twice.
+ */
 function drawProjectile(ctx: CanvasRenderingContext2D, p: Projectile, biome: Biome): void {
-  const r = p.splash > 0 ? 7 : 4.5;
+  // Heading from where it is to where it's going. A shot that has arrived has
+  // no direction left, so fall back to +x rather than emitting a NaN rotation
+  // that would blank the whole canvas transform.
+  const dx = p.aimAt.x - p.pos.x;
+  const dy = p.aimAt.y - p.pos.y;
+  const heading = dx === 0 && dy === 0 ? 0 : Math.atan2(dy, dx);
+
+  ctx.save();
+  ctx.translate(p.pos.x, p.pos.y);
+  ctx.rotate(heading);
+  ctx.lineJoin = 'round';
+
+  switch (p.look) {
+    case 'rock':
+      drawStone(ctx, 4.5, biome.rockLit, spin(p));
+      break;
+
+    case 'boulder':
+      drawStone(ctx, 8, biome.rock, spin(p));
+      break;
+
+    case 'slush': {
+      // A wet clod of cold mud: a lumpy dark ball shedding pale droplets, so
+      // the Stone Age slower reads as thrown sludge rather than as a snowball.
+      drawStone(ctx, 5.5, '#6E7F86', spin(p));
+      ctx.fillStyle = 'rgba(196, 226, 238, 0.8)';
+      for (const d of [-1, 1]) {
+        ctx.beginPath();
+        ctx.arc(-7 - d, d * 3.2, 1.7, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
+
+    case 'arrow': {
+      // Shaft, broadhead, fletching. Long and thin, which also sells the fact
+      // that it will keep going through whatever it hits.
+      ctx.strokeStyle = '#5A3E22';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(-11, 0);
+      ctx.lineTo(6, 0);
+      ctx.stroke();
+
+      ctx.fillStyle = '#DCE4E8';
+      ctx.beginPath();
+      ctx.moveTo(12, 0);
+      ctx.lineTo(4, -3.4);
+      ctx.lineTo(4, 3.4);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = '#C8B48A';
+      ctx.lineWidth = 1.6;
+      for (const s of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(-11, 0);
+        ctx.lineTo(-6, s * 3.4);
+        ctx.stroke();
+      }
+      break;
+    }
+
+    case 'cannonball': {
+      // Cast iron, lit from above, with powder smoke trailing behind it. The
+      // smoke is the tell that this one is heavy and slow.
+      ctx.fillStyle = 'rgba(120, 112, 104, 0.32)';
+      for (let i = 1; i <= 3; i++) {
+        ctx.beginPath();
+        ctx.arc(-7 * i, Math.sin(p.id + i) * 1.6, 4.6 - i, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      const iron = ctx.createRadialGradient(-2.5, -2.5, 1, 0, 0, 8);
+      iron.addColorStop(0, '#6C6A68');
+      iron.addColorStop(1, '#26241F');
+      ctx.beginPath();
+      ctx.arc(0, 0, 8, 0, Math.PI * 2);
+      ctx.fillStyle = iron;
+      ctx.fill();
+      ctx.strokeStyle = '#14100B';
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+      break;
+    }
+
+    case 'frostShard': {
+      // A single crystal, point-first, with a cold halo. Reads as ice at a
+      // glance without being mistaken for the Cryo Field's orb.
+      ctx.fillStyle = 'rgba(150, 214, 240, 0.28)';
+      ctx.beginPath();
+      ctx.arc(0, 0, 9, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(9, 0);
+      ctx.lineTo(0, -4.4);
+      ctx.lineTo(-7, 0);
+      ctx.lineTo(0, 4.4);
+      ctx.closePath();
+      ctx.fillStyle = '#DCF3FF';
+      ctx.fill();
+      ctx.strokeStyle = '#5E9CB8';
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+      // Facet line, so it looks cut rather than drawn.
+      ctx.beginPath();
+      ctx.moveTo(8, 0);
+      ctx.lineTo(-6, 0);
+      ctx.strokeStyle = 'rgba(120, 180, 210, 0.8)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      break;
+    }
+
+    case 'laser': {
+      // The Gun Turret fires light: a hot white core inside a coloured bloom,
+      // stretched along the direction of travel. Additive blending is what
+      // makes it look emitted rather than painted.
+      ctx.globalCompositeOperation = 'lighter';
+      const bloom = ctx.createLinearGradient(-22, 0, 14, 0);
+      bloom.addColorStop(0, 'rgba(80, 220, 255, 0)');
+      bloom.addColorStop(0.55, 'rgba(90, 230, 255, 0.55)');
+      bloom.addColorStop(1, 'rgba(190, 250, 255, 0.9)');
+      ctx.fillStyle = bloom;
+      ctx.fillRect(-22, -3.2, 36, 6.4);
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+      ctx.fillRect(-16, -1.1, 30, 2.2);
+      ctx.beginPath();
+      ctx.arc(13, 0, 3.4, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+
+    case 'cryoOrb': {
+      // A slow, wide-bursting sphere of cold. Deliberately round and haloed
+      // where the Frost Tower's shard is angular — same job, different age,
+      // and the player should be able to tell which tower is covering a lane.
+      ctx.globalCompositeOperation = 'lighter';
+      const halo = ctx.createRadialGradient(0, 0, 1, 0, 0, 13);
+      halo.addColorStop(0, 'rgba(210, 250, 255, 0.9)');
+      halo.addColorStop(0.45, 'rgba(120, 200, 240, 0.45)');
+      halo.addColorStop(1, 'rgba(90, 170, 230, 0)');
+      ctx.beginPath();
+      ctx.arc(0, 0, 13, 0, Math.PI * 2);
+      ctx.fillStyle = halo;
+      ctx.fill();
+
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.beginPath();
+      ctx.arc(0, 0, 4.6, 0, Math.PI * 2);
+      ctx.fillStyle = '#EAFAFF';
+      ctx.fill();
+      // Orbiting motes, turning with the shot's own spin.
+      ctx.fillStyle = 'rgba(190, 240, 255, 0.85)';
+      const s = spin(p);
+      for (let i = 0; i < 3; i++) {
+        const ang = s + (i / 3) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(Math.cos(ang) * 8.5, Math.sin(ang) * 8.5, 1.7, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
+
+    case 'blackHole': {
+      // A hole, not a ball: a dead-black disc with a bright accretion ring and
+      // matter falling inward. The one shot on the board that is darker than
+      // the ground it crosses, which is exactly what a Singularity should be.
+      const s = spin(p);
+      ctx.rotate(s);
+
+      // Lensed streaks being dragged in, drawn under the disc.
+      ctx.strokeStyle = 'rgba(206, 150, 250, 0.5)';
+      ctx.lineWidth = 1.6;
+      for (let i = 0; i < 5; i++) {
+        const ang = (i / 5) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, 13, ang, ang + 0.7);
+        ctx.stroke();
+      }
+
+      const ring = ctx.createRadialGradient(0, 0, 5.5, 0, 0, 11);
+      ring.addColorStop(0, 'rgba(240, 200, 255, 0.95)');
+      ring.addColorStop(0.5, 'rgba(150, 80, 220, 0.55)');
+      ring.addColorStop(1, 'rgba(90, 40, 160, 0)');
+      ctx.beginPath();
+      ctx.arc(0, 0, 11, 0, Math.PI * 2);
+      ctx.fillStyle = ring;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(0, 0, 5.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#080510';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(226, 178, 255, 0.9)';
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+      break;
+    }
+
+    case 'rail': {
+      // A hypervelocity lance. It travels fast enough that the streak behind
+      // it is most of what you ever see, which is the point.
+      ctx.globalCompositeOperation = 'lighter';
+      const streak = ctx.createLinearGradient(-46, 0, 8, 0);
+      streak.addColorStop(0, 'rgba(255, 214, 120, 0)');
+      streak.addColorStop(1, 'rgba(255, 238, 190, 0.85)');
+      ctx.fillStyle = streak;
+      ctx.fillRect(-46, -1.6, 54, 3.2);
+
+      ctx.fillStyle = '#FFF6DC';
+      ctx.beginPath();
+      ctx.moveTo(9, 0);
+      ctx.lineTo(1, -2.6);
+      ctx.lineTo(1, 2.6);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+  }
+
+  ctx.restore();
+}
+
+/**
+ * A tumbling irregular lump — the shared body of every thrown-rock look.
+ *
+ * The lobes are derived from a fixed sequence rather than a random one: the
+ * renderer has no RNG and must not have one, and a shape that re-rolled every
+ * frame would shimmer instead of tumble.
+ */
+function drawStone(
+  ctx: CanvasRenderingContext2D,
+  r: number,
+  fill: string,
+  angle: number,
+): void {
+  const lobes = [1, 0.82, 1.1, 0.88, 1.05, 0.92];
+  ctx.save();
+  ctx.rotate(angle);
   ctx.beginPath();
-  ctx.arc(p.pos.x, p.pos.y, r, 0, Math.PI * 2);
-  ctx.fillStyle = p.splash > 0 ? biome.rock : biome.rockLit;
+  for (let i = 0; i < lobes.length; i++) {
+    const t = (i / lobes.length) * Math.PI * 2;
+    const rr = r * lobes[i]!;
+    const px = Math.cos(t) * rr;
+    const py = Math.sin(t) * rr;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fillStyle = fill;
   ctx.fill();
   ctx.lineWidth = 2;
   ctx.strokeStyle = '#14100B';
   ctx.stroke();
+  ctx.restore();
+}
+
+/**
+ * A shot's tumble angle, derived from its id and how far it has travelled.
+ *
+ * Deliberately computed rather than stored: rotation is presentation, and the
+ * render rule forbids writing to anything reachable from GameState. Keying it
+ * off position means the spin tracks distance covered, so a slow boulder rolls
+ * lazily and a fast one whips round.
+ */
+function spin(p: Projectile): number {
+  return p.id * 0.9 + (p.pos.x + p.pos.y) * 0.035;
 }
 
 // ---------------------------------------------------------------------------
@@ -940,7 +1215,10 @@ const SKINS: Record<string, EnemySkin> = {
   swarm: { body: '#C2B48A', bodyDark: '#8E8158', trim: '#5A5136' },
   armored: { body: '#9AA3AC', bodyDark: '#5E666E', trim: '#33393F' },
   shielded: { body: '#B8A6C8', bodyDark: '#7C6A8E', trim: '#463A55' },
-  healer: { body: '#A8D89A', bodyDark: '#6A9C60', trim: '#3A5A34' },
+  // Deep red-bronze rather than gold. Gold sat right on top of the Runner's
+  // tan, and in a pack of twenty the support unit you are meant to pick out
+  // and kill first has to be the one colour nothing else on the board uses.
+  warchief: { body: '#C4553C', bodyDark: '#7E2E20', trim: '#3E140E' },
   zealot: { body: '#E0A05A', bodyDark: '#A66830', trim: '#5A3418' },
   splitter: { body: '#C88ACC', bodyDark: '#8A5090', trim: '#4A2850' },
   juggernaut: { body: '#8894A8', bodyDark: '#4E5A6E', trim: '#262E3C' },
@@ -1006,6 +1284,29 @@ function drawEnemy(
   ctx.stroke();
 
   drawTypeMark(ctx, e, x, y, r, a, skin);
+
+  // Rallied: this unit is inside a Warchief's banner and is moving faster
+  // because of it. Marked on every affected unit rather than only on the
+  // carrier, because "why is that pack suddenly outrunning my slowers" is the
+  // question, and the answer has to be attached to the units doing it.
+  // Speed lines trailing BEHIND the direction of travel read as motion at a
+  // glance, which a ring or a tint would not.
+  if (e.auraSpeed > 1) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(248, 214, 110, 0.75)';
+    ctx.lineWidth = r * 0.13;
+    ctx.lineCap = 'round';
+    for (const side of [-0.85, 0, 0.85]) {
+      const ox = -Math.sin(a) * r * side;
+      const oy = Math.cos(a) * r * side;
+      ctx.beginPath();
+      ctx.moveTo(x + ox - Math.cos(a) * r * 1.15, y + oy - Math.sin(a) * r * 1.15);
+      ctx.lineTo(x + ox - Math.cos(a) * r * 1.95, y + oy - Math.sin(a) * r * 1.95);
+      ctx.stroke();
+    }
+    ctx.lineCap = 'butt';
+    ctx.restore();
+  }
 
   // Rime on a chilled unit.
   //
@@ -1105,19 +1406,52 @@ function drawTypeMark(
       }
       break;
     }
-    case 'healer': {
-      // A cross. Unambiguous, and it is the one unit the player must identify
-      // instantly to react correctly.
-      ctx.fillStyle = '#EAFBE4';
-      const t = r * 0.22;
-      ctx.fillRect(x - t / 2, y - r * 0.5, t, r);
-      ctx.fillRect(x - r * 0.5, y - t / 2, r, t);
-      // Faint aura ring showing exactly who it's keeping alive.
+    case 'warchief': {
+      // A raised banner. It replaces the Healer's cross for the same reason
+      // the unit replaced the Healer: the effect has to be legible at a
+      // glance in a crowd, and a pole held above the pack is the tallest
+      // silhouette on the board.
+      // Deliberately oversized — it sticks a full body-length clear of the
+      // pack, so it is the tallest thing on screen and stays identifiable
+      // when six units are overlapping at 4x speed.
+      const px = x;
+      const py = y;
+      const top = py - r * 2.6;
+
+      ctx.strokeStyle = '#2A1008';
+      ctx.lineWidth = r * 0.2;
+      ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.arc(x, y, e.healRadius, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(140, 230, 130, 0.22)';
-      ctx.lineWidth = 2;
+      ctx.moveTo(px, py + r * 0.4);
+      ctx.lineTo(px, top);
       ctx.stroke();
+      ctx.lineCap = 'butt';
+
+      // The pennant, always hanging to one side of the pole rather than
+      // rotating with facing: a flag that swings around as the road turns
+      // reads as a glitch, and the shape is doing identification work here,
+      // not simulation.
+      ctx.beginPath();
+      ctx.moveTo(px, top);
+      ctx.lineTo(px + r * 1.5, top + r * 0.5);
+      ctx.lineTo(px, top + r * 1.0);
+      ctx.closePath();
+      ctx.fillStyle = '#F2C24A';
+      ctx.fill();
+      ctx.lineWidth = r * 0.13;
+      ctx.stroke();
+
+      // The aura itself, drawn as a ring on the ground. Unlike the Healer's
+      // invisible ticking this is the actual mechanic: everyone inside is
+      // moving faster, and the ring is how the player knows which units to
+      // blame — and that killing the carrier will fix it.
+      ctx.beginPath();
+      ctx.arc(x, y, e.speedAuraRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(245, 190, 80, 0.34)';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([9, 11]);
+      ctx.stroke();
+      ctx.setLineDash([]);
       break;
     }
     case 'shielded': {

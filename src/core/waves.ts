@@ -52,7 +52,13 @@ export function updateWaves(state: GameState, dt: number): void {
     const reward = waveClearReward(wave.number) + collectIncome(state);
     state.gold += reward;
     wave.active = false;
-    wave.timer = WAVES.betweenWaves;
+    // A longer breather before the wave that teaches plating, so the warning
+    // has time to be read AND acted on. A lesson the player cannot afford to
+    // answer is just a loss with a caption.
+    wave.timer =
+      wave.number + 1 === WAVES.armorBriefingWave
+        ? WAVES.armorBriefingPause
+        : WAVES.betweenWaves;
     emit(state, { type: 'waveCleared', number: wave.number, reward });
 
     if (shouldDraft(wave.number)) openDraft(state);

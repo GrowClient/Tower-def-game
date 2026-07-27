@@ -103,6 +103,12 @@ export interface Enemy {
   baseSpeed: number;
   radius: number;
   armor: number;
+  /**
+   * Nothing without armor piercing (or a burn) can hurt this unit — and such
+   * towers refuse to target it at all, so an unanswered Armored column makes
+   * half your board visibly stand down. See EnemyDef.plated.
+   */
+  plated: boolean;
   bounty: number;
   leak: number;
 
@@ -119,15 +125,19 @@ export interface Enemy {
   shield: number;
   maxShield: number;
 
-  /** Healer aura: HP/sec restored to OTHER enemies within healRadius. */
-  healPerSecond: number;
-  healRadius: number;
-
   /** Armor granted to nearby enemies, and armor currently received from auras.
    *  `auraArmor` is recomputed from scratch every step, never accumulated. */
   armorAura: number;
   armorAuraRadius: number;
   auraArmor: number;
+
+  /** Speed multiplier granted to nearby enemies, and the one currently being
+   *  received. `auraSpeed` is rebuilt from scratch every step for the same
+   *  reason `auraArmor` is: an accumulated multiplier would leave a unit
+   *  permanently sprinting long after the Warchief that buffed it died. */
+  speedAura: number;
+  speedAuraRadius: number;
+  auraSpeed: number;
 
   /** Boss state. `mechanic` is null for ordinary units. */
   mechanic: BossMechanic | null;
@@ -201,6 +211,15 @@ export interface Tower {
   /** Which enemy this tower prefers to shoot. */
   targetMode: TargetMode;
   /**
+   * The last enemy this tower actually fired at.
+   *
+   * Only slowers consult it, and only to avoid shooting the same unit twice in
+   * a row: a chill takes a moment to arrive, so "prefer someone un-chilled" on
+   * its own would still re-shoot a target whose shot is mid-flight. Together
+   * they make a slower sweep the lane instead of pinning one enemy forever.
+   */
+  lastTargetId: number;
+  /**
    * Combos currently active on this tower, deduplicated and sorted.
    *
    * Cached rather than recomputed per use because it is an O(towers²) sweep
@@ -209,7 +228,26 @@ export interface Tower {
   combos: ComboKey[];
 }
 
-export type ProjectileLook = 'rock' | 'boulder' | 'arrow' | 'cannonball' | 'rail' | 'bullet';
+/**
+ * One look per WEAPON, not per role.
+ *
+ * Every tower used to fire the same tumbling rock, which quietly undid the
+ * work the tower art does: a Singularity and a Thrower looked identical the
+ * moment the shot left the barrel, and the board read as one weapon repeated
+ * twelve times. A shot in flight is on screen far longer than the muzzle
+ * flash, so it is the strongest identity cue a tower has.
+ */
+export type ProjectileLook =
+  | 'rock'
+  | 'boulder'
+  | 'slush'
+  | 'arrow'
+  | 'cannonball'
+  | 'frostShard'
+  | 'laser'
+  | 'cryoOrb'
+  | 'blackHole'
+  | 'rail';
 
 export interface Projectile {
   id: number;
