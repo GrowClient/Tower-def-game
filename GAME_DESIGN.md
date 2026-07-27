@@ -375,7 +375,18 @@ do but watch it work or watch it fail. **Abilities are the only decision in
 this game that is taken while a wave is already going wrong.**
 
 They are paid for in **diamonds**, and diamonds are never earned — they are
-MINTED, by an **Exchanger** burning **6,000 gold each** every wave. That is
+MINTED, by an **Exchanger** burning gold every wave at a rate that **rises with
+the age**: 450g in the Stone Age, 3,000g in the Middle Age, 12,000g in the
+Tech Age.
+
+A flat price was wrong at both ends. A Stone Age board earns a few hundred gold
+a wave, so a flat 6,000 meant the ability system simply did not exist for the
+first fifteen waves of a run; a Tech Age economy prints tens of thousands a
+wave, so the same 6,000 was pocket change. **Ability costs rise with the age
+too** — Stone Rain 2◆, Arrow Rain 4◆, Orbital Lance 7◆ — so a later cast costs
+more of both currencies. The two curves together keep a cast at roughly the
+same SHARE of your income in every age (about ten waves of one economy
+building), while the absolute gold escalates from 900 to 84,000. That is
 the whole design. A diamond is a tower you did not build, so "how much of my
 economy do I convert into saved answers?" is a real question with no correct
 answer. Income that simply accumulated would make abilities a reward for
@@ -404,7 +415,7 @@ Two abilities per age — one that kills, one that changes the terms:
 |---|---|---|
 | Stone | **Stone Rain** — boulders pound an area | **Tar Pit** — a stretch of road stays sticky |
 | Middle | **Arrow Rain** — a dense, fast-ticking volley | **War Horn** — every tower reloads 65% faster |
-| Tech | **Orbital Lance** — one enormous instant hit | **Null Field** — enemies inside take 2.1× damage |
+| Tech | **Orbital Lance** — one enormous instant hit | **Null Field** — enemies inside take 3.2× damage |
 
 Rules that keep them honest:
 

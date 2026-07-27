@@ -17,8 +17,8 @@
 
 import {
   ABILITIES,
-  DIAMONDS,
   WORLD,
+  goldPerDiamond,
   type AbilityDef,
   type AbilityKey,
 } from '../config/balance';
@@ -98,7 +98,7 @@ export function drawAbilityTray(
   ctx.font = font(12, 500);
   ctx.fillStyle = COLORS.textDim;
   ctx.fillText(
-    `1 diamond = ${DIAMONDS.goldPerDiamond.toLocaleString('en-US')}g  ·  Exchanger converts per wave`,
+    `1 diamond = ${goldPerDiamond(state.age).toLocaleString('en-US')}g in this age`,
     TRAY_X,
     TRAY_TOP - 18,
   );

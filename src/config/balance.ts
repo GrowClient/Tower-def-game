@@ -926,24 +926,36 @@ export type TowerKind = keyof typeof TOWERS;
  */
 export const DIAMONDS = {
   /**
-   * Gold burned per diamond minted. Raised from 850.
+   * Gold burned per diamond minted, PER AGE.
    *
-   * At 850 an Exchanger was background noise: it paid for itself immediately,
-   * diamonds piled up, and every ability was always available — which made
-   * them a routine rather than a decision. At 6000 a single diamond costs more
-   * than two Middle Age towers, so converting is a genuine sacrifice and each
-   * cast is something you spent a board on.
+   * A flat 6,000 was wrong at both ends. In the Stone Age a whole board earns
+   * a few hundred gold a wave, so 6,000 was simply unreachable and the ability
+   * system did not exist for the first fifteen waves of every run. In the Tech
+   * Age a developed economy prints tens of thousands a wave, so the same
+   * 6,000 was pocket change and diamonds piled up faster than cooldowns.
    *
-   * This price is also the answer to "a million gold and nothing to buy". Past
-   * the point where the board is finished, the Exchanger is the ONLY remaining
-   * sink, and a big one — surplus gold turns into ability power at a rate that
-   * can absorb any amount of it.
+   * The rate is now anchored to what an age's economy actually produces —
+   * roughly 2-3 waves of income from a developed set of that age's economy
+   * buildings buys one cast. The ratios between the three (1 : 6.7 : 27)
+   * follow the ratios between a Campfire, a Gold Mine and a Factory, so a
+   * diamond costs about the same SHARE of your income whichever age you are
+   * in, while costing far more gold in absolute terms as the run goes on.
+   *
+   * It is also still the late game's only unbounded gold sink: at 12,000 a
+   * diamond, a Tech Age surplus can be poured into ability power at any rate.
    */
-  goldPerDiamond: 6000,
+  goldPerDiamond: [450, 3000, 12000] as readonly number[],
   /** You start with a couple, so the ability menu is not an empty room the
    *  first time curiosity opens it. */
   starting: 2,
 } as const;
+
+/** What one diamond costs in this age. Clamped, so an out-of-range age can
+ *  never produce a NaN price that silently mints for free. */
+export function goldPerDiamond(age: number): number {
+  const rates = DIAMONDS.goldPerDiamond;
+  return rates[Math.min(Math.max(age, 0), rates.length - 1)]!;
+}
 
 export type AbilityKey =
   | 'stoneRain'
@@ -1047,7 +1059,7 @@ export const ABILITIES: AbilityDef[] = [
     label: 'Arrow Rain',
     age: 1,
     kind: 'barrage',
-    cost: 3,
+    cost: 4,
     cooldown: 22,
     radius: 205,
     duration: 5.5,
@@ -1075,7 +1087,7 @@ export const ABILITIES: AbilityDef[] = [
     label: 'Orbital Lance',
     age: 2,
     kind: 'strike',
-    cost: 5,
+    cost: 7,
     cooldown: 26,
     radius: 150,
     duration: 0,
@@ -1089,7 +1101,7 @@ export const ABILITIES: AbilityDef[] = [
     label: 'Null Field',
     age: 2,
     kind: 'vulnField',
-    cost: 4,
+    cost: 5,
     cooldown: 24,
     radius: 215,
     duration: 15,
@@ -1873,7 +1885,7 @@ export const SCALING = {
    * gets out-scaled — which is the whole point.
    */
   lateHpWave: 30,
-  lateHpGrowth: 1.075,
+  lateHpGrowth: 1.088,
 
   /** Speed creeps up slowly and caps, or late waves become unreactable. */
   speedLinear: 0.012,

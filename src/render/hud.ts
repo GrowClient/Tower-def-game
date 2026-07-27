@@ -14,7 +14,6 @@ import {
   AGES,
   BUILD_ORDER,
   COMBOS,
-  DIAMONDS,
   TARGET_MODE_LABELS,
   TOWERS,
   VETERANCY,
@@ -22,6 +21,7 @@ import {
   WORLD,
   type TowerKind,
 } from '../config/balance';
+import { goldPerDiamond } from '../config/balance';
 import { exchangerOutput } from '../core/abilities';
 import { advanceCost, isMaxAge } from '../core/ages';
 import { towerCost, upgradeCost } from '../core/economy';
@@ -414,7 +414,7 @@ function drawBuildBar(
       ctx.font = font(13);
       ctx.fillStyle = affordable ? '#8FE3FF' : '#4E6E7A';
       ctx.fillText(
-        `−${DIAMONDS.goldPerDiamond * def.diamondsPerWave}g → ${def.diamondsPerWave}◆/wave`,
+        `−${(goldPerDiamond(state.age) * def.diamondsPerWave).toLocaleString('en-US')}g → ${def.diamondsPerWave}◆/wave`,
         b.x + 60 + priceW + 10,
         b.y + 62,
       );
@@ -493,7 +493,7 @@ function drawSelectionPanel(
     // a player wants to know is "what is this costing me and what has it
     // bought me", and neither half means anything without the other.
     const out = exchangerOutput(state, tower);
-    const burn = out * DIAMONDS.goldPerDiamond;
+    const burn = out * goldPerDiamond(state.age);
     // Starts at 100, not 84: the veterancy line sits at 74 and the three
     // Exchanger stats were being drawn straight through it.
     ctx.fillStyle = tower.enabled ? '#8FE3FF' : '#5E6E76';
@@ -504,7 +504,9 @@ function drawSelectionPanel(
     );
     ctx.fillStyle = tower.enabled ? '#F0C46A' : '#6A6152';
     ctx.fillText(
-      tower.enabled ? `costs ${burn}g each wave` : `saving you ${burn}g each wave`,
+      tower.enabled
+        ? `costs ${burn.toLocaleString('en-US')}g each wave`
+        : `saving you ${burn.toLocaleString('en-US')}g each wave`,
       P.x + PANEL_PAD,
       P.y + 122,
     );

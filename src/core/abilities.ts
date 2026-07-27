@@ -21,8 +21,8 @@
 
 import {
   ABILITIES,
-  DIAMONDS,
   TOWERS,
+  goldPerDiamond,
   type AbilityDef,
   type AbilityKey,
 } from '../config/balance';
@@ -244,10 +244,14 @@ export function mintDiamonds(state: GameState): number {
     const want = exchangerOutput(state, tower);
     if (want <= 0) continue;
 
-    const affordable = Math.min(want, Math.floor(state.gold / DIAMONDS.goldPerDiamond));
+    // Priced at the age you are IN, not the age the building was bought in —
+    // an Exchanger laid down in the Stone Age costs Tech Age rates once you
+    // advance, because by then it is converting a Tech Age income.
+    const rate = goldPerDiamond(state.age);
+    const affordable = Math.min(want, Math.floor(state.gold / rate));
     if (affordable <= 0) continue;
 
-    const goldSpent = affordable * DIAMONDS.goldPerDiamond;
+    const goldSpent = affordable * rate;
     state.gold -= goldSpent;
     state.diamonds += affordable;
     minted += affordable;

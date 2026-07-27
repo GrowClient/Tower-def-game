@@ -10,7 +10,6 @@ import {
   COMBOS,
   ENEMIES,
   ABILITIES,
-  DIAMONDS,
   PERKS,
   TOWERS,
   WAVES,
@@ -18,6 +17,7 @@ import {
   type PerkKey,
   type TowerKind,
 } from '../config/balance';
+import { goldPerDiamond } from '../config/balance';
 import { abilityCooldown } from '../core/abilities';
 import { piercesPlating } from '../core/towers';
 import { drawAbilityIcon } from './abilityMenu';
@@ -465,7 +465,7 @@ function drawAbilityGuide(
   ctx.font = font(15);
   ctx.fillStyle = COLORS.textDim;
   ctx.fillText(
-    `Build an Exchanger to turn gold into diamonds — ${DIAMONDS.goldPerDiamond}g each. Press Q for the tray.`,
+    `An Exchanger turns gold into diamonds — ${goldPerDiamond(state.age).toLocaleString('en-US')}g each in this age. Press Q for the tray.`,
     WORLD.width / 2,
     top - 16,
   );
