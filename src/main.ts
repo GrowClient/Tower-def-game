@@ -88,6 +88,7 @@ attachInput(
     cycleTargetMode: (towerId) => queueIntent(state, { type: 'cycleTargetMode', towerId }),
     advanceAge: () => queueIntent(state, { type: 'advanceAge' }),
     choosePerk: (key) => queueIntent(state, { type: 'choosePerk', key }),
+    castAbility: (key, x, y) => queueIntent(state, { type: 'castAbility', key, x, y }),
     toggleFullscreen,
     toggleMute: () => {
       setMuted(!isMuted());

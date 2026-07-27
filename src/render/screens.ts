@@ -9,6 +9,8 @@ import {
   BUILD_ORDER,
   COMBOS,
   ENEMIES,
+  ABILITIES,
+  DIAMONDS,
   PERKS,
   TOWERS,
   WAVES,
@@ -16,7 +18,9 @@ import {
   type PerkKey,
   type TowerKind,
 } from '../config/balance';
+import { abilityCooldown } from '../core/abilities';
 import { piercesPlating } from '../core/towers';
+import { drawAbilityIcon } from './abilityMenu';
 import type { GameState } from '../core/types';
 import { PAUSE_TABS, speedMultiplier, type PauseTab, type UiState } from '../uiState';
 import { comboColor } from './drawMap';
@@ -253,7 +257,7 @@ function drawCombosContent(ctx: CanvasRenderingContext2D, top: number): void {
  *
  * Geometry is exported so `input/` hit-tests exactly these rects.
  */
-const TAB_W = 190;
+const TAB_W = 158;
 const TAB_H = 48;
 const TAB_Y = 128;
 
@@ -326,6 +330,9 @@ export function drawPauseMenu(
       break;
     case 'towers':
       drawTowerGuide(ctx, state, biome);
+      break;
+    case 'abilities':
+      drawAbilityGuide(ctx, state, biome);
       break;
     case 'game':
     default:
@@ -430,6 +437,79 @@ function drawEnemyGuide(ctx: CanvasRenderingContext2D, biome: Biome): void {
     ctx.fillText(ENEMY_ANSWER[kind] ?? '', x + 330, y + 44);
   });
 }
+
+/**
+ * The ability roster, all six, whatever age you are in.
+ *
+ * Deliberately shows LOCKED entries as well. The tray only lists what you can
+ * cast right now, which is correct for a mid-wave menu but tells a Stone Age
+ * player nothing about what advancing buys them — and "what is later in this
+ * game" is exactly the question someone reads a pause menu to answer.
+ */
+function drawAbilityGuide(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  biome: Biome,
+): void {
+  // Sized to clear the tab strip above (which ends at y=176) and the build bar
+  // below, with every row on screen — the guide has no scroll, so a roster that
+  // runs off the bottom simply hides an ability from the screen that documents
+  // them.
+  const gap = 8;
+  const top = 206;
+  const rowH = Math.min(88, (WORLD.height - top - 40) / ABILITIES.length - gap);
+  const x = 190;
+  const w = WORLD.width - 380;
+
+  ctx.textAlign = 'center';
+  ctx.font = font(15);
+  ctx.fillStyle = COLORS.textDim;
+  ctx.fillText(
+    `Build an Exchanger to turn gold into diamonds — ${DIAMONDS.goldPerDiamond}g each. Press Q for the tray.`,
+    WORLD.width / 2,
+    top - 16,
+  );
+
+  ctx.textAlign = 'left';
+  ABILITIES.forEach((def, i) => {
+    const y = top + i * (rowH + gap);
+    const locked = def.age > state.age;
+
+    ctx.fillStyle = 'rgba(20, 28, 36, 0.92)';
+    roundRect(ctx, x, y, w, rowH, 10);
+    ctx.fill();
+    ctx.strokeStyle = locked ? 'rgba(255,255,255,0.1)' : 'rgba(143, 227, 255, 0.4)';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+
+    drawAbilityIcon(ctx, def.key, x + 40, y + rowH / 2, 22, !locked);
+
+    ctx.fillStyle = locked ? COLORS.textDim : '#8FE3FF';
+    ctx.font = font(21);
+    ctx.fillText(def.label, x + 76, y + 30);
+
+    ctx.fillStyle = COLORS.textDim;
+    ctx.font = font(13);
+    ctx.fillText(
+      locked
+        ? `unlocked in the ${AGE_LABELS[def.age] ?? 'next age'}`
+        : `${def.cost} diamonds  ·  ${def.cooldown}s cooldown` +
+          (def.duration > 0 ? `  ·  ${def.duration}s` : '  ·  instant') +
+          (abilityCooldown(state, def.key) > 0
+            ? `  ·  READY IN ${abilityCooldown(state, def.key).toFixed(0)}s`
+            : ''),
+      x + 76,
+      y + 50,
+    );
+
+    ctx.fillStyle = locked ? '#6A6152' : COLORS.text;
+    ctx.font = font(15);
+    ctx.fillText(def.detail, x + 76, y + 74);
+  });
+  void biome;
+}
+
+const AGE_LABELS = ['Stone Age', 'Middle Age', 'Tech Age'];
 
 /** Every tower unlocked so far, with the numbers that decide a purchase. */
 function drawTowerGuide(ctx: CanvasRenderingContext2D, state: GameState, biome: Biome): void {

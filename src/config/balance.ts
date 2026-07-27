@@ -85,7 +85,17 @@ export const SIM = {
 // Run start values
 // ---------------------------------------------------------------------------
 export const RUN = {
-  startingLives: 20,
+  /**
+   * Raised from 20 alongside the boss leak curve.
+   *
+   * A boss now takes 8 + 4 per appearance, so the third one costs 16. Against
+   * a 20-life bar that made every boss from the third onward a single
+   * pass/fail check — the death histogram collapsed onto wave 30 for fourteen
+   * of fifteen seeds, which is a wall rather than a difficulty curve. A wider
+   * bar keeps the toll frightening while leaving room to survive one mistake
+   * and rebuild.
+   */
+  startingLives: 30,
   startingGold: 300,
 } as const;
 
@@ -191,7 +201,7 @@ export const ENEMIES = {
     speed: 108,
     radius: 14,
     armor: 0,
-    bounty: 7,
+    bounty: 43,
     leak: 1,
     threat: 1,
   },
@@ -203,7 +213,7 @@ export const ENEMIES = {
     speed: 46,
     radius: 22,
     armor: 2,
-    bounty: 26,
+    bounty: 158,
     leak: 2,
     threat: 6,
   },
@@ -216,7 +226,7 @@ export const ENEMIES = {
     speed: 88,
     radius: 9,
     armor: 0,
-    bounty: 3,
+    bounty: 19,
     leak: 1,
     threat: 0.55,
   },
@@ -230,7 +240,7 @@ export const ENEMIES = {
     speed: 62,
     radius: 18,
     armor: 11,
-    bounty: 20,
+    bounty: 120,
     leak: 1,
     threat: 4,
   },
@@ -243,7 +253,7 @@ export const ENEMIES = {
     speed: 70,
     radius: 17,
     armor: 1,
-    bounty: 18,
+    bounty: 110,
     leak: 1,
     threat: 3.5,
     shieldHits: 4,
@@ -265,7 +275,7 @@ export const ENEMIES = {
     speed: 60,
     radius: 17,
     armor: 2,
-    bounty: 26,
+    bounty: 158,
     leak: 2,
     threat: 4.5,
     speedAura: 1.5,
@@ -285,7 +295,7 @@ export const ENEMIES = {
     speed: 58,
     radius: 17,
     armor: 3,
-    bounty: 22,
+    bounty: 134,
     leak: 2,
     threat: 5,
     enrageBelowHp: 0.5,
@@ -305,7 +315,7 @@ export const ENEMIES = {
     speed: 66,
     radius: 20,
     armor: 4,
-    bounty: 30,
+    bounty: 182,
     leak: 2,
     threat: 7,
     splitInto: 'swarm',
@@ -323,7 +333,7 @@ export const ENEMIES = {
     speed: 34,
     radius: 26,
     armor: 14,
-    bounty: 58,
+    bounty: 352,
     leak: 3,
     threat: 14,
     regenPerSecond: 70,
@@ -344,7 +354,7 @@ export const ENEMIES = {
     speed: 38,
     radius: 34,
     armor: 4,
-    bounty: 220,
+    bounty: 1370,
     leak: 6,
     threat: 40,
   },
@@ -355,7 +365,7 @@ export const ENEMIES = {
     speed: 42,
     radius: 36,
     armor: 8,
-    bounty: 300,
+    bounty: 1810,
     leak: 8,
     threat: 40,
     slowImmune: true,
@@ -369,7 +379,7 @@ export const ENEMIES = {
     speed: 34,
     radius: 38,
     armor: 6,
-    bounty: 380,
+    bounty: 2300,
     leak: 8,
     threat: 40,
     shieldHits: 4,
@@ -496,6 +506,19 @@ export interface TowerDef {
   chainRange: number;
 
   /**
+   * Diamonds minted when a wave is cleared, by BURNING gold at
+   * DIAMONDS.goldPerDiamond each. A tower with this set is an Exchanger: it
+   * never targets and never fires, it just turns one currency into the other.
+   *
+   * Deliberately a conversion rather than a second income stream. Diamonds
+   * that simply accumulated would make abilities a reward for surviving; gold
+   * that could have been a tower makes them a CHOICE, and that choice — board
+   * strength now versus a saved answer later — is the whole point of the
+   * currency existing.
+   */
+  diamondsPerWave: number;
+
+  /**
    * Gold paid out when a wave is CLEARED. A tower with this set is an ECONOMY
    * building: it never targets, never fires, and pays back per wave instead.
    *
@@ -514,6 +537,7 @@ export interface TowerDef {
 
 const PLAIN = {
   goldPerWave: 0,
+  diamondsPerWave: 0,
   unlimitedRange: false,
   tags: [] as TowerTag[],
   pierce: 0,
@@ -542,7 +566,7 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Thrower',
     age: 0,
-    cost: 90,
+    cost: 95,
     range: 165,
     damage: 14,
     fireRate: 1.7,
@@ -557,10 +581,10 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Spike Pit',
     age: 0,
-    cost: 75,
+    cost: 80,
     range: 0,
-    damage: 30,
-    fireRate: 0.62,
+    damage: 44,
+    fireRate: 0.75,
     projectileSpeed: 0,
     splash: 0,
     armorPierce: 0,
@@ -579,7 +603,7 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Cold Mud',
     age: 0,
-    cost: 120,
+    cost: 130,
     range: 150,
     damage: 0,
     fireRate: 1.1,
@@ -595,9 +619,9 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Boulder',
     age: 0,
-    cost: 195,
+    cost: 230,
     range: 195,
-    damage: 78,
+    damage: 92,
     fireRate: 0.42,
     projectileSpeed: 320,
     splash: 34,
@@ -616,7 +640,7 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Campfire',
     age: 0,
-    cost: 120,
+    cost: 220,
     range: 0,
     damage: 0,
     fireRate: 0,
@@ -625,7 +649,7 @@ export const TOWERS = {
     armorPierce: 0,
     slowFactor: 1,
     onPath: false,
-    goldPerWave: 24,
+    goldPerWave: 44,
     tags: ['economy'],
   },
 
@@ -636,9 +660,9 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Archer Tower',
     age: 1,
-    cost: 250,
+    cost: 1150,
     range: 215,
-    damage: 99,
+    damage: 250,
     fireRate: 1.45,
     projectileSpeed: 640,
     splash: 0,
@@ -654,16 +678,16 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Oil Cauldron',
     age: 1,
-    cost: 220,
+    cost: 1000,
     range: 0,
-    damage: 32,
-    fireRate: 0.85,
+    damage: 78,
+    fireRate: 0.95,
     projectileSpeed: 0,
     splash: 0,
     armorPierce: 0,
     slowFactor: 1,
     onPath: true,
-    burnDps: 68,
+    burnDps: 185,
     burnSeconds: 3.5,
     tags: ['fire', 'trap'],
   },
@@ -671,7 +695,7 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Frost Tower',
     age: 1,
-    cost: 310,
+    cost: 1300,
     range: 200,
     damage: 0,
     fireRate: 1.7,
@@ -690,9 +714,9 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Cannon',
     age: 1,
-    cost: 510,
+    cost: 2100,
     range: 235,
-    damage: 695,
+    damage: 1250,
     fireRate: 0.36,
     projectileSpeed: 380,
     splash: 22,
@@ -715,7 +739,7 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Gold Mine',
     age: 1,
-    cost: 400,
+    cost: 2400,
     range: 0,
     damage: 0,
     fireRate: 0,
@@ -724,25 +748,36 @@ export const TOWERS = {
     armorPierce: 0,
     slowFactor: 1,
     onPath: false,
-    goldPerWave: 71,
+    goldPerWave: 480,
     tags: ['economy'],
   },
 
   // --- Age 2: Tech --------------------------------------------------------
+  /**
+   * The Gun Turret used to end runs on its own, and it was not the damage.
+   *
+   * At pierce 8 and range 290 a single one swept an entire column from most of
+   * the board, so its throughput per gold was twelve times the next best tower
+   * in its own age — stack a combo and Elite rank on that and one tower simply
+   * was the defence. It is now a heavy rapid-fire gun that punches through a
+   * couple of bodies rather than a whole queue: far more damage per shot than
+   * the Archer Tower it succeeds, far fewer targets per shot. The Archer Tower
+   * keeps the line-clearing identity; this one keeps the punch.
+   */
   railgun: {
     ...PLAIN,
     label: 'Gun Turret',
     age: 2,
-    cost: 675,
-    range: 290,
-    damage: 500,
-    fireRate: 1.7,
+    cost: 11000,
+    range: 250,
+    damage: 2500,
+    fireRate: 1.5,
     projectileSpeed: 1500,
     splash: 0,
-    armorPierce: 24,
+    armorPierce: 20,
     slowFactor: 1,
     onPath: false,
-    pierce: 8,
+    pierce: 2,
     tags: ['rapid', 'pierce'],
   },
   // Chains between nearby enemies, so a swarm is BETTER for it than a lone
@@ -751,16 +786,16 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Tesla Coil',
     age: 2,
-    cost: 600,
+    cost: 10000,
     range: 0,
-    damage: 325,
+    damage: 1750,
     fireRate: 1.1,
     projectileSpeed: 0,
     splash: 0,
     armorPierce: 10,
     slowFactor: 1,
     onPath: true,
-    chainCount: 4,
+    chainCount: 3,
     chainRange: 135,
     tags: ['chain', 'trap'],
   },
@@ -774,7 +809,7 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Cryo Field',
     age: 2,
-    cost: 775,
+    cost: 12500,
     range: 250,
     damage: 0,
     fireRate: 2.4,
@@ -790,10 +825,10 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Singularity',
     age: 2,
-    cost: 1250,
+    cost: 18000,
     range: 260,
-    damage: 3750,
-    fireRate: 0.3,
+    damage: 15500,
+    fireRate: 0.28,
     projectileSpeed: 420,
     splash: 92,
     armorPierce: 9999,
@@ -811,9 +846,9 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Sniper',
     age: 2,
-    cost: 1625,
+    cost: 24000,
     range: 0,
-    damage: 775,
+    damage: 3400,
     fireRate: 0.6,
     projectileSpeed: 2200,
     splash: 0,
@@ -824,12 +859,21 @@ export const TOWERS = {
     tags: ['precision'],
   },
 
-  /** The Tech Age economy building — an automated plant, same role as a mine. */
-  factory: {
+  /**
+   * The Exchanger: gold in, diamonds out.
+   *
+   * The only building available in EVERY age, because the ability system it
+   * feeds runs the whole length of a run. Its price is set for the Stone Age,
+   * where 300 starting gold is the whole world — a Tech Age player buying one
+   * is not being charged meaningfully, and shouldn't be. What an Exchanger
+   * costs you is not its sticker price, it is the gold it burns every wave
+   * forever after.
+   */
+  exchanger: {
     ...PLAIN,
-    label: 'Factory',
-    age: 2,
-    cost: 1100,
+    label: 'Exchanger',
+    age: 0,
+    cost: 260,
     range: 0,
     damage: 0,
     fireRate: 0,
@@ -838,12 +882,213 @@ export const TOWERS = {
     armorPierce: 0,
     slowFactor: 1,
     onPath: false,
-    goldPerWave: 205,
+    diamondsPerWave: 1,
+    tags: ['economy'],
+  },
+
+  /** The Tech Age economy building — an automated plant, same role as a mine. */
+  factory: {
+    ...PLAIN,
+    label: 'Factory',
+    age: 2,
+    cost: 18000,
+    range: 0,
+    damage: 0,
+    fireRate: 0,
+    projectileSpeed: 0,
+    splash: 0,
+    armorPierce: 0,
+    slowFactor: 1,
+    onPath: false,
+    goldPerWave: 3400,
     tags: ['economy'],
   },
 } satisfies Record<string, TowerDef>;
 
 export type TowerKind = keyof typeof TOWERS;
+
+// ---------------------------------------------------------------------------
+// Diamonds and abilities
+// ---------------------------------------------------------------------------
+
+/**
+ * The second currency.
+ *
+ * Diamonds exist to give the player something to DO in the moment. Everything
+ * else in the game is a purchase made between waves that then plays itself;
+ * an ability is a decision taken while a wave is going wrong, which is the one
+ * kind of agency a tower defence otherwise has none of.
+ *
+ * They are minted only by burning gold, never earned directly. That keeps the
+ * two currencies in tension: every diamond is a tower you did not build, so
+ * "how much of my economy do I convert into answers?" is a real question with
+ * no correct answer.
+ */
+export const DIAMONDS = {
+  /** Gold burned per diamond minted. */
+  goldPerDiamond: 850,
+  /** You start with a couple, so the ability menu is not an empty room the
+   *  first time curiosity opens it. */
+  starting: 2,
+} as const;
+
+export type AbilityKey =
+  | 'stoneRain'
+  | 'tarPit'
+  | 'arrowRain'
+  | 'warHorn'
+  | 'orbitalLance'
+  | 'nullField';
+
+/**
+ * How an ability resolves. Each kind is a different SHAPE of answer, not a
+ * different damage number — the same rule the enemy table lives by.
+ */
+export type AbilityKind =
+  /** Repeated damage ticks inside a circle, over a few seconds. */
+  | 'barrage'
+  /** A lingering field that chills everything inside it. */
+  | 'slowField'
+  /** One enormous instant hit at a point, ignoring armor entirely. */
+  | 'strike'
+  /** Every tower on the board reloads faster for a while. */
+  | 'towerHaste'
+  /** Enemies inside take more damage from every source. */
+  | 'vulnField';
+
+export interface AbilityDef {
+  key: AbilityKey;
+  label: string;
+  /** Which age unlocks it. An ability from an older age stays available. */
+  age: number;
+  kind: AbilityKind;
+  cost: number;
+  /** Seconds of SIM time before it can be cast again. */
+  cooldown: number;
+  /** World-unit radius of the effect. Zero for board-wide effects. */
+  radius: number;
+  /** How long the effect lingers. Zero means it resolves on the instant. */
+  duration: number;
+  /** Seconds between damage ticks, for barrages. */
+  tickInterval: number;
+  damage: number;
+  armorPierce: number;
+  /** slowField: movement multiplier applied inside. */
+  slowFactor: number;
+  /** towerHaste: fire rate multiplier while it runs. */
+  fireRateMul: number;
+  /** vulnField: damage multiplier taken by enemies inside. */
+  vulnerableMul: number;
+  detail: string;
+}
+
+const ABILITY_PLAIN = {
+  tickInterval: 0,
+  damage: 0,
+  armorPierce: 0,
+  slowFactor: 1,
+  fireRateMul: 1,
+  vulnerableMul: 1,
+};
+
+/**
+ * Two per age: one that kills, one that changes the terms of the fight.
+ *
+ * The damage ones all carry armor piercing, deliberately. An ability costs a
+ * building's worth of gold to charge, so one that could be no-sold by the
+ * plating rule would be a trap — and "the thing I saved for cannot touch the
+ * thing that is killing me" is the worst sentence a game can make a player say.
+ */
+export const ABILITIES: AbilityDef[] = [
+  {
+    ...ABILITY_PLAIN,
+    key: 'stoneRain',
+    label: 'Stone Rain',
+    age: 0,
+    kind: 'barrage',
+    cost: 3,
+    cooldown: 26,
+    radius: 135,
+    duration: 3.6,
+    tickInterval: 0.4,
+    damage: 46,
+    armorPierce: 12,
+    detail: 'Boulders pound an area for a few seconds. Cuts armor.',
+  },
+  {
+    ...ABILITY_PLAIN,
+    key: 'tarPit',
+    label: 'Tar Pit',
+    age: 0,
+    kind: 'slowField',
+    cost: 2,
+    cooldown: 22,
+    radius: 155,
+    duration: 9,
+    slowFactor: 0.45,
+    detail: 'The road stays sticky. Everything crossing crawls.',
+  },
+  {
+    ...ABILITY_PLAIN,
+    key: 'arrowRain',
+    label: 'Arrow Rain',
+    age: 1,
+    kind: 'barrage',
+    cost: 5,
+    cooldown: 30,
+    radius: 175,
+    duration: 4,
+    tickInterval: 0.22,
+    damage: 130,
+    armorPierce: 30,
+    detail: 'A dense volley over a wide area. Shreds packed waves.',
+  },
+  {
+    ...ABILITY_PLAIN,
+    key: 'warHorn',
+    label: 'War Horn',
+    age: 1,
+    kind: 'towerHaste',
+    cost: 4,
+    cooldown: 42,
+    radius: 0,
+    duration: 11,
+    fireRateMul: 1.65,
+    detail: 'EVERY tower reloads 65% faster for 11 seconds.',
+  },
+  {
+    ...ABILITY_PLAIN,
+    key: 'orbitalLance',
+    label: 'Orbital Lance',
+    age: 2,
+    kind: 'strike',
+    cost: 8,
+    cooldown: 38,
+    radius: 120,
+    duration: 0,
+    damage: 34000,
+    armorPierce: 9999,
+    detail: 'One column of light. Huge instant hit, ignores armor.',
+  },
+  {
+    ...ABILITY_PLAIN,
+    key: 'nullField',
+    label: 'Null Field',
+    age: 2,
+    kind: 'vulnField',
+    cost: 6,
+    cooldown: 34,
+    radius: 185,
+    duration: 10,
+    vulnerableMul: 2.1,
+    detail: 'Enemies inside take 2.1x damage. Drop it on a boss.',
+  },
+];
+
+/** Abilities unlocked at this age — older ages stay available, like towers. */
+export function abilitiesForAge(age: number): AbilityDef[] {
+  return ABILITIES.filter((a) => a.age <= age);
+}
 
 /**
  * Targeting modes, cycled per tower. `first` (furthest along the path) is the
@@ -871,8 +1116,8 @@ export const TARGET_MODE_LABELS: Record<TargetMode, string> = {
  */
 export const AGES = [
   { name: 'Stone Age', advanceCost: 0 },
-  { name: 'Middle Age', advanceCost: 3000 },
-  { name: 'Tech Age', advanceCost: 10000 },
+  { name: 'Middle Age', advanceCost: 10000 },
+  { name: 'Tech Age', advanceCost: 100000 },
 ] as const;
 
 /**
@@ -891,7 +1136,7 @@ export const AGES = [
  * all three ages rather than appearing out of nowhere in the Middle Age.
  */
 export const BUILD_ORDER: TowerKind[][] = [
-  ['thrower', 'trap', 'slower', 'heavy', 'campfire'],
+  ['thrower', 'trap', 'slower', 'heavy', 'campfire', 'exchanger'],
   ['ballista', 'oilFire', 'frost', 'siegeCannon', 'goldMine'],
   ['railgun', 'teslaCoil', 'cryo', 'singularity', 'sniper', 'factory'],
 ];
@@ -926,6 +1171,49 @@ export const SELL_REFUND = 0.6;
  * pays out on — the two mechanics push the same way.
  */
 export const TOWER_CAP = [16, 22, 28] as const;
+
+/**
+ * Traps: the underfoot line (Spike Pit / Oil Cauldron / Tesla Coil).
+ *
+ * Nobody built them, and the reasons were mechanical rather than a matter of
+ * taste. A trap covered the inscribed circle of ONE cell, so a Runner at 108
+ * units/second was inside it for about half a second; with a 1.6-second reload
+ * it missed most of what walked over it. It also spent one of your capped
+ * tower slots to do that. Three fixes, all here:
+ */
+export const TRAPS = {
+  /**
+   * Reach as a fraction of a cell. At 0.5 (the inscribed circle) a trap saw a
+   * sliver of road. At 0.95 it covers its own cell properly and bites into the
+   * neighbouring ones, so it catches a whole clump rather than whoever
+   * happened to be standing on the exact centre when it rearmed.
+   */
+  reach: 0.95,
+
+  /**
+   * Traps do NOT count against the tower cap.
+   *
+   * They can only be built on the path, and a map has thirty-odd path cells,
+   * so they are already bounded by something. Making them also compete for one
+   * of your 28 tower slots meant a trap was always the worst thing you could
+   * spend a slot on, which is the whole complaint. Path cells are now their
+   * own separate resource and "how much of the road do I mine?" is a decision
+   * in its own right rather than a tax on your real board.
+   */
+  exemptFromCap: true,
+
+  /**
+   * A trap builds charge while it sits unused, and dumps it on the next
+   * trigger. This is what makes a trap satisfying rather than a metronome: it
+   * goes off as an EVENT, and the longer the gap the bigger the hit.
+   *
+   * It also fixes the placement problem quietly. A trap on a quiet stretch of
+   * road used to be simply wasted; now it is banking, so early-lane and
+   * late-lane placements are both worth something for different reasons.
+   */
+  chargePerSecond: 0.34,
+  maxCharge: 2.2,
+} as const;
 
 // ---------------------------------------------------------------------------
 // Veterancy
@@ -1187,11 +1475,34 @@ export const PERK_RULES = {
  */
 export const UPGRADES = {
   maxLevel: 3,
-  /** Cost of reaching level i+1, as a multiple of the tower's base cost. */
-  costMul: [0, 0.85, 1.6],
-  damageMul: [1, 1.9, 3.4],
-  rangeMul: [1, 1.14, 1.3],
-  fireRateMul: [1, 1.22, 1.5],
+  /**
+   * Cost of reaching level i+1, as a multiple of the tower's base cost.
+   *
+   * A fully upgraded tower now costs 5.4x its sticker price rather than 3.45x.
+   * The old curve meant a board reached maximum level almost as a side effect
+   * of playing, and once every tower was level 3 the run had no remaining
+   * decisions in it — which is most of why a wave-40 board coasted to 100.
+   */
+  costMul: [0, 0.8, 1.7],
+  /**
+   * The output ceiling, and the single most important number for late-game
+   * difficulty.
+   *
+   * Cut from [1, 1.9, 3.4]. Stacked with Elite veterancy (1.26) and a combo
+   * (up to ~1.15), a maxed tower used to reach 4.9x its printed damage — so a
+   * board that was merely FINISHED was also unbeatable, and the wave curve had
+   * to out-scale a number the player hits once and then keeps forever. The
+   * same stack now reaches 3.6x.
+   *
+   * Deliberately FRONT-LOADED. The first upgrade has to beat buying a second
+   * tower per gold or the anti-dumping rule inverts, and it is measured
+   * (+0.85 damage for 0.8 cost). Level 3 is deliberately the expensive one:
+   * it buys less per gold, and what you are really paying for is output that
+   * does not consume one of your capped tower slots.
+   */
+  damageMul: [1, 1.85, 2.5],
+  rangeMul: [1, 1.12, 1.24],
+  fireRateMul: [1, 1.18, 1.4],
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -1358,6 +1669,22 @@ export const WAVES = {
   budgetSurgeGrowth: 1.07,
 
   /**
+   * A SECOND, steeper surge once the board is finished.
+   *
+   * By the mid-thirties a played-as-designed run is at its tower cap, every
+   * tower is level 3 and most are Elite. From that point the player's defence
+   * is a fixed quantity — there is nothing left to buy and nothing left to
+   * upgrade — while the first surge was still tuned against a board that grows.
+   * The result was the complaint that started this pass: wave 40 onward was
+   * free, and a run coasted to 100.
+   *
+   * This term only exists in the region where the board has stopped improving,
+   * which is why it can be this steep without touching the early game at all.
+   */
+  lateSurgeWave: 30,
+  lateSurgeGrowth: 1.09,
+
+  /**
    * Intro waves are chosen against where runs actually END, not against a
    * tidy ramp. A type introduced at wave 20 in a game whose median run is
    * wave 14 is content almost nobody sees, so every type has to land before
@@ -1403,7 +1730,7 @@ export const WAVES = {
    * The exponent is below 1 so unit counts still creep up slowly — a wave 40
    * should feel busier than a wave 7, just not two-orders-of-magnitude busier.
    */
-  threatScaleExponent: 0.85,
+  threatScaleExponent: 0.97,
 
   /** Boss every N waves. */
   bossEvery: 10,
@@ -1427,19 +1754,40 @@ export const WAVES = {
  * to chew through is a longer fight, not a harder one.
  */
 export const BOSS_SCALING = {
-  /** HP multiplier per boss after the first: appearance n gets growth^(n-1).
-   *  At 1.4 the wave-50 Warlord reached 548k HP, which is not a fight, it is a
-   *  wall you watch. */
-  hpGrowth: 1.22,
+  /**
+   * HP multiplier per boss after the first: appearance n gets growth^(n-1).
+   *
+   * Trimmed from 1.34 once the per-wave HP curve was steepened. The two
+   * escalations MULTIPLY, and stacked they turned every boss wave into a
+   * pass/fail wall — nine of fifteen seeds died on wave 30 and the rest on
+   * wave 50, which is a staircase rather than a difficulty curve. The wave
+   * curve now carries the growth; this term only keeps a boss ahead of it.
+   */
+  hpGrowth: 1.26,
   /** Armor added per boss after the first. */
-  armorPerAppearance: 3,
+  armorPerAppearance: 5,
   /** Extra summons per appearance (Hive Mother). */
-  summonsPerAppearance: 2,
+  summonsPerAppearance: 3,
   /** Regen interval shortens by this factor per appearance (Ancient). Barely,
    *  now that the repair is suppressed by taking fire at all. */
-  regenIntervalDecay: 0.95,
+  regenIntervalDecay: 0.93,
   /** Extra armor the Warlord's aura grants per appearance. */
-  auraPerAppearance: 2,
+  auraPerAppearance: 3,
+
+  /**
+   * Extra LIVES a boss takes on leak, per appearance after the first.
+   *
+   * The reason a late boss could be shrugged off had nothing to do with its
+   * health bar: letting one through cost 8 lives out of 20 whether it was the
+   * first boss or the fifth, so a board that could not kill it could simply
+   * tank it and carry on. Making the toll grow means a boss you cannot kill
+   * is a boss that ENDS the run, which is what a boss is for.
+   *
+   * At +4 per appearance the wave-50 boss takes 24 lives — more than a full
+   * life bar, so from the fifth boss onward "let it through" stops being a
+   * strategy at all.
+   */
+  leakPerAppearance: 4,
 } as const;
 
 /**
@@ -1449,7 +1797,16 @@ export const BOSS_SCALING = {
 export const SCALING = {
   /** hp x= 1 + linear*(w-1) + quad*(w-1)^2 */
   hpLinear: 0.085,
-  hpQuadratic: 0.012,
+  /**
+   * Raised from 0.012. This is the lever that actually ends a late run.
+   *
+   * Pushing the wave BUDGET instead just bought more bodies — peak concurrent
+   * enemies went to 160 and waves ran two minutes, which is tedium rather than
+   * difficulty, and the "pacing is not difficulty" trap this file already
+   * documents once. Per-unit HP is what a finished board has to chew through,
+   * and it is the only number a capped, maxed, Elite defence cannot out-scale.
+   */
+  hpQuadratic: 0.024,
 
   /** Speed creeps up slowly and caps, or late waves become unreactable. */
   speedLinear: 0.012,
@@ -1503,10 +1860,25 @@ export const SCALING = {
    * about. At 0.85 a played-as-designed run reaches the Tech Age and still
    * earns roughly a third of what the old runaway curve paid.
    */
-  bountyHpExponent: 0.85,
+  bountyHpExponent: 0.93,
 
   /** Flat gold for clearing a wave, plus a per-wave bonus. Deliberately small:
    *  this is a nudge, not an income stream. */
-  waveClearBase: 15,
-  waveClearPerWave: 2,
+  waveClearBase: 40,
+  waveClearPerWave: 8,
+
+  /**
+   * Where income STOPS growing.
+   *
+   * Past this wave, kill bounty is frozen at its value here. This is the fix
+   * for "wave 40 onward is free": the board is capped, every tower is level 3
+   * and Elite, so the only thing still growing was the pile of gold — which
+   * bought nothing, because there was nothing left to buy. Freezing income at
+   * the point the board is finished means the wave curve is climbing against a
+   * fixed defence from then on, and the run has to end somewhere.
+   *
+   * Deliberately a freeze rather than a decay: gold that goes DOWN reads as a
+   * bug, and abilities (see ABILITIES) still need a steady diamond supply.
+   */
+  bountyFreezeWave: 38,
 } as const;

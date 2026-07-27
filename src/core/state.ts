@@ -6,7 +6,7 @@
  * `newRun(7)` twice produces two identical runs.
  */
 
-import { RUN } from '../config/balance';
+import { DIAMONDS, RUN } from '../config/balance';
 import { makeLayout } from './grid';
 import { generateMap } from './mapgen';
 import { buildPath } from './path';
@@ -46,6 +46,11 @@ export function newRun(seed: number): GameState {
     combosDirty: false,
 
     gold: RUN.startingGold,
+    diamonds: DIAMONDS.starting,
+    abilityCooldowns: {},
+    abilityEffects: [],
+    towerHasteMul: 1,
+    towerHasteTimer: 0,
     lives: RUN.startingLives,
     wave: newWaveState(),
 

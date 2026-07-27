@@ -13,6 +13,7 @@
  */
 
 import { ENEMIES, VETERANCY, WAVES } from '../config/balance';
+import { mintDiamonds } from './abilities';
 import { bossForWave, hpMultiplier } from './enemies';
 import { waveClearReward } from './economy';
 import { openDraft, shouldDraft } from './perks';
@@ -51,6 +52,9 @@ export function updateWaves(state: GameState, dt: number): void {
   if (wave.queue.length === 0 && state.enemies.length === 0) {
     const reward = waveClearReward(wave.number) + collectIncome(state);
     state.gold += reward;
+    // Exchangers settle AFTER income lands, so a wave's own takings can be
+    // converted the moment they arrive rather than always being a wave behind.
+    mintDiamonds(state);
     wave.active = false;
     // A longer breather before the wave that teaches plating, so the warning
     // has time to be read AND acted on. A lesson the player cannot afford to
@@ -162,7 +166,13 @@ export function waveBudget(waveNumber: number): number {
     WAVES.budgetSurgeGrowth,
     Math.max(0, waveNumber - WAVES.budgetSurgeWave),
   );
-  return poly * Math.pow(WAVES.budgetExpGrowth, w) * surge;
+  // The second surge covers the stretch where the board has stopped growing —
+  // capped, maxed and veteran — so the curve has to climb on its own.
+  const late = Math.pow(
+    WAVES.lateSurgeGrowth,
+    Math.max(0, waveNumber - WAVES.lateSurgeWave),
+  );
+  return poly * Math.pow(WAVES.budgetExpGrowth, w) * surge * late;
 }
 
 /** Spend the wave's threat budget on a weighted draw from unlocked types. */

@@ -7,13 +7,14 @@
  * scaling behave identically at every speed setting.
  *
  * Order within a step matters and is deliberate:
- *   intents -> waves -> towers -> projectiles -> enemies -> sweep
+ *   intents -> waves -> abilities -> towers -> projectiles -> enemies -> sweep
  * Player actions land before anything moves; towers aim at where enemies
  * currently are; enemies then move; and dead things are removed only at the
  * very end, so removal timing can never shift anyone else's iteration order.
  */
 
 import { SIM } from '../config/balance';
+import { updateAbilities } from './abilities';
 import { removeDeadEnemies, updateEnemies } from './enemies';
 import { applyIntents } from './intents';
 import { removeDeadProjectiles, updateProjectiles } from './projectiles';
@@ -34,6 +35,10 @@ export function step(state: GameState): void {
 
   applyIntents(state);
   updateWaves(state, dt);
+  // Before towers and enemies on purpose: a Null Field cast this step is
+  // already softening its targets when this step's shots land, and a barrage
+  // tick lands before the units it hit get to move away from it.
+  updateAbilities(state, dt);
   updateTowers(state, dt);
   updateProjectiles(state, dt);
   updateEnemies(state, dt);

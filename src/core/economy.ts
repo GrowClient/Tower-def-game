@@ -54,7 +54,12 @@ export function killReward(
 ): number {
   // Tied to how tough the unit actually is, at an exponent below 1, so gold
   // per point of HP killed falls as the run goes on.
-  const w = Math.max(0, waveNumber - 1);
+  //
+  // Clamped at bountyFreezeWave. By then the board is at its cap with every
+  // tower maxed, so income has nothing left to buy and its only remaining
+  // effect was to guarantee the player could replace anything that died. From
+  // here the wave curve climbs against a defence that has stopped growing.
+  const w = Math.max(0, Math.min(waveNumber, SCALING.bountyFreezeWave) - 1);
   const hpMul = 1 + SCALING.hpLinear * w + SCALING.hpQuadratic * w * w;
   const mul = Math.pow(hpMul, SCALING.bountyHpExponent);
   return Math.round(baseBounty * mul * bountyMul(state));

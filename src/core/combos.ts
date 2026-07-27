@@ -170,6 +170,7 @@ export function previewCombos(
     recoil: 0,
     targetMode: 'first',
     lastTargetId: 0,
+    charge: 0,
     combos: [],
   };
   return comboPartners(state, ghost);

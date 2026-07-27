@@ -14,6 +14,7 @@ import {
   AGES,
   BUILD_ORDER,
   COMBOS,
+  DIAMONDS,
   TARGET_MODE_LABELS,
   TOWERS,
   VETERANCY,
@@ -21,10 +22,12 @@ import {
   WORLD,
   type TowerKind,
 } from '../config/balance';
+import { exchangerOutput } from '../core/abilities';
 import { advanceCost, isMaxAge } from '../core/ages';
 import { towerCost, upgradeCost } from '../core/economy';
 import {
   atCapacity,
+  cappedTowerCount,
   towerCap,
   sellValue,
   towerDamage,
@@ -50,7 +53,7 @@ export interface Rect {
 }
 
 export interface HudButton extends Rect {
-  id: 'pause' | 'speed' | 'restart' | 'fullscreen' | 'mute' | 'combos';
+  id: 'pause' | 'speed' | 'restart' | 'fullscreen' | 'mute' | 'combos' | 'abilities';
 }
 
 /**
@@ -79,8 +82,8 @@ const BTN_GAP = 10;
 
 /** Right-aligned button cluster in the top strip. */
 const HUD_BUTTON_IDS: HudButton['id'][] = FULLSCREEN_AVAILABLE
-  ? ['combos', 'mute', 'fullscreen', 'pause', 'speed', 'restart']
-  : ['combos', 'mute', 'pause', 'speed', 'restart'];
+  ? ['abilities', 'combos', 'mute', 'fullscreen', 'pause', 'speed', 'restart']
+  : ['abilities', 'combos', 'mute', 'pause', 'speed', 'restart'];
 
 export const HUD_BUTTONS: HudButton[] = HUD_BUTTON_IDS.map((id, i) => {
   const n = HUD_BUTTON_IDS.length;
@@ -148,9 +151,10 @@ export interface TowerPanel {
   sell: Rect;
 }
 
-/** Economy buildings have no target to choose, so they are offered no button. */
+/** Economy buildings and Exchangers have no target, so are offered no button. */
 function hasTargeting(kind: TowerKind): boolean {
-  return TOWERS[kind]!.goldPerWave === 0;
+  const def = TOWERS[kind]!;
+  return def.goldPerWave === 0 && def.diamondsPerWave === 0;
 }
 
 export function towerPanelRects(state: GameState, tower: Tower): TowerPanel {
@@ -268,17 +272,13 @@ function drawTopStrip(
   let x = 26;
   x = stat(ctx, x, 'WAVE', String(state.wave.number), COLORS.text);
   x = stat(ctx, x, 'GOLD', String(Math.floor(state.gold)), '#F0C46A');
+  x = stat(ctx, x, 'DIAMONDS', String(state.diamonds), '#8FE3FF');
   x = stat(ctx, x, 'LIVES', String(state.lives), state.lives <= 5 ? '#F4664F' : COLORS.text);
   x = stat(ctx, x, 'AGE', AGE_NAMES[ageIndex] ?? '—', accent);
   // The cap is only a fair rule if it is visible BEFORE you try to build.
   const cap = towerCap(state);
-  x = stat(
-    ctx,
-    x,
-    'TOWERS',
-    `${state.towers.length}/${cap}`,
-    state.towers.length >= cap ? '#F4664F' : COLORS.text,
-  );
+  const used = cappedTowerCount(state);
+  x = stat(ctx, x, 'TOWERS', `${used}/${cap}`, used >= cap ? '#F4664F' : COLORS.text);
 
   // Between waves, the countdown is the most useful number on screen — it's
   // the build window. During a wave, show what's left to kill instead.
@@ -300,6 +300,8 @@ function drawTopStrip(
     else if (b.id === 'mute')
       button(ctx, b, null, ui.muted ? '#7A705F' : COLORS.text, ui.muted ? 'muted' : 'sound');
     else if (b.id === 'combos') button(ctx, b, null, ui.showCombos ? accent : COLORS.text, 'combos');
+    else if (b.id === 'abilities')
+      button(ctx, b, null, ui.abilityMenuOpen ? '#8FE3FF' : COLORS.text, 'diamond');
     else button(ctx, b, '↻', COLORS.text);
   }
 }
@@ -400,6 +402,16 @@ function drawBuildBar(
       ctx.font = font(13);
       ctx.fillStyle = affordable ? '#9AD07A' : '#5F7A4E';
       ctx.fillText(`+${def.goldPerWave}/wave`, b.x + 60 + priceW + 10, b.y + 62);
+    } else if (def.diamondsPerWave > 0) {
+      // The Exchanger's real cost is not its sticker price, it is the gold it
+      // burns every wave from here on — so the button says that, not just "+1".
+      ctx.font = font(13);
+      ctx.fillStyle = affordable ? '#8FE3FF' : '#4E6E7A';
+      ctx.fillText(
+        `−${DIAMONDS.goldPerDiamond * def.diamondsPerWave}g → ${def.diamondsPerWave}◆/wave`,
+        b.x + 60 + priceW + 10,
+        b.y + 62,
+      );
     }
   }
 }
@@ -460,12 +472,34 @@ function drawSelectionPanel(
   if (toNext !== null) {
     ctx.fillStyle = '#6A6152';
     ctx.font = font(12);
-    const unit = TOWERS[tower.kind]!.goldPerWave > 0 ? 'payouts' : def.damage <= 0 ? 'chills' : 'kills';
+    const unit =
+      def.goldPerWave > 0 || def.diamondsPerWave > 0
+        ? 'payouts'
+        : def.damage <= 0
+          ? 'chills'
+          : 'kills';
     ctx.fillText(`${toNext} more ${unit} to rank up`, P.x + PANEL_PAD + 96, P.y + 74);
   }
 
   ctx.font = font(15);
-  if (def.goldPerWave > 0) {
+  if (def.diamondsPerWave > 0) {
+    // An Exchanger's numbers are a rate and a total, in both currencies. What
+    // a player wants to know is "what is this costing me and what has it
+    // bought me", and neither half means anything without the other.
+    const out = exchangerOutput(state, tower);
+    const burn = out * DIAMONDS.goldPerDiamond;
+    ctx.fillStyle = '#8FE3FF';
+    ctx.fillText(`${out}◆ per wave`, P.x + PANEL_PAD, P.y + 84);
+    ctx.fillStyle = '#F0C46A';
+    ctx.fillText(`costs ${burn}g each wave`, P.x + PANEL_PAD, P.y + 106);
+    ctx.fillStyle = COLORS.textDim;
+    ctx.font = font(14);
+    ctx.fillText(
+      `${tower.earned}g converted since built`,
+      P.x + PANEL_PAD,
+      P.y + 128,
+    );
+  } else if (def.goldPerWave > 0) {
     // An economy building has no damage to report. Its numbers are what it
     // pays and whether it has paid for itself yet — which is the only question
     // a player actually has about a mine.
@@ -692,7 +726,15 @@ function button(
   b: HudButton,
   label: string | null,
   color: string,
-  icon?: 'play' | 'pause' | 'enterFull' | 'exitFull' | 'sound' | 'muted' | 'combos',
+  icon?:
+    | 'play'
+    | 'pause'
+    | 'enterFull'
+    | 'exitFull'
+    | 'sound'
+    | 'muted'
+    | 'combos'
+    | 'diamond',
 ): void {
   const grad = ctx.createLinearGradient(0, b.y, 0, b.y + b.h);
   grad.addColorStop(0, '#453B2C');
@@ -725,6 +767,33 @@ function button(
     ctx.lineTo(cx - 7, cy + 12);
     ctx.closePath();
     ctx.fill();
+    return;
+  }
+  if (icon === 'diamond') {
+    // A cut gem: crown facets over a pointed pavilion. The same shape the
+    // diamond counter and every ability card use, so "this button is about
+    // that currency" needs no label.
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + 13);
+    ctx.lineTo(cx - 12, cy - 3);
+    ctx.lineTo(cx - 7, cy - 11);
+    ctx.lineTo(cx + 7, cy - 11);
+    ctx.lineTo(cx + 12, cy - 3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(10, 20, 26, 0.55)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(cx - 12, cy - 3);
+    ctx.lineTo(cx + 12, cy - 3);
+    ctx.moveTo(cx - 7, cy - 11);
+    ctx.lineTo(cx - 4, cy - 3);
+    ctx.lineTo(cx, cy + 13);
+    ctx.moveTo(cx + 7, cy - 11);
+    ctx.lineTo(cx + 4, cy - 3);
+    ctx.lineTo(cx, cy + 13);
+    ctx.stroke();
     return;
   }
   if (icon === 'combos') {

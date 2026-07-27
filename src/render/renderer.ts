@@ -15,6 +15,8 @@ import type { FxState } from '../fx/effects';
 import type { UiState } from '../uiState';
 import { drawEntities } from './drawEntities';
 import { drawBoardEffects, drawScreenFlash } from './drawEffects';
+import { drawAbilityFields, drawAbilityPreview, drawHorn } from './drawAbilities';
+import { drawAbilityTray } from './abilityMenu';
 import { drawComboLinks, drawGrid, drawPlacementGhost, drawSelectionRing } from './drawMap';
 import { drawHud, drawWaveBanner, findSelectedTower } from './hud';
 import { biomeFor, COLORS } from './palette';
@@ -68,17 +70,28 @@ export function render(
   if (selected) drawSelectionRing(ctx, state, selected, biome.accent);
 
   drawComboLinks(ctx, state, ui, selected);
+  // Fields are terrain, so they go UNDER the units standing in them — a Tar
+  // Pit painted over its victims hides the thing it is doing.
+  drawAbilityFields(ctx, state);
   drawEntities(ctx, state, biome, selected?.id ?? null, fx);
   drawPlacementGhost(ctx, state, ui);
+  drawAbilityPreview(ctx, state, ui);
   drawBoardEffects(ctx, fx);
 
   ctx.restore();
 
   drawWaveBanner(ctx, state);
+  drawHorn(ctx, state);
   // Outside the shake transform with the rest of the chrome, and BEFORE the
   // HUD so the build bar it tells you to use is never covered by it.
   if (state.phase === 'playing') drawArmorBriefing(ctx, state, biome);
   drawHud(ctx, state, ui, ageIndex);
+
+  // Above the HUD, but hidden entirely behind any full-screen overlay. A tray
+  // showing through a pause menu is a menu you can see two of at once.
+  const overlayUp =
+    state.phase === 'gameover' || state.perkChoices !== null || ui.paused || ui.showCombos;
+  if (!overlayUp) drawAbilityTray(ctx, state, ui, biome);
 
   if (state.phase === 'gameover') drawGameOverOverlay(ctx, state, biome, bestWave);
   else if (state.perkChoices !== null) drawPerkDraft(ctx, state.perkChoices, biome, state.perks);

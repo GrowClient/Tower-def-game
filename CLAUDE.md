@@ -72,6 +72,7 @@ src/
 │   ├── ages.ts           advancement: unlocks tiers, never transforms towers
 │   ├── perks.ts          the every-5-waves draft and its run-wide effects
 │   ├── combos.ts         overlapping tower fields -> named synergy bonuses
+│   ├── abilities.ts      diamonds, the Exchanger, and the six cast abilities
 │   └── events.ts         sim -> presentation event queue
 ├── render/               READS state, never mutates — see rule 2
 │   ├── viewport.ts       16:9 letterbox, DPR, screen <-> world
@@ -81,6 +82,8 @@ src/
 │   ├── drawMap.ts        dynamic map overlay: lattice, build mode, ghosts
 │   ├── drawEntities.ts   towers, enemies, projectiles
 │   ├── drawEffects.ts    particles, shockwaves, damage numbers, screen flash
+│   ├── drawAbilities.ts  running ability fields + the cast targeting preview
+│   ├── abilityMenu.ts    the right-edge ability tray, its rects and its icons
 │   ├── hud.ts            stat strip, build bar, tower panel, button rects
 │   └── screens.ts        pause / summary / perk draft / combos codex
 ├── fx/
@@ -193,6 +196,16 @@ src/
   a fixed spawn interval buys a *longer* wave rather than a harder one. Bound
   the spawn window instead of hand-tuning the interval decay — it self-corrects
   when the budget is retuned.
+- **Two currencies, one of them minted from the other.** Diamonds are never
+  earned directly — an Exchanger burns gold to make them. That is what keeps an
+  ability a CHOICE (a tower you did not build) rather than a reward for
+  surviving, and it is why `mintDiamonds` subtracts gold rather than adding
+  diamonds out of nowhere.
+- **A budget surge buys bodies; per-unit HP buys danger.** Every attempt to end
+  the late game by raising `lateSurgeGrowth` pushed peak concurrent enemies
+  past 150 and wave length past two minutes without moving the median death
+  wave. `hpQuadratic` moved it immediately, at a quarter of the entity count.
+  When a curve needs to out-scale a finished board, scale the UNIT.
 - **Comment the non-obvious.** Explain *why* (e.g. why the map generator can't
   self-intersect), not *what* the next line does.
 

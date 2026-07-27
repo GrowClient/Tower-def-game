@@ -108,10 +108,12 @@ cyan), and a full biome each — advancing re-skins the ground, the road and the
 props, not just a colour.
 
 Advancement is **player-triggered by spending gold**, never automatic on a wave
-number. Prices are many times a tower (**3000**, then **10000**) so paying is a
-real commitment — you are giving up several towers' worth of defence for it.
+number. Prices are many times a tower (**10,000**, then **100,000**) so paying
+is a real commitment — you are giving up a board's worth of defence for it. See
+"Prices, and why they went up tenfold" below for what that cost is measured
+against.
 
-**Advancing UNLOCKS the next age's four towers to build. It does not transform,
+**Advancing UNLOCKS the next age's towers to build. It does not transform,
 remove or refund the towers you already own.** They keep standing and keep
 firing exactly as before. That is what makes advancing a decision rather than a
 reward:
@@ -173,7 +175,8 @@ punished for reading their options.
 
 ## Towers
 
-Sixteen towers across three ages. Each age has its own **visual vocabulary**,
+Seventeen towers across three ages, one of which — the Exchanger — is
+available in all of them. Each age has its own **visual vocabulary**,
 not a recoloured version of the last — stone is timber and rock, the middle age
 is masonry and gunpowder, the tech age is plated steel and glowing optics. "The
 towers look the same" is exactly the complaint that makes an age advance feel
@@ -364,6 +367,71 @@ everything behind it walked past untouched, and a second slower was worth
 nothing because the first had already taken the only target it wanted. The
 repeat ban is absolute — it outranks even an explicit `support` targeting
 choice — because "hit something else" is the entire mechanic.
+
+### Diamonds and abilities
+
+A tower defence's weakness is that once the board is built there is nothing to
+do but watch it work or watch it fail. **Abilities are the only decision in
+this game that is taken while a wave is already going wrong.**
+
+They are paid for in **diamonds**, and diamonds are never earned — they are
+MINTED, by an **Exchanger** burning gold at a fixed rate every wave. That is
+the whole design. A diamond is a tower you did not build, so "how much of my
+economy do I convert into saved answers?" is a real question with no correct
+answer. Income that simply accumulated would make abilities a reward for
+surviving instead of a cost.
+
+The Exchanger is the only building available in **every** age, because the
+system it feeds runs the length of a run. Its sticker price is set for the
+Stone Age; what it actually costs you is the gold it burns every wave forever
+after.
+
+Two abilities per age — one that kills, one that changes the terms:
+
+| Age | Damage | Utility |
+|---|---|---|
+| Stone | **Stone Rain** — boulders pound an area | **Tar Pit** — a stretch of road stays sticky |
+| Middle | **Arrow Rain** — a dense, fast-ticking volley | **War Horn** — every tower reloads 65% faster |
+| Tech | **Orbital Lance** — one enormous instant hit | **Null Field** — enemies inside take 2.1× damage |
+
+Rules that keep them honest:
+
+- **Every damaging ability pierces armor.** An ability costs a building's worth
+  of gold to charge, so one that could be no-sold by the plating rule would be
+  a trap — "the thing I saved for cannot touch the thing killing me" is the
+  worst sentence a game can make a player say.
+- **Nothing stacks with itself.** Two Null Fields do not multiply, two Horns
+  refresh rather than compound. Overlapping the same ability is wasted
+  diamonds, not an exploit.
+- **Casting is two-step**, like placing a tower: pick the card, then pick the
+  ground. A one-click cast fires the expensive thing at whatever was under the
+  cursor while you were reading the tooltip.
+- **The tray is on the right edge**, not in the build bar. The build bar is a
+  between-waves menu; the tray is used mid-wave with a hand already on the
+  board, so it sits beside the play area and never covers the road.
+
+### Traps: why nobody built them
+
+The trap line was the least-built family in the game, and the reasons were
+mechanical rather than a matter of taste. A trap covered the inscribed circle
+of ONE cell, so a Runner at 108 units/second was inside it for about half a
+second against a 1.6-second reload — it missed most of what walked over it. And
+it spent one of your capped tower slots to do that, which made it always the
+worst possible use of a slot.
+
+Three fixes:
+
+- **Reach is most of a cell**, not its inscribed circle, so a trap catches a
+  clump rather than whoever happened to be on the exact centre when it rearmed.
+- **Traps do not count against the tower cap.** They can only go on the path,
+  and a map has thirty-odd path cells, so they are already bounded by something.
+  "How much of the road do I mine?" is now its own decision rather than a tax on
+  your real board.
+- **A trap BANKS while unused** and dumps the whole store into its next
+  trigger, up to 3.2×. A quiet stretch of road is a saved-up hit instead of
+  wasted gold, and the trigger is an event rather than a metronome — the charge
+  ring fills visibly around the trap, and a full one sounds different from a
+  routine one.
 
 ### Why crowding is taxed
 
@@ -568,6 +636,64 @@ individual enemy was ever a threat.
 Now the same budget buys the same total HP as fewer, far tougher units —
 measured, wave 40 went from ~600 spawns to about 20. Total HP per wave still
 climbs steeply; the head count barely moves.
+
+### Why the late game has to end
+
+The complaint that drove the big re-price was simple: *"after wave 30–40, if
+you have some maxed out towers with maxed out XP, you can go to wave 100
+easily."* That was true, and it had one cause. By the mid-thirties the board is
+at its cap, every tower is level 3, most are Elite — the player's defence is a
+**fixed quantity** from then on, while the curve was still tuned against a
+board that grows.
+
+Four changes, in the order they mattered:
+
+1. **The output ceiling came down.** A maxed, Elite, comboed tower used to
+   reach 4.9× its printed damage; it now reaches 3.6×. A board that is merely
+   *finished* is no longer also unbeatable.
+2. **Income freezes** at `bountyFreezeWave`. Past the point where the board is
+   done, gold buys nothing — it was only ever guaranteeing replacements.
+3. **Bosses escalate on leak, not just on HP.** A boss took 8 lives whether it
+   was the first or the fifth, so a board that could not kill one could simply
+   tank it. The toll now grows 4 per appearance; the wave-50 boss takes 24 of
+   your 30 lives, and from the fifth onward "let it through" stops being a
+   strategy. The life pool went 20 → 30 to keep that frightening rather than
+   binary.
+4. **Per-unit HP, not a bigger budget.** This is the one that actually worked,
+   and it took three failed attempts to find. Every push on `lateSurgeGrowth`
+   drove peak concurrent enemies past 150 and wave length past two minutes
+   *without moving the median death wave at all* — the budget was buying bodies,
+   which is tedium, not difficulty. Raising `hpQuadratic` moved it immediately,
+   at a quarter of the entity count.
+
+Measured, across fifteen seeds: a played-as-designed run used to reach the
+probe's wave-60 ceiling on most seeds and ran past 80 when the ceiling was
+lifted. It now ends at a **median wave 50, with almost every seed landing
+between 45 and 52** — a consistent ending rather than a staircase of boss
+walls, and nothing anywhere near 100.
+
+### Prices, and why they went up tenfold
+
+Middle Age towers start at 1000g and the age costs 10,000; Tech Age towers
+start at 10,000g and the age costs 100,000. Maxing a Gun Turret is a ~36,000g
+commitment against roughly 2,300g before.
+
+Income rose too — roughly three times — because it had to. **A 100,000 gold age
+that cannot be banked before the boss that gates it is not an expensive age, it
+is a removed one**, and this exact failure has now happened twice in this
+project's history. Net, gold is far tighter than it was: prices moved 10–16×
+against income's 3×, so at any given wave you own fewer towers, at lower level,
+than you used to. What the player feels is scarcity; what the numbers do is
+keep every age reachable.
+
+Two rules survived the re-price and constrain any future one:
+
+- **Each tier must stay more damage-per-gold than the last**, or advancing is a
+  strictly worse purchase and the age system is a trap.
+- **The first upgrade must beat buying a second tower**, per gold, or the
+  anti-dumping rule inverts. The curve is deliberately front-loaded for this;
+  level 3 is the premium tier, and what it really buys is output that does not
+  consume a capped slot.
 
 ### The late-game surge
 

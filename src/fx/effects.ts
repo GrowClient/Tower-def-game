@@ -22,7 +22,7 @@
  * seeding the sparks would buy nothing and cost a shared RNG stream.
  */
 
-import type { SimEvent, Vec2 } from '../core/types';
+import type { AbilityKey, SimEvent, Vec2 } from '../core/types';
 
 // ---------------------------------------------------------------------------
 // Tunables
@@ -82,6 +82,16 @@ const DEBRIS: Record<string, string> = {
   bossSummoner: '#F0A870',
   bossWarlord: '#E88080',
   bossRegenerator: '#8AD8EA',
+};
+
+/** One tint per ability, matching its tray icon so a cast and its card agree. */
+const ABILITY_TINT: Record<AbilityKey, string> = {
+  stoneRain: '#B9A98C',
+  tarPit: '#6E6882',
+  arrowRain: '#DCE4E8',
+  warHorn: '#F2C24A',
+  orbitalLance: '#BEFAFF',
+  nullField: '#C08AE8',
 };
 
 // ---------------------------------------------------------------------------
@@ -244,6 +254,45 @@ export function consumeEvents(fx: FxState, events: SimEvent[], accent: string): 
 
       case 'enemySpawned':
         sparks(fx, e.at, 4, '#B8A98A', 60);
+        break;
+
+      // Minting is the one place gold visibly becomes something else, so it
+      // gets both numbers: what was spent and what came out.
+      case 'diamondsMinted':
+        if (floatersThisFrame < FX.floatersPerFrame) {
+          addFloater(fx, e.at, `+${e.amount}◆`, '#8FE3FF', 30);
+          floatersThisFrame++;
+        }
+        sparks(fx, e.at, 12, '#8FE3FF', 130);
+        addShockwave(fx, e.at, 60, 'rgba(143, 227, 255, 0.8)', 3);
+        break;
+
+      // A trap dumping a full bank looks like the thing you were waiting for;
+      // a routine trigger is left alone, or a lane of traps becomes a strobe.
+      case 'trapTriggered':
+        if (e.charge >= 1) {
+          burst(fx, e.at, 10 + Math.round(e.charge * 8), '#FFD24A');
+          addShockwave(fx, e.at, 40 + e.charge * 34, 'rgba(255, 210, 74, 0.85)', 4);
+        }
+        break;
+
+      // Abilities are the biggest single spend in the game, so they get the
+      // loudest feedback that isn't reserved for a boss dying.
+      case 'abilityCast':
+        addShockwave(fx, e.at, Math.max(90, e.radius * 1.6), ABILITY_TINT[e.key], 7);
+        sparks(fx, e.at, 26, ABILITY_TINT[e.key], 220);
+        if (e.key === 'orbitalLance') {
+          // The one ability that is a single event rather than a duration, so
+          // it is the only one that earns shake and a flash.
+          fx.trauma = Math.min(1, fx.trauma + 0.55);
+          fx.flash = Math.max(fx.flash, 0.35);
+          fx.flashColor = '#EAFBFF';
+          burst(fx, e.at, 40, '#BEFAFF');
+        }
+        break;
+
+      case 'abilityTick':
+        sparks(fx, e.at, 5, ABILITY_TINT[e.key], 120);
         break;
 
       case 'bossSpawned':

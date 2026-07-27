@@ -9,7 +9,7 @@
  * at a glance, because that's the information the player acts on.
  */
 
-import { BOSS_MECHANICS, TOWERS, type TowerKind } from '../config/balance';
+import { BOSS_MECHANICS, TOWERS, TRAPS, type TowerKind } from '../config/balance';
 
 import type { Enemy, GameState, Projectile, Tower } from '../core/types';
 import { veteranRank } from '../core/towers';
@@ -83,6 +83,33 @@ function drawTower(
   // silver and gold), because they are different things: level is what you
   // bought, rank is what the tower earned.
   drawRankChevrons(ctx, tower, s);
+
+  // A trap's bank, as a ring that fills around it.
+  //
+  // Without this the charge mechanic is invisible arithmetic: the trap simply
+  // hits for a different amount each time and the player has no way to know
+  // why, let alone to plan around it. With it, an armed trap is a thing you
+  // can see waiting — which was most of what "traps feel unsatisfying" meant.
+  if (def.onPath && tower.charge > 0) {
+    const frac = Math.min(1, tower.charge / TRAPS.maxCharge);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(tower.pos.x, tower.pos.y, s * 1.12, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+    ctx.strokeStyle = frac >= 1 ? '#FFD24A' : 'rgba(255, 210, 74, 0.55)';
+    ctx.lineWidth = s * 0.16;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    // Fully banked reads differently from merely charging: a full trap is
+    // about to do something worth watching.
+    if (frac >= 1) {
+      ctx.globalAlpha = 0.5;
+      ctx.beginPath();
+      ctx.arc(tower.pos.x, tower.pos.y, s * 1.32, 0, Math.PI * 2);
+      ctx.lineWidth = s * 0.09;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
 
   if (selected) {
     ctx.beginPath();
@@ -206,7 +233,72 @@ export function drawTowerArt(
     case 'factory':
       drawFactory(ctx, s, tier);
       break;
+
+    case 'exchanger':
+      drawExchanger(ctx, s, tier);
+      break;
   }
+}
+
+/**
+ * The Exchanger: a crucible with a cut gem suspended over it.
+ *
+ * Deliberately reads as a piece of machinery rather than as another mine —
+ * it is not producing anything, it is converting one thing into another, and
+ * the gem floating above the melt is that sentence as a picture. It is also
+ * the only building present in all three ages, so its silhouette has to work
+ * against grass, cobbles and steel plate alike.
+ */
+function drawExchanger(ctx: CanvasRenderingContext2D, s: number, tier: Tier): void {
+  // Crucible.
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.66, s * 0.18);
+  ctx.lineTo(s * 0.66, s * 0.18);
+  ctx.lineTo(s * 0.46, s * 0.86);
+  ctx.lineTo(-s * 0.46, s * 0.86);
+  ctx.closePath();
+  ctx.fillStyle = mat(tier, '#6E6A64');
+  ctx.fill();
+  ctx.lineWidth = s * 0.13;
+  ctx.strokeStyle = '#1B1712';
+  ctx.stroke();
+
+  // Molten gold in the bowl.
+  ctx.beginPath();
+  ctx.ellipse(0, s * 0.2, s * 0.56, s * 0.15, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#F0C46A';
+  ctx.fill();
+  ctx.strokeStyle = '#8A6A22';
+  ctx.lineWidth = s * 0.07;
+  ctx.stroke();
+
+  // The gem, held above the melt. Its facets take the tier metal, so an
+  // upgraded Exchanger is legible at a glance like every other tower.
+  const gy = -s * 0.5;
+  ctx.beginPath();
+  ctx.moveTo(0, gy + s * 0.5);
+  ctx.lineTo(-s * 0.42, gy - s * 0.06);
+  ctx.lineTo(-s * 0.24, gy - s * 0.38);
+  ctx.lineTo(s * 0.24, gy - s * 0.38);
+  ctx.lineTo(s * 0.42, gy - s * 0.06);
+  ctx.closePath();
+  ctx.fillStyle = '#8FE3FF';
+  ctx.fill();
+  ctx.lineWidth = s * 0.09;
+  ctx.strokeStyle = matLit(tier, '#2E5A6E');
+  ctx.stroke();
+
+  // Facet lines, so it reads as cut rather than as a blue pentagon.
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.42, gy - s * 0.06);
+  ctx.lineTo(s * 0.42, gy - s * 0.06);
+  ctx.moveTo(-s * 0.16, gy - s * 0.06);
+  ctx.lineTo(0, gy + s * 0.5);
+  ctx.moveTo(s * 0.16, gy - s * 0.06);
+  ctx.lineTo(0, gy + s * 0.5);
+  ctx.strokeStyle = 'rgba(20, 46, 60, 0.55)';
+  ctx.lineWidth = s * 0.055;
+  ctx.stroke();
 }
 
 /**

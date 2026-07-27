@@ -9,7 +9,7 @@
  * or emits an Intent, which the sim applies at the start of its next step.
  */
 
-import { WORLD, type PerkKey, type TowerKind } from '../config/balance';
+import { WORLD, type AbilityKey, type PerkKey, type TowerKind } from '../config/balance';
 import { worldToCell } from '../core/grid';
 import { inBounds } from '../core/grid';
 import type { GameState } from '../core/types';
@@ -21,9 +21,10 @@ import {
   towerPanelRects,
 } from '../render/hud';
 import { PAUSE_BUTTONS, PAUSE_TAB_RECTS, PERK_CARDS } from '../render/screens';
+import { visibleAbilityCards } from '../render/abilityMenu';
 import { placementError } from '../core/towers';
 import { screenToWorld, type Viewport } from '../render/viewport';
-import { armBuild, selectTower, type UiState } from '../uiState';
+import { armAbility, armBuild, selectTower, type UiState } from '../uiState';
 
 export interface InputActions {
   togglePause(): void;
@@ -35,6 +36,7 @@ export interface InputActions {
   cycleTargetMode(towerId: number): void;
   advanceAge(): void;
   choosePerk(key: PerkKey): void;
+  castAbility(key: AbilityKey, x: number, y: number): void;
   toggleFullscreen(): void;
   toggleMute(): void;
 }
@@ -98,6 +100,10 @@ export function attachInput(
         armBuild(ui, null);
         selectTower(ui, null);
         ui.showCombos = false;
+        // Escape means "put down whatever I am holding", in the order a player
+        // would expect: the thing in hand first, then the menu it came from.
+        if (ui.armedAbility !== null) armAbility(ui, null);
+        else ui.abilityMenuOpen = false;
         break;
       case 'm':
       case 'M':
@@ -106,6 +112,11 @@ export function attachInput(
       case 'c':
       case 'C':
         ui.showCombos = !ui.showCombos;
+        break;
+      case 'q':
+      case 'Q':
+        ui.abilityMenuOpen = !ui.abilityMenuOpen;
+        if (!ui.abilityMenuOpen) armAbility(ui, null);
         break;
       // Number keys arm the build tools, matching the bar order. Six, because
       // the Tech Age bar is six wide once the Factory is on it.
@@ -184,7 +195,32 @@ function handleTap(
     else if (b.id === 'fullscreen') actions.toggleFullscreen();
     else if (b.id === 'mute') actions.toggleMute();
     else if (b.id === 'combos') ui.showCombos = !ui.showCombos;
-    else actions.restart();
+    else if (b.id === 'abilities') {
+      ui.abilityMenuOpen = !ui.abilityMenuOpen;
+      // Closing the tray puts down whatever was picked up from it, so an armed
+      // ability can never outlive the menu it came from and turn the next
+      // board click into a surprise 8-diamond cast.
+      if (!ui.abilityMenuOpen) armAbility(ui, null);
+    } else actions.restart();
+    return;
+  }
+
+  // The tray, while it is open. Before the build bar and the board, because it
+  // overlaps both and a tap on a card must never fall through to either.
+  if (ui.abilityMenuOpen) {
+    for (const card of visibleAbilityCards(state)) {
+      if (!hitTest(card.rect, x, y)) continue;
+      armAbility(ui, card.key);
+      return;
+    }
+  }
+
+  // An armed ability claims the next board tap. Checked after the chrome so
+  // the tray, the HUD buttons and the build bar all still work while holding
+  // one — you must be able to change your mind without spending it.
+  if (ui.armedAbility !== null && y > WORLD.hudTop && y < WORLD.height - WORLD.hudBottom) {
+    actions.castAbility(ui.armedAbility, x, y);
+    armAbility(ui, null);
     return;
   }
 

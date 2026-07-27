@@ -120,7 +120,9 @@ export function spawnEnemy(
     armor: def.armor + armorBonus(wave) + bossArmor,
     plated: def.plated,
     bounty: killReward(state, def.bounty, wave),
-    leak: def.leak,
+    // A boss you cannot kill has to be a boss that ends the run. A flat toll
+    // meant a late boss could simply be tanked — see BOSS_SCALING.
+    leak: def.leak + (mechanic ? BOSS_SCALING.leakPerAppearance * (app - 1) : 0),
 
     slowFactor: 1,
     slowTimer: 0,
@@ -148,6 +150,7 @@ export function spawnEnemy(
     regenPerSecond: def.regenPerSecond,
     regenDelay: def.regenDelay,
     sinceHit: 0,
+    vulnerable: 1,
 
     mechanic,
     summonsFired: 0,
@@ -375,7 +378,9 @@ export function damageEnemy(
   }
 
   const effectiveArmor = Math.max(0, enemy.armor + enemy.auraArmor - armorPierce);
-  const dealt = Math.max(COMBAT.minDamage, amount - effectiveArmor);
+  // Vulnerability multiplies AFTER armor, so a Null Field makes a big hit
+  // bigger rather than quietly turning into a second armor-piercing stat.
+  const dealt = Math.max(COMBAT.minDamage, amount - effectiveArmor) * enemy.vulnerable;
 
   enemy.hp -= dealt;
   enemy.flash = 0.12;

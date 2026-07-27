@@ -6,6 +6,7 @@
  */
 
 import type {
+  AbilityKey,
   BossMechanic,
   ComboKey,
   EnemyKind,
@@ -15,7 +16,15 @@ import type {
 } from '../config/balance';
 import type { Rng } from './rng';
 
-export type { BossMechanic, ComboKey, EnemyKind, PerkKey, TargetMode, TowerKind };
+export type {
+  AbilityKey,
+  BossMechanic,
+  ComboKey,
+  EnemyKind,
+  PerkKey,
+  TargetMode,
+  TowerKind,
+};
 
 // --- Geometry ---------------------------------------------------------------
 
@@ -175,6 +184,11 @@ export interface Enemy {
   /** Seconds since this unit last took damage. */
   sinceHit: number;
 
+  /** Damage multiplier from a Null Field. Rebuilt from scratch every step for
+   *  the same reason the auras are: a lingering multiplier from an expired
+   *  field would quietly make a unit soft for the rest of the run. */
+  vulnerable: number;
+
   /** Counts down after taking damage; drives the renderer's hit flash. */
   flash: number;
 
@@ -219,6 +233,14 @@ export interface Tower {
    * they make a slower sweep the lane instead of pinning one enemy forever.
    */
   lastTargetId: number;
+  /**
+   * Traps only. Builds while the trap sits unused and is dumped into the next
+   * trigger, so an idle trap lands a big hit instead of being wasted road.
+   * Lives on the tower rather than being derived from a timestamp because the
+   * renderer draws it, and `state.time - lastFired` would keep climbing while
+   * a perk draft holds the clock.
+   */
+  charge: number;
   /**
    * Combos currently active on this tower, deduplicated and sorted.
    *
@@ -279,6 +301,27 @@ export interface Projectile {
   dead: boolean;
 }
 
+// --- Abilities --------------------------------------------------------------
+
+/**
+ * One ability field currently running on the board.
+ *
+ * Instant abilities (a strike) never produce one of these — they resolve
+ * entirely inside `castAbility` and leave only an fx event behind. Anything
+ * with a duration lives here so it keeps working while the player does
+ * something else, which is the entire reason a field is different from a shot.
+ */
+export interface AbilityEffect {
+  id: number;
+  key: AbilityKey;
+  pos: Vec2;
+  radius: number;
+  /** Seconds left before it expires. */
+  remaining: number;
+  /** Counts down to the next damage tick, for barrages. */
+  tickTimer: number;
+}
+
 // --- Waves ------------------------------------------------------------------
 
 /** One pending spawn, already resolved to a concrete type and time. */
@@ -312,7 +355,8 @@ export type Intent =
   | { type: 'cycleTargetMode'; towerId: number }
   | { type: 'sellTower'; towerId: number }
   | { type: 'advanceAge' }
-  | { type: 'choosePerk'; key: PerkKey };
+  | { type: 'choosePerk'; key: PerkKey }
+  | { type: 'castAbility'; key: AbilityKey; x: number; y: number };
 
 // --- Run state --------------------------------------------------------------
 
@@ -345,6 +389,24 @@ export interface GameState {
   combosDirty: boolean;
 
   gold: number;
+  /**
+   * The ability currency. Never earned directly — only minted by an Exchanger
+   * burning gold, so every diamond is a tower that was not built.
+   */
+  diamonds: number;
+  /** Seconds of cooldown left per ability; absent or <= 0 means ready. */
+  abilityCooldowns: Partial<Record<AbilityKey, number>>;
+  /** Ability fields currently running on the board. */
+  abilityEffects: AbilityEffect[];
+  /**
+   * War Horn: a board-wide fire rate multiplier and how long it has left.
+   * Held on the state rather than as an AbilityEffect with a null position
+   * because `towerFireRate` has to read it on the hot path, and scanning a
+   * list of fields for every tower every step to find a global buff is the
+   * kind of thing that quietly costs a frame.
+   */
+  towerHasteMul: number;
+  towerHasteTimer: number;
   lives: number;
   wave: WaveState;
 
@@ -384,6 +446,7 @@ export type SimEvent =
   | { type: 'enemyLeaked'; at: Vec2; livesLost: number }
   | { type: 'towerPlaced'; at: Vec2; kind: TowerKind }
   | { type: 'towerFired'; at: Vec2; kind: TowerKind }
+  | { type: 'trapTriggered'; at: Vec2; kind: TowerKind; charge: number }
   | { type: 'towerUpgraded'; at: Vec2; level: number }
   | { type: 'towerSold'; at: Vec2; refund: number }
   | { type: 'goldMined'; at: Vec2; amount: number; kind: TowerKind }
@@ -392,6 +455,10 @@ export type SimEvent =
   | { type: 'perkDraftOpened' }
   | { type: 'perkChosen'; key: PerkKey }
   | { type: 'purchaseDenied'; at: Vec2 }
+  | { type: 'diamondsMinted'; at: Vec2; amount: number; goldSpent: number }
+  | { type: 'abilityCast'; key: AbilityKey; at: Vec2; radius: number }
+  | { type: 'abilityTick'; key: AbilityKey; at: Vec2; radius: number }
+  | { type: 'abilityDenied'; key: AbilityKey }
   | { type: 'waveStarted'; number: number }
   | { type: 'waveCleared'; number: number; reward: number }
   | { type: 'gameOver' };

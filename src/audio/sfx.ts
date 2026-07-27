@@ -18,7 +18,7 @@
  *    retrigger gap and there is a hard cap on voices per frame.
  */
 
-import type { SimEvent, TowerKind } from '../core/types';
+import type { AbilityKey, SimEvent, TowerKind } from '../core/types';
 
 /**
  * One voice per weapon, not one per rough category.
@@ -50,6 +50,20 @@ type SoundId =
   | 'singularityHum'
   | 'sniperCrack'
   | 'factoryStamp'
+  // --- Diamonds and abilities. Deliberately crystalline against a palette of
+  // wood, gunpowder and capacitors: a currency you cannot hear is a currency
+  // you forget you have. ---
+  | 'exchangeChime'
+  | 'diamondMint'
+  | 'stoneRainCast'
+  | 'stoneRainTick'
+  | 'tarPitCast'
+  | 'arrowRainCast'
+  | 'arrowRainTick'
+  | 'warHornCast'
+  | 'lanceCast'
+  | 'nullFieldCast'
+  | 'trapCharged'
   // --- Shared feedback ---
   | 'zap'
   | 'hit'
@@ -91,6 +105,17 @@ const THROTTLE: Record<SoundId, number> = {
   singularityHum: 0.12,
   sniperCrack: 0.1,
   factoryStamp: 0.4,
+  exchangeChime: 0.3,
+  diamondMint: 0.25,
+  stoneRainCast: 0,
+  stoneRainTick: 0.18,
+  tarPitCast: 0,
+  arrowRainCast: 0,
+  arrowRainTick: 0.1,
+  warHornCast: 0,
+  lanceCast: 0,
+  nullFieldCast: 0,
+  trapCharged: 0.12,
   zap: 0.06,
   hit: 0.045,
   hitHeavy: 0.07,
@@ -180,6 +205,22 @@ function soundFor(e: SimEvent): SoundId | null {
       return shootSoundFor(e.kind);
     case 'chainArc':
       return 'zap';
+    // Minting is the sound of gold becoming diamonds — the one moment the
+    // second currency is happening, and it happens off-screen at a building
+    // the player may not be looking at.
+    case 'diamondsMinted':
+      return 'diamondMint';
+    // A trap that has been banking goes off louder than one that just fired.
+    // Half of "traps feel unsatisfying" was that a full charge and an empty
+    // one were audibly identical.
+    case 'trapTriggered':
+      return e.charge > 1 ? 'trapCharged' : null;
+    case 'abilityCast':
+      return ABILITY_CAST_SOUND[e.key];
+    case 'abilityTick':
+      return e.key === 'arrowRain' ? 'arrowRainTick' : 'stoneRainTick';
+    case 'abilityDenied':
+      return 'denied';
     // A hit that landed for 3000 should not sound like one that landed for 4.
     case 'enemyHit':
       return e.damage >= 150 ? 'hitHeavy' : 'hit';
@@ -228,6 +269,16 @@ function soundFor(e: SimEvent): SoundId | null {
  * be a compile error here, not something that silently comes out sounding like
  * a sling.
  */
+/** One voice per ability, for the same reason each tower has one. */
+const ABILITY_CAST_SOUND: Record<AbilityKey, SoundId> = {
+  stoneRain: 'stoneRainCast',
+  tarPit: 'tarPitCast',
+  arrowRain: 'arrowRainCast',
+  warHorn: 'warHornCast',
+  orbitalLance: 'lanceCast',
+  nullField: 'nullFieldCast',
+};
+
 const SHOOT_SOUND: Record<TowerKind, SoundId> = {
   thrower: 'slingThrow',
   trap: 'spikeSnap',
@@ -240,6 +291,7 @@ const SHOOT_SOUND: Record<TowerKind, SoundId> = {
   frost: 'frostRing',
   siegeCannon: 'cannonBoom',
   goldMine: 'minePick',
+  exchanger: 'exchangeChime',
 
   railgun: 'turretCrack',
   teslaCoil: 'teslaDischarge',
@@ -369,6 +421,62 @@ function play(id: SoundId): boolean {
     case 'factoryStamp':
       tone(now, 'square', 220, 110, 0.09, 0.12);
       noise(now + 0.06, 0.1, 0.12, 'lowpass', 800, 1);
+      break;
+
+    // --- Diamonds. Glassy and bell-like, so the second currency has a voice
+    // nothing else in the palette shares. ---
+    case 'exchangeChime':
+      arpeggio(now, [880, 1320], 0.18, 0.07);
+      break;
+    case 'diamondMint':
+      arpeggio(now, [1046, 1568, 2093], 0.3, 0.1);
+      break;
+    // A trap dumping a full bank. Deeper and longer than the ordinary snap so
+    // a charged trigger is audibly the thing you were waiting for.
+    case 'trapCharged':
+      tone(now, 'square', 180, 60, 0.13, 0.14);
+      noise(now, 0.12, 0.16, 'lowpass', 1400, 1);
+      break;
+
+    // --- Abilities. Each is a big spend, so each gets a big, distinct sound. ---
+    case 'stoneRainCast':
+      // Distant rumble, then rock on rock.
+      noise(now, 0.5, 0.16, 'lowpass', 420, 1);
+      tone(now + 0.05, 'triangle', 150, 60, 0.4, 0.12);
+      break;
+    case 'stoneRainTick':
+      noise(now, 0.08, 0.07, 'lowpass', 900, 1);
+      break;
+    case 'tarPitCast':
+      // A thick, wet glug settling into the road.
+      tone(now, 'sine', 260, 70, 0.45, 0.13);
+      noise(now + 0.08, 0.3, 0.06, 'lowpass', 500, 2);
+      break;
+    case 'arrowRainCast':
+      // A whole line loosing at once: bowstrings, then the hiss of the flight.
+      noise(now, 0.09, 0.13, 'highpass', 1800, 1);
+      noise(now + 0.12, 0.4, 0.09, 'bandpass', 2600, 2);
+      break;
+    case 'arrowRainTick':
+      noise(now, 0.04, 0.05, 'highpass', 2600, 2);
+      break;
+    case 'warHornCast':
+      // An actual horn: a low fundamental with a fifth over it, held.
+      tone(now, 'sawtooth', 155, 233, 0.75, 0.1);
+      tone(now + 0.02, 'sawtooth', 233, 233, 0.7, 0.055);
+      break;
+    case 'lanceCast':
+      // Charge up, then the strike. The rising tone is what makes it read as
+      // ORBITAL rather than as one more explosion.
+      tone(now, 'sawtooth', 200, 2600, 0.32, 0.075);
+      noise(now + 0.3, 0.5, 0.2, 'lowpass', 2200, 1);
+      tone(now + 0.3, 'square', 90, 34, 0.5, 0.14);
+      break;
+    case 'nullFieldCast':
+      // Inverted: a descending tone into a hollow hum, so the "field is up"
+      // sound is unmistakably not a damage sound.
+      tone(now, 'sine', 1400, 180, 0.4, 0.09);
+      tone(now + 0.1, 'triangle', 92, 92, 0.7, 0.06);
       break;
 
     case 'zap':

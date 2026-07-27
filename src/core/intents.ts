@@ -11,6 +11,7 @@
  */
 
 import { advanceAge } from './ages';
+import { castAbility } from './abilities';
 import { choosePerk } from './perks';
 import { cycleTargetMode, placeTower, sellTower, upgradeTower } from './towers';
 import type { GameState, Intent } from './types';
@@ -41,6 +42,9 @@ export function applyIntents(state: GameState): void {
         break;
       case 'choosePerk':
         choosePerk(state, intent.key);
+        break;
+      case 'castAbility':
+        castAbility(state, intent.key, intent.x, intent.y);
         break;
     }
   }

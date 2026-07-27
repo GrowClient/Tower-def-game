@@ -10,13 +10,13 @@
  * `main.ts` owns the single instance and passes it to input and render.
  */
 
-import { SIM, type TowerKind } from './config/balance';
+import { SIM, type AbilityKey, type TowerKind } from './config/balance';
 
 /**
  * Pausing is the one moment a player is guaranteed to be reading rather than
  * reacting, so it is where the reference material belongs.
  */
-export const PAUSE_TABS = ['game', 'combos', 'enemies', 'towers'] as const;
+export const PAUSE_TABS = ['game', 'combos', 'enemies', 'towers', 'abilities'] as const;
 export type PauseTab = (typeof PAUSE_TABS)[number];
 
 export interface UiState {
@@ -40,6 +40,18 @@ export interface UiState {
   showCombos: boolean;
   /** Which tab the pause menu is showing. */
   pauseTab: PauseTab;
+  /** The ability tray on the right edge is open. */
+  abilityMenuOpen: boolean;
+  /**
+   * An ability picked from the tray and waiting for a target on the board.
+   *
+   * Two-step on purpose, exactly like placing a tower: an ability costs a
+   * building's worth of gold and lands somewhere permanent-ish, so "click the
+   * card, then click the ground" gives the player a beat to change their mind.
+   * A one-click cast would fire the expensive thing at whatever was under the
+   * cursor when they were reading the tooltip.
+   */
+  armedAbility: AbilityKey | null;
   /** Smoothed frames-per-second, for the debug corner. */
   fps: number;
 }
@@ -55,6 +67,8 @@ export function newUiState(): UiState {
     muted: false,
     showCombos: false,
     pauseTab: 'game',
+    abilityMenuOpen: false,
+    armedAbility: null,
     fps: 0,
   };
 }
@@ -67,13 +81,32 @@ export function cycleSpeed(ui: UiState): void {
   ui.speedIndex = (ui.speedIndex + 1) % SIM.speeds.length;
 }
 
-/** Arming a build tool and having a tower selected are mutually exclusive. */
+/**
+ * Arming a build tool, having a tower selected, and holding an ability are all
+ * mutually exclusive — each one wants the next board click to mean something
+ * different, so at most one of them may be true at a time.
+ */
 export function armBuild(ui: UiState, kind: TowerKind | null): void {
   ui.buildKind = ui.buildKind === kind ? null : kind;
-  if (ui.buildKind !== null) ui.selectedTowerId = null;
+  if (ui.buildKind !== null) {
+    ui.selectedTowerId = null;
+    ui.armedAbility = null;
+  }
 }
 
 export function selectTower(ui: UiState, towerId: number | null): void {
   ui.selectedTowerId = towerId;
-  if (towerId !== null) ui.buildKind = null;
+  if (towerId !== null) {
+    ui.buildKind = null;
+    ui.armedAbility = null;
+  }
+}
+
+/** Pick up an ability, or put it back down if it was already held. */
+export function armAbility(ui: UiState, key: AbilityKey | null): void {
+  ui.armedAbility = ui.armedAbility === key ? null : key;
+  if (ui.armedAbility !== null) {
+    ui.buildKind = null;
+    ui.selectedTowerId = null;
+  }
 }

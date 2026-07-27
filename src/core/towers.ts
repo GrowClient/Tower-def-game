@@ -13,6 +13,7 @@ import {
   TARGET_MODES,
   TOWER_CAP,
   TOWERS,
+  TRAPS,
   UPGRADES,
   VETERANCY,
 } from '../config/balance';
@@ -66,6 +67,7 @@ export const PROJECTILE_LOOK: Record<TowerKind, ProjectileLook> = {
   frost: 'frostShard',
   siegeCannon: 'cannonball',
   goldMine: 'rock',
+  exchanger: 'rock',
   railgun: 'laser',
   teslaCoil: 'rock',
   cryo: 'cryoOrb',
@@ -110,7 +112,26 @@ export function towerFireRate(state: GameState, tower: Tower): number {
     (UPGRADES.fireRateMul[tower.level - 1] ?? 1) *
     fireRateMul(state) *
     comboEffect(tower).fireRateMul *
-    veteran
+    veteran *
+    // War Horn. Read straight off the state rather than by scanning the
+    // ability list, because this is called for every tower every step.
+    state.towerHasteMul
+  );
+}
+
+/**
+ * The shared multiplier a non-combat building applies to its own output.
+ *
+ * Split out so a Gold Mine's gold and an Exchanger's diamonds improve on ONE
+ * curve. When they each had their own copy of "level, then combo, then rank",
+ * the two drifted the first time any of the three was retuned.
+ */
+export function towerOutputScale(state: GameState, tower: Tower): number {
+  return (
+    (UPGRADES.damageMul[tower.level - 1] ?? 1) *
+    comboEffect(tower).goldMul *
+    interestMul(state) *
+    veteranMul(tower)
   );
 }
 
@@ -139,13 +160,7 @@ export function towerSlowSeconds(state: GameState, tower: Tower): number {
 export function towerIncome(state: GameState, tower: Tower): number {
   const def = TOWERS[tower.kind]!;
   if (def.goldPerWave <= 0) return 0;
-  return Math.round(
-    def.goldPerWave *
-      (UPGRADES.damageMul[tower.level - 1] ?? 1) *
-      comboEffect(tower).goldMul *
-      interestMul(state) *
-      veteranMul(tower),
-  );
+  return Math.round(def.goldPerWave * towerOutputScale(state, tower));
 }
 
 /**
@@ -191,8 +206,28 @@ export function towerCap(state: GameState): number {
   return TOWER_CAP[Math.min(state.age, TOWER_CAP.length - 1)]!;
 }
 
-export function atCapacity(state: GameState): boolean {
-  return state.towers.length >= towerCap(state);
+/**
+ * Does this tower kind consume one of the capped slots?
+ *
+ * Traps do not — see TRAPS.exemptFromCap. They can only go on the path, which
+ * is thirty-odd cells, so they are bounded by the map instead. Charging them a
+ * slot as well made a trap strictly the worst use of a slot, which is exactly
+ * why nobody built one.
+ */
+export function countsAgainstCap(kind: TowerKind): boolean {
+  return !(TRAPS.exemptFromCap && TOWERS[kind]!.onPath);
+}
+
+/** Towers currently occupying a capped slot. */
+export function cappedTowerCount(state: GameState): number {
+  let n = 0;
+  for (const t of state.towers) if (countsAgainstCap(t.kind)) n++;
+  return n;
+}
+
+export function atCapacity(state: GameState, kind?: TowerKind): boolean {
+  if (kind !== undefined && !countsAgainstCap(kind)) return false;
+  return cappedTowerCount(state) >= towerCap(state);
 }
 
 /**
@@ -215,7 +250,7 @@ export function placementError(
 
   // Checked before gold, so a full board says "full" rather than blaming your
   // wallet for a purchase that was never going to be allowed.
-  if (atCapacity(state)) return 'atCapacity';
+  if (atCapacity(state, kind)) return 'atCapacity';
   if (state.gold < towerCost(kind)) return 'tooPoor';
   return null;
 }
@@ -252,6 +287,7 @@ export function placeTower(
     recoil: 0,
     targetMode: 'first',
     lastTargetId: 0,
+    charge: 0,
     combos: [],
   };
   state.towers.push(tower);
@@ -442,15 +478,16 @@ export function updateTowers(state: GameState, dt: number): void {
 
     const def = TOWERS[tower.kind]!;
 
-    // Economy buildings never target anything. They are paid on wave clear —
-    // see collectIncome in waves.ts — so there is nothing to do per step.
-    if (def.goldPerWave > 0) continue;
+    // Economy buildings and Exchangers never target anything. Both are settled
+    // on wave clear — see collectIncome in waves.ts — so there is nothing to
+    // do per step.
+    if (def.goldPerWave > 0 || def.diamondsPerWave > 0) continue;
 
     // Slowers go through the SAME path as every other shooter now. They aim,
     // reload and lead their target like a Thrower does; the only difference is
     // that their shot carries a chill instead of damage.
     if (def.onPath) {
-      updateTrap(state, tower);
+      updateTrap(state, tower, dt);
       continue;
     }
     updateShooter(state, tower);
@@ -458,18 +495,28 @@ export function updateTowers(state: GameState, dt: number): void {
 }
 
 /**
- * A trap hits everything standing on its cell when it rearms. It cannot miss
- * and cannot overkill a single target, which is what makes it the cheap answer
- * to fast units that shooters struggle to track.
+ * A trap hits everything in reach when it rearms. It cannot miss and cannot
+ * overkill a single target, which is what makes it the cheap answer to fast
+ * units that shooters struggle to track.
+ *
+ * Two things make it worth building. Its reach is most of a cell rather than
+ * the inscribed half-circle, so a Runner crossing at 108 units/second is
+ * actually inside it when it goes off. And it BANKS while unused: charge
+ * builds every idle step and the whole store is dumped into the next trigger,
+ * so a quiet stretch of road is a saved-up hit instead of wasted gold.
  */
-function updateTrap(state: GameState, tower: Tower): void {
+function updateTrap(state: GameState, tower: Tower, dt: number): void {
   if (tower.cooldown > 0) return;
 
-  const reach = state.layout.cellSize * 0.5;
+  // Armed and waiting: bank. Deliberately only while rearmed, so charge
+  // measures "how long since this last went off" rather than wall time.
+  tower.charge = Math.min(TRAPS.maxCharge, tower.charge + TRAPS.chargePerSecond * dt);
+
+  const reach = state.layout.cellSize * TRAPS.reach;
   const reachSq = reach * reach;
   const def = TOWERS[tower.kind]!;
   const combo = comboEffect(tower);
-  const damage = towerDamage(state, tower);
+  const damage = towerDamage(state, tower) * (1 + tower.charge);
   const struck: typeof state.enemies = [];
 
   for (const e of state.enemies) {
@@ -510,8 +557,15 @@ function updateTrap(state: GameState, tower: Tower): void {
     );
   }
 
+  // The bank is spent, whatever it was worth. Reported on the event so the fx
+  // and audio layers can make a fully charged trigger land harder than a
+  // routine one — a trap that always sounds the same is a trap you stop
+  // noticing, which was half the "traps feel unsatisfying" complaint.
+  const spent = tower.charge;
+  tower.charge = 0;
   tower.cooldown = 1 / towerFireRate(state, tower);
   tower.recoil = 0.15;
+  emit(state, { type: 'trapTriggered', at: tower.pos, kind: tower.kind, charge: spent });
   emit(state, { type: 'towerFired', at: tower.pos, kind: tower.kind });
 }
 
