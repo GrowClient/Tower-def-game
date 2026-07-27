@@ -300,6 +300,15 @@ function updateBosses(state: GameState, dt: number): void {
       }
 
       case 'regenerator': {
+        // Suppressed entirely by taking fire. This is the difference between a
+        // flat DPS tax you either clear or lose to, and a mechanic with an
+        // answer: keep it under fire and it never repairs at all. It also
+        // means the heavy, slow-firing towers a player builds FOR a boss are
+        // no longer strictly worse than nothing against this one.
+        if (boss.sinceHit < BOSS_MECHANICS.regenCalmSeconds) {
+          boss.regenTimer = boss.regenInterval;
+          break;
+        }
         boss.regenTimer -= dt;
         if (boss.regenTimer <= 0) {
           boss.regenTimer = boss.regenInterval;

@@ -9,7 +9,7 @@
  * at a glance, because that's the information the player acts on.
  */
 
-import { TOWERS, type TowerKind } from '../config/balance';
+import { BOSS_MECHANICS, TOWERS, type TowerKind } from '../config/balance';
 
 import type { Enemy, GameState, Projectile, Tower } from '../core/types';
 import { veteranRank } from '../core/towers';
@@ -1209,6 +1209,17 @@ function drawTypeMark(
       ctx.lineTo(x + Math.cos(ang + half) * inner, y + Math.sin(ang + half) * inner);
       ctx.closePath();
       ctx.fill();
+      ctx.stroke();
+    }
+
+    // A repairing Ancient. Without this the player cannot tell the difference
+    // between "my damage is not enough" and "I stopped shooting it for two
+    // seconds and it healed" — which is the whole skill of the fight.
+    if (e.mechanic === 'regenerator' && e.sinceHit >= BOSS_MECHANICS.regenCalmSeconds) {
+      ctx.beginPath();
+      ctx.arc(x, y, r * 1.5, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(120, 230, 160, 0.8)';
+      ctx.lineWidth = r * 0.16;
       ctx.stroke();
     }
 

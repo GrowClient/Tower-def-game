@@ -398,7 +398,26 @@ bar:
 
 - **Wave 10** — summons swarm groups when it crosses damage thresholds
 - **Wave 20** — immune to slows, and grants an armor aura to nearby enemies
-- **Wave 30** — periodically re-shields and heals itself
+- **Wave 30** — repairs and re-shields itself, but ONLY while left alone
+
+**The Ancient's repair is suppressed by keeping it under fire.** It used to
+repair on a pure timer, and combined with the shield rule — a shield eats one
+WHOLE hit whatever its size — that was close to unbeatable for reasons that had
+nothing to do with its health bar. It restored about one shield per second,
+and measured against what a player actually fields at wave 30:
+
+| Tower | Shots/sec | Effect on the Ancient |
+|---|---|---|
+| Singularity | 0.45 | every shot eaten — **exactly zero damage** |
+| Cannon | 0.54 | zero |
+| Sniper | 0.90 | ~zero |
+| Tesla Coil | 1.65 | below its 2055 HP/s regen, so unkillable |
+| Gun Turret | 2.55 | the only tower in the game that worked |
+
+Every heavy hitter a player builds *for* a boss did nothing to this one, and
+nothing on screen explained why. Gating the repair on being left alone turns a
+flat DPS tax into a mechanic with an answer, and a green ring shows exactly
+when it is healing.
 
 Killing a boss triggers a brief slow-motion moment.
 

@@ -342,14 +342,14 @@ export const ENEMIES = {
   bossRegenerator: {
     ...NO_SPECIALS,
     label: 'Ancient',
-    maxHp: 5200,
+    maxHp: 4200,
     speed: 34,
     radius: 38,
     armor: 6,
     bounty: 380,
     leak: 8,
     threat: 40,
-    shieldHits: 6,
+    shieldHits: 4,
   },
 } satisfies Record<string, EnemyDef>;
 
@@ -381,10 +381,33 @@ export const BOSS_MECHANICS = {
   /** How far behind the boss its summons appear, in world units. */
   summonTrailDistance: 40,
 
-  /** regenerator: restores its shield and heals on this interval. */
-  regenIntervalSec: 6,
-  regenShieldRestore: 4,
-  regenHealFraction: 0.06,
+  /**
+   * regenerator: the Ancient repairs itself — but ONLY after it has been left
+   * alone for `regenCalmSeconds`.
+   *
+   * It used to repair on a pure timer, and that combination was close to
+   * unbeatable for reasons that had nothing to do with its health bar. A shield
+   * absorbs one WHOLE hit whatever its size, and the Ancient was restoring
+   * about one shield per second. Measured against what a player actually
+   * fields at wave 30:
+   *
+   *   Singularity  0.45 shots/s  -> every shot eaten, exactly zero damage
+   *   Cannon       0.54 shots/s  -> zero
+   *   Sniper       0.90 shots/s  -> ~zero
+   *   Tesla Coil   1.65 shots/s  -> below its 2055 HP/s regen, so unkillable
+   *   Gun Turret   2.55 shots/s  -> the only tower in the game that worked
+   *
+   * Every heavy hitter a player builds FOR a boss did nothing to this one, and
+   * nothing on screen explained why. Gating the repair on being left alone
+   * turns a flat DPS tax into a mechanic with an answer: keep it under fire and
+   * it never heals at all. The numbers below are much smaller too, because the
+   * heal was a fraction of a max HP that the per-appearance boss curve had
+   * already inflated — it was compounding with itself.
+   */
+  regenIntervalSec: 7,
+  regenCalmSeconds: 2,
+  regenShieldRestore: 1,
+  regenHealFraction: 0.022,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -1335,14 +1358,17 @@ export const WAVES = {
  * to chew through is a longer fight, not a harder one.
  */
 export const BOSS_SCALING = {
-  /** HP multiplier per boss after the first: appearance n gets growth^(n-1). */
-  hpGrowth: 1.4,
+  /** HP multiplier per boss after the first: appearance n gets growth^(n-1).
+   *  At 1.4 the wave-50 Warlord reached 548k HP, which is not a fight, it is a
+   *  wall you watch. */
+  hpGrowth: 1.22,
   /** Armor added per boss after the first. */
   armorPerAppearance: 3,
   /** Extra summons per appearance (Hive Mother). */
   summonsPerAppearance: 2,
-  /** Regen interval shortens by this factor per appearance (Ancient). */
-  regenIntervalDecay: 0.82,
+  /** Regen interval shortens by this factor per appearance (Ancient). Barely,
+   *  now that the repair is suppressed by taking fire at all. */
+  regenIntervalDecay: 0.95,
   /** Extra armor the Warlord's aura grants per appearance. */
   auraPerAppearance: 2,
 } as const;
