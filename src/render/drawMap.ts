@@ -8,7 +8,7 @@
  * Render rule: reads game state, never mutates it.
  */
 
-import { COMBOS, TOWERS, type ComboKey } from '../config/balance';
+import { COMBO_RULES, COMBOS, TOWERS, type ComboKey } from '../config/balance';
 import { comboPartners, previewCombos } from '../core/combos';
 import { cellOrigin, cellCenter, inBounds } from '../core/grid';
 import { placementError } from '../core/towers';
@@ -34,7 +34,6 @@ export function drawGrid(
   ctx: CanvasRenderingContext2D,
   state: GameState,
   ui: UiState,
-  accent: string,
 ): void {
   const { layout, map } = state;
   const cs = layout.cellSize;
@@ -59,6 +58,7 @@ export function drawGrid(
   }
 
   // Build mode: shade every cell this tower type can actually go on.
+  // Deliberately COLORS.buildOk rather than the biome accent — see palette.ts.
   const wantsPath = TOWERS[arming]!.onPath;
   for (let cy = 0; cy < map.rows; cy++) {
     for (let cx = 0; cx < map.cols; cx++) {
@@ -67,9 +67,9 @@ export function drawGrid(
 
       const free = state.occupancy[cy * map.cols + cx] === 0;
       const o = cellOrigin(layout, cx, cy);
-      ctx.fillStyle = free ? hexToRgba(accent, 0.13) : 'rgba(0, 0, 0, 0.3)';
+      ctx.fillStyle = free ? hexToRgba(COLORS.buildOk, 0.13) : 'rgba(0, 0, 0, 0.3)';
       ctx.fillRect(o.x + 2, o.y + 2, cs - 4, cs - 4);
-      ctx.strokeStyle = free ? hexToRgba(accent, 0.35) : 'rgba(0, 0, 0, 0.35)';
+      ctx.strokeStyle = free ? hexToRgba(COLORS.buildOk, 0.35) : 'rgba(0, 0, 0, 0.35)';
       ctx.lineWidth = 1.5;
       ctx.strokeRect(o.x + 2, o.y + 2, cs - 4, cs - 4);
     }
@@ -86,7 +86,6 @@ export function drawPlacementGhost(
   ctx: CanvasRenderingContext2D,
   state: GameState,
   ui: UiState,
-  accent: string,
 ): void {
   const kind = ui.buildKind;
   if (kind === null || ui.pointer === null) return;
@@ -100,23 +99,35 @@ export function drawPlacementGhost(
   const ok = err === null;
   const center = cellCenter(layout, cx, cy);
   const def = TOWERS[kind]!;
+  const tint = ok ? COLORS.buildOk : COLORS.buildBad;
 
   // Range preview first, so the ghost sits on top of it. A Sniper has no
   // meaningful ring — drawing one of radius Infinity paints the whole screen.
   if (def.range > 0 && !def.unlimitedRange) {
     ctx.beginPath();
     ctx.arc(center.x, center.y, def.range, 0, Math.PI * 2);
-    ctx.fillStyle = ok ? hexToRgba(accent, 0.08) : 'rgba(244, 102, 79, 0.07)';
+    ctx.fillStyle = hexToRgba(tint, 0.08);
     ctx.fill();
-    ctx.strokeStyle = ok ? hexToRgba(accent, 0.5) : 'rgba(244, 102, 79, 0.5)';
+    ctx.strokeStyle = hexToRgba(tint, 0.5);
     ctx.lineWidth = 2;
     ctx.setLineDash([9, 7]);
     ctx.stroke();
     ctx.setLineDash([]);
   }
 
+  // The combo link radius, which is a completely different (and much smaller)
+  // distance from the range ring. Drawn so the player can see exactly which
+  // neighbours this cell would pair with before committing to it.
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, COMBO_RULES.linkRadius, 0, Math.PI * 2);
+  ctx.strokeStyle = hexToRgba(tint, 0.75);
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 5]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
   const o = cellOrigin(layout, cx, cy);
-  ctx.fillStyle = ok ? hexToRgba(accent, 0.28) : 'rgba(244, 102, 79, 0.3)';
+  ctx.fillStyle = hexToRgba(tint, 0.28);
   ctx.fillRect(o.x + 2, o.y + 2, layout.cellSize - 4, layout.cellSize - 4);
 
   ctx.save();

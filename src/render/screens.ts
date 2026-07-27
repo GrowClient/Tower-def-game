@@ -6,6 +6,7 @@
  */
 
 import {
+  BUILD_ORDER,
   COMBOS,
   ENEMIES,
   PERKS,
@@ -15,9 +16,10 @@ import {
   type TowerKind,
 } from '../config/balance';
 import type { GameState } from '../core/types';
+import { PAUSE_TABS, speedMultiplier, type PauseTab, type UiState } from '../uiState';
 import { comboColor } from './drawMap';
-import { COLORS, font, type Biome } from './palette';
-import { roundRect, type Rect } from './hud';
+import { COLORS, biomeFor, font, type Biome } from './palette';
+import { roundRect, towerGlyph, type Rect } from './hud';
 import type { Viewport } from './viewport';
 
 /**
@@ -123,8 +125,8 @@ function wrapText(
  * The combos reference sheet.
  *
  * A hidden synergy is a trap, not a mechanic: a player who never notices that
- * ice next to fire is worth 50% damage is playing a strictly worse game and
- * has no way to find out. So every combo is listed up front, with the two tags
+ * ice built next to fire is worth free damage is playing a strictly worse game
+ * and has no way to find out. So every combo is listed up front, with the tags
  * that make it and what it pays — and the board draws the links live while you
  * build, so the sheet is a reminder rather than something to memorise.
  */
@@ -135,12 +137,28 @@ export function drawCombosCodex(ctx: CanvasRenderingContext2D, biome: Biome): vo
   ctx.font = font(42);
   ctx.fillStyle = biome.accent;
   ctx.fillText('TOWER COMBOS', WORLD.width / 2, 96);
-  ctx.font = font(18);
+
+  drawCombosContent(ctx, 126);
+
+  ctx.textAlign = 'center';
+  ctx.font = font(19);
+  ctx.fillStyle = COLORS.textDim;
+  ctx.fillText('tap the button or press C to close', WORLD.width / 2, WORLD.height - 26);
+  ctx.textAlign = 'left';
+}
+
+/**
+ * The combo table itself, without any framing. Shared by the standalone codex
+ * and by the pause menu's Combos tab so the two can never drift apart.
+ */
+function drawCombosContent(ctx: CanvasRenderingContext2D, top: number): void {
+  ctx.textAlign = 'center';
+  ctx.font = font(17);
   ctx.fillStyle = COLORS.textDim;
   ctx.fillText(
-    'two towers whose rings overlap both get stronger — a combo counts once, however many partners',
+    'two towers built within about two cells of each other both get stronger — a combo counts once, however many partners',
     WORLD.width / 2,
-    126,
+    top,
   );
 
   const cols = 2;
@@ -152,7 +170,7 @@ export function drawCombosCodex(ctx: CanvasRenderingContext2D, biome: Biome): vo
 
   COMBOS.forEach((combo, i) => {
     const cx = startX + (i % cols) * (cardW + gapX);
-    const cy = 164 + Math.floor(i / cols) * (cardH + gapY);
+    const cy = top + 38 + Math.floor(i / cols) * (cardH + gapY);
 
     ctx.fillStyle = 'rgba(26, 21, 15, 0.94)';
     roundRect(ctx, cx, cy, cardW, cardH, 12);
@@ -193,7 +211,7 @@ export function drawCombosCodex(ctx: CanvasRenderingContext2D, biome: Biome): vo
   });
 
   // Which tower carries which tag — otherwise the tags above are abstractions.
-  const legendY = 164 + Math.ceil(COMBOS.length / cols) * (cardH + gapY) + 22;
+  const legendY = top + 38 + Math.ceil(COMBOS.length / cols) * (cardH + gapY) + 22;
   ctx.textAlign = 'center';
   ctx.fillStyle = COLORS.textDim;
   ctx.font = font(15);
@@ -209,17 +227,256 @@ export function drawCombosCodex(ctx: CanvasRenderingContext2D, biome: Biome): vo
     ctx.fillStyle = COLORS.text;
     ctx.fillText(`${tag.toUpperCase()} — ${owners}`, WORLD.width / 2, legendY + 26 + i * 21);
   });
-
-  ctx.font = font(19);
-  ctx.fillStyle = COLORS.textDim;
-  ctx.fillText('tap the button or press C to close', WORLD.width / 2, WORLD.height - 26);
   ctx.textAlign = 'left';
 }
 
-export function drawPauseOverlay(ctx: CanvasRenderingContext2D): void {
-  scrim(ctx, 0.55);
-  centeredText(ctx, 'PAUSED', 72, COLORS.text, -20);
-  centeredText(ctx, 'tap ▶ or press SPACE to resume', 22, COLORS.textDim, 40);
+// ---------------------------------------------------------------------------
+// Pause menu
+// ---------------------------------------------------------------------------
+
+/**
+ * Pausing used to be a scrim with the word PAUSED on it, which wasted the one
+ * moment in a run when the player is definitely reading rather than reacting.
+ * It is now where all the reference material lives: what the combos are, what
+ * each enemy type demands, what every tower actually costs and does.
+ *
+ * Geometry is exported so `input/` hit-tests exactly these rects.
+ */
+const TAB_W = 190;
+const TAB_H = 48;
+const TAB_Y = 128;
+
+export const PAUSE_TAB_RECTS: { id: PauseTab; label: string; rect: Rect }[] = PAUSE_TABS.map(
+  (id, i) => {
+    const total = PAUSE_TABS.length * TAB_W + (PAUSE_TABS.length - 1) * 12;
+    return {
+      id,
+      label: id.toUpperCase(),
+      rect: {
+        x: (WORLD.width - total) / 2 + i * (TAB_W + 12),
+        y: TAB_Y,
+        w: TAB_W,
+        h: TAB_H,
+      },
+    };
+  },
+);
+
+export type PauseAction = 'resume' | 'restart' | 'mute' | 'speed' | 'fullscreen';
+
+const MENU_BTN_W = 420;
+const MENU_BTN_H = 62;
+
+export const PAUSE_BUTTONS: { id: PauseAction; rect: Rect }[] = (
+  ['resume', 'speed', 'mute', 'fullscreen', 'restart'] as PauseAction[]
+).map((id, i) => ({
+  id,
+  rect: {
+    x: (WORLD.width - MENU_BTN_W) / 2,
+    y: 250 + i * (MENU_BTN_H + 14),
+    w: MENU_BTN_W,
+    h: MENU_BTN_H,
+  },
+}));
+
+export function drawPauseMenu(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  ui: UiState,
+  biome: Biome,
+): void {
+  scrim(ctx, 0.9);
+
+  ctx.textAlign = 'center';
+  ctx.font = font(44);
+  ctx.fillStyle = biome.accent;
+  ctx.fillText('PAUSED', WORLD.width / 2, 84);
+
+  for (const tab of PAUSE_TAB_RECTS) {
+    const active = ui.pauseTab === tab.id;
+    ctx.fillStyle = active ? 'rgba(74, 61, 36, 0.95)' : 'rgba(26, 21, 15, 0.9)';
+    roundRect(ctx, tab.rect.x, tab.rect.y, tab.rect.w, tab.rect.h, 10);
+    ctx.fill();
+    ctx.strokeStyle = active ? biome.accent : 'rgba(0,0,0,0.55)';
+    ctx.lineWidth = active ? 3 : 2;
+    ctx.stroke();
+
+    ctx.fillStyle = active ? COLORS.text : COLORS.textDim;
+    ctx.font = font(19);
+    ctx.fillText(tab.label, tab.rect.x + tab.rect.w / 2, tab.rect.y + 32);
+  }
+
+  switch (ui.pauseTab) {
+    case 'combos':
+      drawCombosContent(ctx, 214);
+      break;
+    case 'enemies':
+      drawEnemyGuide(ctx, biome);
+      break;
+    case 'towers':
+      drawTowerGuide(ctx, state, biome);
+      break;
+    case 'game':
+    default:
+      drawPauseButtons(ctx, ui, biome);
+      break;
+  }
+  ctx.textAlign = 'left';
+}
+
+function drawPauseButtons(ctx: CanvasRenderingContext2D, ui: UiState, biome: Biome): void {
+  for (const b of PAUSE_BUTTONS) {
+    let label: string;
+    switch (b.id) {
+      case 'resume':
+        label = 'RESUME';
+        break;
+      case 'restart':
+        label = 'RESTART RUN';
+        break;
+      case 'mute':
+        label = ui.muted ? 'SOUND: OFF' : 'SOUND: ON';
+        break;
+      case 'speed':
+        label = `SPEED: ${speedMultiplier(ui)}×`;
+        break;
+      case 'fullscreen':
+        label = ui.fullscreen ? 'EXIT FULLSCREEN' : 'FULLSCREEN';
+        break;
+    }
+    const primary = b.id === 'resume';
+    ctx.fillStyle = primary ? 'rgba(74, 61, 36, 0.95)' : 'rgba(26, 21, 15, 0.94)';
+    roundRect(ctx, b.rect.x, b.rect.y, b.rect.w, b.rect.h, 12);
+    ctx.fill();
+    ctx.strokeStyle = primary ? biome.accent : 'rgba(255,255,255,0.16)';
+    ctx.lineWidth = primary ? 3 : 2;
+    ctx.stroke();
+
+    ctx.fillStyle = primary ? COLORS.text : COLORS.textDim;
+    ctx.font = font(22);
+    ctx.textAlign = 'center';
+    ctx.fillText(label, b.rect.x + b.rect.w / 2, b.rect.y + 40);
+  }
+}
+
+/**
+ * What each enemy type demands. The stats come from the balance table so they
+ * cannot go stale; the "answer" column is the design intent, which is the part
+ * a player actually needs and cannot read off a health bar.
+ */
+const ENEMY_ANSWER: Record<string, string> = {
+  runner: 'Fast, fragile. Slowers and traps — raw DPS struggles to track them.',
+  brute: 'Slow, enormous HP. Heavy towers, not more small hits.',
+  swarm: 'Arrives as a block of weaklings. Splash damage.',
+  armored: 'Flat armor blunts every hit. Piercing or armor-ignoring towers.',
+  shielded: 'Eats whole hits regardless of size. Fire RATE strips it; big hits are wasted.',
+  healer: 'Undoes your damage on everything nearby. Focus it — set a tower to HEALERS.',
+};
+
+function drawEnemyGuide(ctx: CanvasRenderingContext2D, biome: Biome): void {
+  const kinds = Object.keys(ENEMY_ANSWER) as (keyof typeof ENEMIES)[];
+  const rowH = 74;
+  const top = 220;
+  const x = 150;
+  const w = WORLD.width - 300;
+
+  ctx.textAlign = 'left';
+  kinds.forEach((kind, i) => {
+    const def = ENEMIES[kind];
+    const y = top + i * (rowH + 8);
+
+    ctx.fillStyle = 'rgba(26, 21, 15, 0.92)';
+    roundRect(ctx, x, y, w, rowH, 10);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = biome.accent;
+    ctx.font = font(22);
+    ctx.fillText(def.label, x + 20, y + 32);
+
+    ctx.fillStyle = COLORS.textDim;
+    ctx.font = font(14);
+    ctx.fillText(
+      `hp ${def.maxHp}   speed ${def.speed}   armor ${def.armor}   bounty ${def.bounty}g` +
+        (def.shieldHits > 0 ? `   shield ${def.shieldHits}` : '') +
+        (def.healPerSecond > 0 ? `   heals ${def.healPerSecond}/s` : ''),
+      x + 20,
+      y + 56,
+    );
+
+    ctx.fillStyle = COLORS.text;
+    ctx.font = font(16);
+    ctx.fillText(ENEMY_ANSWER[kind] ?? '', x + 330, y + 44);
+  });
+}
+
+/** Every tower unlocked so far, with the numbers that decide a purchase. */
+function drawTowerGuide(ctx: CanvasRenderingContext2D, state: GameState, biome: Biome): void {
+  const kinds: TowerKind[] = [];
+  for (let a = 0; a <= state.age; a++) kinds.push(...BUILD_ORDER[a]!);
+
+  const cols = 3;
+  const cardW = 420;
+  const cardH = 92;
+  const gapX = 20;
+  const gapY = 12;
+  const startX = (WORLD.width - (cols * cardW + (cols - 1) * gapX)) / 2;
+
+  ctx.textAlign = 'left';
+  kinds.forEach((kind, i) => {
+    const def = TOWERS[kind]!;
+    const cx = startX + (i % cols) * (cardW + gapX);
+    const cy = 210 + Math.floor(i / cols) * (cardH + gapY);
+
+    ctx.fillStyle = 'rgba(26, 21, 15, 0.92)';
+    roundRect(ctx, cx, cy, cardW, cardH, 10);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    towerGlyph(ctx, cx + 40, cy + cardH / 2, 22, kind, biomeFor(def.age));
+
+    ctx.fillStyle = biome.accent;
+    ctx.font = font(19);
+    ctx.fillText(def.label, cx + 76, cy + 28);
+
+    ctx.fillStyle = '#F0C46A';
+    ctx.font = font(16);
+    ctx.fillText(`${def.cost}g`, cx + 76, cy + 52);
+
+    ctx.fillStyle = COLORS.textDim;
+    ctx.font = font(13);
+    const bits: string[] = [];
+    if (def.goldPerWave > 0) bits.push(`+${def.goldPerWave}g/wave`);
+    if (def.damage > 0) bits.push(`dmg ${def.damage}`);
+    if (def.slowFactor < 1) bits.push(`${Math.round((1 - def.slowFactor) * 100)}% slow`);
+    if (def.fireRate > 0) bits.push(`${def.fireRate}/s`);
+    if (def.unlimitedRange) bits.push('whole board');
+    else if (def.range > 0) bits.push(`range ${def.range}`);
+    if (def.splash > 0) bits.push(`splash ${def.splash}`);
+    if (def.armorPierce >= 9999) bits.push('ignores armor');
+    else if (def.armorPierce > 0) bits.push(`pierce ${def.armorPierce}`);
+    if (def.pierce > 0) bits.push(`hits ${def.pierce + 1}`);
+    if (def.chainCount > 0) bits.push(`chains ${def.chainCount}`);
+    if (def.burnDps > 0) bits.push(`burn ${def.burnDps}/s`);
+    // Drop the least important trailing stats rather than letting the line run
+    // off the card — a Boulder listed every property it had and lost the last
+    // one mid-word.
+    const maxW = cardW - 92;
+    while (bits.length > 1 && ctx.measureText(bits.join('   ')).width > maxW) bits.pop();
+    ctx.fillText(bits.join('   '), cx + 76, cy + 74);
+
+    if (def.tags.length > 0) {
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#8A8272';
+      ctx.font = font(12);
+      ctx.fillText(def.tags.join(' · ').toUpperCase(), cx + cardW - 16, cy + 28);
+      ctx.textAlign = 'left';
+    }
+  });
 }
 
 /**
@@ -368,20 +625,4 @@ export function drawRotateHint(ctx: CanvasRenderingContext2D, vp: Viewport): voi
 function scrim(ctx: CanvasRenderingContext2D, alpha: number): void {
   ctx.fillStyle = `rgba(6, 8, 14, ${alpha})`;
   ctx.fillRect(0, 0, WORLD.width, WORLD.height);
-}
-
-function centeredText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  size: number,
-  color: string,
-  dy: number,
-): void {
-  ctx.fillStyle = color;
-  ctx.font = font(size);
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(text, WORLD.width / 2, WORLD.height / 2 + dy);
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
 }

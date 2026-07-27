@@ -21,8 +21,8 @@ import {
   type TowerKind,
 } from '../config/balance';
 import { advanceCost, isMaxAge } from '../core/ages';
-import { upgradeCost } from '../core/economy';
-import { sellValue, towerDamage, towerIncome, towerRange } from '../core/towers';
+import { towerCost, upgradeCost } from '../core/economy';
+import { sellValue, towerDamage, towerFireRate, towerIncome, towerRange } from '../core/towers';
 import type { GameState, Tower } from '../core/types';
 import type { UiState } from '../uiState';
 import { speedMultiplier } from '../uiState';
@@ -107,12 +107,63 @@ export function buildButtons(age: number): BuildButton[] {
   }));
 }
 
-/** Buttons inside the selected-tower panel. Sits below the combo strip, which
- *  is why everything is 46 lower than the stats it follows. */
-export const UPGRADE_BUTTON: Rect = { x: WORLD.width - 268, y: WORLD.hudTop + 172, w: 244, h: 48 };
-export const TARGET_BUTTON: Rect = { x: WORLD.width - 268, y: WORLD.hudTop + 226, w: 244, h: 40 };
-export const SELL_BUTTON: Rect = { x: WORLD.width - 268, y: WORLD.hudTop + 272, w: 244, h: 40 };
-export const PANEL: Rect = { x: WORLD.width - 288, y: WORLD.hudTop + 16, w: 264, h: 310 };
+/**
+ * Geometry for the selected-tower panel.
+ *
+ * Two things changed here and both were real problems. The panel used to be
+ * pinned to the top-right corner, so with a dozen towers on the board there was
+ * nothing connecting the numbers you were reading to the tower you had tapped.
+ * It now hangs off the tower itself. And its buttons were sized for a 264-wide
+ * box they did not fit in, with labels running past their own edges — they are
+ * now full-width and finger-sized.
+ *
+ * Returned as a function rather than exported constants because the rects move
+ * with the tower. `input/` calls this exact function, so the thing you tap is
+ * still guaranteed to be the thing that was drawn.
+ */
+const PANEL_W = 304;
+const PANEL_PAD = 16;
+
+export interface TowerPanel {
+  panel: Rect;
+  upgrade: Rect;
+  target: Rect | null;
+  sell: Rect;
+}
+
+/** Economy buildings have no target to choose, so they are offered no button. */
+function hasTargeting(kind: TowerKind): boolean {
+  return TOWERS[kind]!.goldPerWave === 0;
+}
+
+export function towerPanelRects(state: GameState, tower: Tower): TowerPanel {
+  const targeted = hasTargeting(tower.kind);
+  // Leaves room for three stat lines AND the combo strip above it. At 132 the
+  // upgrade button was drawn straight over the combo row.
+  const upgradeY = 186;
+  const targetY = upgradeY + 62;
+  const sellY = targeted ? targetY + 54 : targetY;
+  const height = sellY + 52 + PANEL_PAD;
+
+  // Prefer directly under the tower; flip above when that would run into the
+  // build bar, and clamp sideways so an edge tower's panel stays on screen.
+  const cell = state.layout.cellSize;
+  const below = tower.pos.y + cell * 0.55;
+  const flip = below + height > WORLD.height - WORLD.hudBottom - 8;
+  const y = flip ? Math.max(WORLD.hudTop + 8, tower.pos.y - cell * 0.55 - height) : below;
+  const x = Math.min(
+    Math.max(tower.pos.x - PANEL_W / 2, 12),
+    WORLD.width - PANEL_W - 12,
+  );
+
+  const inner = { x: x + PANEL_PAD, w: PANEL_W - PANEL_PAD * 2 };
+  return {
+    panel: { x, y, w: PANEL_W, h: height },
+    upgrade: { x: inner.x, y: y + upgradeY, w: inner.w, h: 54 },
+    target: targeted ? { x: inner.x, y: y + targetY, w: inner.w, h: 46 } : null,
+    sell: { x: inner.x, y: y + sellY, w: inner.w, h: 52 },
+  };
+}
 
 /**
  * Advance-age button, bottom-left of the board. Deliberately large and always
@@ -273,7 +324,10 @@ function drawBuildBar(
 
   for (const b of buildButtons(state.age)) {
     const def = TOWERS[b.kind]!;
-    const affordable = state.gold >= def.cost;
+    // The LIVE price, which climbs with every tower already standing — quoting
+    // the base cost here would mean the bar and the charge disagree.
+    const price = towerCost(state, b.kind);
+    const affordable = state.gold >= price;
     const armed = ui.buildKind === b.kind;
 
     panel(ctx, b, armed ? '#5A4A2E' : '#3A3223', armed ? accent : 'rgba(0,0,0,0.55)', armed ? 3 : 2.5);
@@ -293,7 +347,7 @@ function drawBuildBar(
 
     ctx.fillStyle = affordable ? '#F0C46A' : '#8A6E42';
     ctx.font = font(20);
-    const priceText = `${def.cost}g`;
+    const priceText = `${price}g`;
     ctx.fillText(priceText, b.x + 60, b.y + 62);
     // Measured while the price font is still set — measuring afterwards gives
     // the width of the text in the wrong font and the label lands on top of it.
@@ -328,90 +382,115 @@ function drawSelectionPanel(
   if (!tower) return;
 
   const def = TOWERS[tower.kind]!;
-  panel(ctx, PANEL, 'rgba(26, 21, 15, 0.94)', accent, 2.5);
+  const r = towerPanelRects(state, tower);
+  const P = r.panel;
+
+  // A leader from the tower down to the panel, so which tower this describes
+  // is unambiguous even when the panel has been clamped away from it.
+  ctx.strokeStyle = hexToRgba(accent, 0.75);
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(tower.pos.x, tower.pos.y);
+  ctx.lineTo(P.x + P.w / 2, P.y + (tower.pos.y > P.y ? P.h : 0));
+  ctx.stroke();
+
+  panel(ctx, P, 'rgba(26, 21, 15, 0.96)', accent, 2.5);
 
   ctx.textAlign = 'left';
   ctx.fillStyle = COLORS.text;
   ctx.font = font(22);
-  ctx.fillText(def.label, PANEL.x + 18, PANEL.y + 34);
+  ctx.fillText(def.label, P.x + PANEL_PAD, P.y + 34);
 
   ctx.fillStyle = accent;
   ctx.font = font(15);
-  ctx.fillText(`LEVEL ${tower.level}`, PANEL.x + 18, PANEL.y + 58);
+  ctx.fillText(`LEVEL ${tower.level}`, P.x + PANEL_PAD, P.y + 58);
 
-  ctx.fillStyle = COLORS.textDim;
   ctx.font = font(15);
   if (def.goldPerWave > 0) {
-    // An economy building has no damage to report, and its one number — what
-    // it pays per cleared wave — is the whole reason it is on the board.
+    // An economy building has no damage to report. Its numbers are what it
+    // pays and whether it has paid for itself yet — which is the only question
+    // a player actually has about a mine.
+    const income = towerIncome(tower);
+    const profit = tower.earned - tower.invested;
     ctx.fillStyle = '#F0C46A';
-    ctx.fillText(`+${towerIncome(tower)}g per wave`, PANEL.x + 18, PANEL.y + 84);
+    ctx.fillText(`+${income}g per wave`, P.x + PANEL_PAD, P.y + 84);
+
     ctx.fillStyle = COLORS.textDim;
+    ctx.fillText(`earned ${tower.earned}g  ·  spent ${tower.invested}g`, P.x + PANEL_PAD, P.y + 106);
+    // Green once it is genuinely ahead of everything sunk into it, amber while
+    // it is still paying itself off. This is the whole pitch of the building,
+    // and it gets its own line — sharing one ran off the panel edge.
+    ctx.fillStyle = profit >= 0 ? '#8BE04F' : '#C98A6A';
+    ctx.font = font(17);
+    ctx.fillText(
+      profit >= 0 ? `+${profit}g in profit` : `${-profit}g to break even`,
+      P.x + PANEL_PAD,
+      P.y + 132,
+    );
   } else {
-    const dmg = def.slowFactor < 1 ? 'slow' : Math.round(towerDamage(state, tower)).toString();
-    ctx.fillText(`dmg ${dmg}`, PANEL.x + 18, PANEL.y + 84);
+    ctx.fillStyle = COLORS.textDim;
+    const slower = def.slowFactor < 1;
+    const dmg = slower
+      ? `${Math.round((1 - def.slowFactor) * 100)}% slow`
+      : Math.round(towerDamage(state, tower)).toString();
+    ctx.fillText(slower ? dmg : `dmg ${dmg}`, P.x + PANEL_PAD, P.y + 84);
     const range = towerRange(state, tower);
     ctx.fillText(
       Number.isFinite(range) ? `range ${Math.round(range)}` : 'range all',
-      PANEL.x + 110,
-      PANEL.y + 84,
+      P.x + PANEL_PAD + 132,
+      P.y + 84,
     );
-    ctx.fillText(`kills ${tower.kills}`, PANEL.x + 18, PANEL.y + 106);
+    ctx.fillText(`rate ${towerFireRate(state, tower).toFixed(2)}/s`, P.x + PANEL_PAD, P.y + 106);
+    if (!slower) ctx.fillText(`kills ${tower.kills}`, P.x + PANEL_PAD + 132, P.y + 106);
   }
 
-  drawActiveCombos(ctx, tower);
+  drawActiveCombos(ctx, tower, P);
 
   const cost = upgradeCost(tower);
   if (cost === null) {
+    panel(ctx, r.upgrade, '#2A2519', 'rgba(0,0,0,0.5)', 2);
     ctx.fillStyle = COLORS.textDim;
-    ctx.font = font(17);
+    ctx.font = font(19);
     ctx.textAlign = 'center';
-    ctx.fillText('MAX LEVEL', UPGRADE_BUTTON.x + UPGRADE_BUTTON.w / 2, UPGRADE_BUTTON.y + 32);
-    ctx.textAlign = 'left';
+    ctx.fillText('MAX LEVEL', r.upgrade.x + r.upgrade.w / 2, r.upgrade.y + 34);
   } else {
     const affordable = state.gold >= cost;
     panel(
       ctx,
-      UPGRADE_BUTTON,
+      r.upgrade,
       affordable ? '#4A3D24' : '#2A2519',
       affordable ? accent : 'rgba(0,0,0,0.5)',
       2,
     );
     ctx.textAlign = 'center';
     ctx.fillStyle = affordable ? COLORS.text : '#7A705F';
-    ctx.font = font(19);
+    ctx.font = font(21);
+    ctx.fillText(`UPGRADE  ${cost}g`, r.upgrade.x + r.upgrade.w / 2, r.upgrade.y + 35);
+  }
+
+  if (r.target) {
+    panel(ctx, r.target, '#2C2519', 'rgba(0,0,0,0.5)', 2);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = COLORS.textDim;
+    ctx.font = font(14);
+    ctx.fillText('TARGET', r.target.x + 14, r.target.y + 29);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = accent;
+    ctx.font = font(18);
     ctx.fillText(
-      `UPGRADE  ${cost}g`,
-      UPGRADE_BUTTON.x + UPGRADE_BUTTON.w / 2,
-      UPGRADE_BUTTON.y + 33,
+      TARGET_MODE_LABELS[tower.targetMode],
+      r.target.x + r.target.w - 14,
+      r.target.y + 29,
     );
   }
 
   // Sell. Always available, and always shows the exact refund so the player
   // can weigh scrapping an old-age tower against keeping it firing.
-  const refund = sellValue(state, tower);
-  panel(ctx, SELL_BUTTON, '#3A2A22', '#8A5A46', 2);
+  panel(ctx, r.sell, '#3A2A22', '#8A5A46', 2);
   ctx.textAlign = 'center';
   ctx.fillStyle = '#E8A08A';
-  ctx.font = font(17);
-  ctx.fillText(`SELL  +${refund}g`, SELL_BUTTON.x + SELL_BUTTON.w / 2, SELL_BUTTON.y + 26);
-
-  // Targeting mode. Slowers and economy buildings have no target — showing
-  // them a mode selector would imply a choice that does nothing.
-  if (def.slowFactor >= 1 && def.goldPerWave === 0) {
-    panel(ctx, TARGET_BUTTON, '#2C2519', 'rgba(0,0,0,0.5)', 2);
-    ctx.textAlign = 'center';
-    ctx.fillStyle = COLORS.textDim;
-    ctx.font = font(13);
-    ctx.fillText('TARGET', TARGET_BUTTON.x + 44, TARGET_BUTTON.y + 27);
-    ctx.fillStyle = accent;
-    ctx.font = font(17);
-    ctx.fillText(
-      TARGET_MODE_LABELS[tower.targetMode],
-      TARGET_BUTTON.x + TARGET_BUTTON.w / 2 + 34,
-      TARGET_BUTTON.y + 27,
-    );
-  }
+  ctx.font = font(19);
+  ctx.fillText(`SELL  +${sellValue(state, tower)}g`, r.sell.x + r.sell.w / 2, r.sell.y + 33);
   ctx.textAlign = 'left';
 }
 
@@ -422,31 +501,31 @@ function drawSelectionPanel(
  * a player goes to ask "is this tower pulling its weight" — and a Cannon that
  * is quietly running at +40% is the answer to that question.
  */
-function drawActiveCombos(ctx: CanvasRenderingContext2D, tower: Tower): void {
-  const y = PANEL.y + 126;
+function drawActiveCombos(ctx: CanvasRenderingContext2D, tower: Tower, P: Rect): void {
+  const y = P.y + 158;
 
   ctx.font = font(13);
   ctx.textAlign = 'left';
   ctx.fillStyle = COLORS.textDim;
-  ctx.fillText('COMBOS', PANEL.x + 18, y);
+  ctx.fillText('COMBOS', P.x + PANEL_PAD, y - 4);
 
   if (tower.combos.length === 0) {
     ctx.fillStyle = '#6A6152';
     ctx.font = font(14);
-    ctx.fillText('none — overlap another role', PANEL.x + 18, y + 22);
+    ctx.fillText('none — build a partner beside it', P.x + PANEL_PAD, y + 16);
     return;
   }
 
-  let x = PANEL.x + 18;
-  let row = y + 22;
+  let x = P.x + PANEL_PAD;
+  let row = y + 16;
   for (const key of tower.combos) {
     const def = COMBOS.find((c) => c.key === key);
     if (!def) continue;
     ctx.font = font(13);
     const w = ctx.measureText(def.label).width + 16;
     // Wrap rather than run off the panel edge; three combos is common.
-    if (x + w > PANEL.x + PANEL.w - 14) {
-      x = PANEL.x + 18;
+    if (x + w > P.x + P.w - PANEL_PAD) {
+      x = P.x + PANEL_PAD;
       row += 22;
     }
     ctx.fillStyle = 'rgba(255,255,255,0.08)';

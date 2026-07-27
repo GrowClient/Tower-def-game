@@ -16,14 +16,11 @@ import type { GameState } from '../core/types';
 import {
   ADVANCE_BUTTON,
   HUD_BUTTONS,
-  PANEL,
-  SELL_BUTTON,
-  TARGET_BUTTON,
-  UPGRADE_BUTTON,
   buildButtons,
   hitTest,
+  towerPanelRects,
 } from '../render/hud';
-import { PERK_CARDS } from '../render/screens';
+import { PAUSE_BUTTONS, PAUSE_TAB_RECTS, PERK_CARDS } from '../render/screens';
 import { placementError } from '../core/towers';
 import { screenToWorld, type Viewport } from '../render/viewport';
 import { armBuild, selectTower, type UiState } from '../uiState';
@@ -150,6 +147,29 @@ function handleTap(
     return;
   }
 
+  // The pause menu is modal: it covers the board and owns every tap while it
+  // is up, so nothing behind it can be reached by accident.
+  if (ui.paused) {
+    for (const tab of PAUSE_TAB_RECTS) {
+      if (hitTest(tab.rect, x, y)) {
+        ui.pauseTab = tab.id;
+        return;
+      }
+    }
+    if (ui.pauseTab === 'game') {
+      for (const b of PAUSE_BUTTONS) {
+        if (!hitTest(b.rect, x, y)) continue;
+        if (b.id === 'resume') actions.togglePause();
+        else if (b.id === 'restart') actions.restart();
+        else if (b.id === 'mute') actions.toggleMute();
+        else if (b.id === 'speed') actions.cycleSpeed();
+        else actions.toggleFullscreen();
+        return;
+      }
+    }
+    return;
+  }
+
   // The combos sheet is modal too — any tap dismisses it, so it can never
   // swallow a tap meant for the board underneath.
   if (ui.showCombos) {
@@ -179,22 +199,25 @@ function handleTap(
     return;
   }
 
-  // The selection panel only swallows taps while it's actually open.
-  if (ui.selectedTowerId !== null) {
-    if (hitTest(UPGRADE_BUTTON, x, y)) {
-      actions.upgradeTower(ui.selectedTowerId);
+  // The selection panel only swallows taps while it's actually open. Its rects
+  // travel with the tower, so they come from the SAME function that drew them.
+  const selected = state.towers.find((t) => t.id === ui.selectedTowerId);
+  if (selected) {
+    const r = towerPanelRects(state, selected);
+    if (hitTest(r.upgrade, x, y)) {
+      actions.upgradeTower(selected.id);
       return;
     }
-    if (hitTest(TARGET_BUTTON, x, y)) {
-      actions.cycleTargetMode(ui.selectedTowerId);
+    if (r.target && hitTest(r.target, x, y)) {
+      actions.cycleTargetMode(selected.id);
       return;
     }
-    if (hitTest(SELL_BUTTON, x, y)) {
-      actions.sellTower(ui.selectedTowerId);
+    if (hitTest(r.sell, x, y)) {
+      actions.sellTower(selected.id);
       selectTower(ui, null); // the panel's subject no longer exists
       return;
     }
-    if (hitTest(PANEL, x, y)) return;
+    if (hitTest(r.panel, x, y)) return;
   }
 
   // Taps in the HUD strips that missed every button do nothing, rather than

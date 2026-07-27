@@ -12,6 +12,13 @@
 
 import { SIM, type TowerKind } from './config/balance';
 
+/**
+ * Pausing is the one moment a player is guaranteed to be reading rather than
+ * reacting, so it is where the reference material belongs.
+ */
+export const PAUSE_TABS = ['game', 'combos', 'enemies', 'towers'] as const;
+export type PauseTab = (typeof PAUSE_TABS)[number];
+
 export interface UiState {
   paused: boolean;
   /** Index into SIM.speeds. */
@@ -31,6 +38,8 @@ export interface UiState {
   /** The combos reference sheet is open. Session state, not simulation — a
    *  replay does not care that you stopped to read the rules. */
   showCombos: boolean;
+  /** Which tab the pause menu is showing. */
+  pauseTab: PauseTab;
   /** Smoothed frames-per-second, for the debug corner. */
   fps: number;
 }
@@ -45,6 +54,7 @@ export function newUiState(): UiState {
     fullscreen: false,
     muted: false,
     showCombos: false,
+    pauseTab: 'game',
     fps: 0,
   };
 }

@@ -11,7 +11,7 @@
  */
 
 import { COMBAT } from '../config/balance';
-import { applyBurn, damageEnemy } from './enemies';
+import { applyBurn, applySlow, damageEnemy } from './enemies';
 import type { Enemy, GameState, Projectile, ProjectileLook, Tower } from './types';
 
 interface ShotSpec {
@@ -23,6 +23,8 @@ interface ShotSpec {
   pierce: number;
   burnDps: number;
   burnSeconds: number;
+  slowFactor: number;
+  slowSeconds: number;
 }
 
 export function spawnProjectile(
@@ -46,6 +48,8 @@ export function spawnProjectile(
     hitIds: [],
     burnDps: spec.burnDps,
     burnSeconds: spec.burnSeconds,
+    slowFactor: spec.slowFactor,
+    slowSeconds: spec.slowSeconds,
     life: COMBAT.projectileLifetime,
     dead: false,
   });
@@ -110,8 +114,7 @@ function sweepPierce(state: GameState, p: Projectile, stepX: number, stepY: numb
 
     p.hitIds.push(e.id);
     p.pierce--;
-    damageEnemy(state, e, p.damage, p.armorPierce, p.ownerId);
-    if (p.burnDps > 0) applyBurn(e, p.burnDps, p.burnSeconds);
+    applyPayload(state, p, e);
   }
   if (p.pierce <= 0) p.dead = true;
 }
@@ -124,16 +127,26 @@ function impact(state: GameState, p: Projectile, target: Enemy | null): void {
       const dx = e.pos.x - p.pos.x;
       const dy = e.pos.y - p.pos.y;
       if (dx * dx + dy * dy > rSq) continue;
-      damageEnemy(state, e, p.damage, p.armorPierce, p.ownerId);
-      if (p.burnDps > 0) applyBurn(e, p.burnDps, p.burnSeconds);
+      applyPayload(state, p, e);
     }
     return;
   }
 
-  if (target && !target.dead) {
-    damageEnemy(state, target, p.damage, p.armorPierce, p.ownerId);
-    if (p.burnDps > 0) applyBurn(target, p.burnDps, p.burnSeconds);
-  }
+  if (target && !target.dead) applyPayload(state, p, target);
+}
+
+/**
+ * Everything a shot does when it lands.
+ *
+ * The damage check matters: a slower's shot carries zero damage, and
+ * `damageEnemy` floors at COMBAT.minDamage — so calling it unconditionally
+ * would quietly turn every slower into a (bad) damage tower and spray hit
+ * events and impact sounds that belong to weapons.
+ */
+function applyPayload(state: GameState, p: Projectile, enemy: Enemy): void {
+  if (p.slowFactor < 1) applySlow(enemy, p.slowFactor, p.slowSeconds);
+  if (p.damage > 0) damageEnemy(state, enemy, p.damage, p.armorPierce, p.ownerId);
+  if (p.burnDps > 0) applyBurn(enemy, p.burnDps, p.burnSeconds);
 }
 
 function pointSegmentDistance(

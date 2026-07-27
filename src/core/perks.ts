@@ -102,9 +102,15 @@ export function bonusPierce(state: GameState): number {
   return perkStacks(state, 'pierce') * PERK_RULES.piercePerStack;
 }
 
-/** Slows get *stronger*, i.e. the movement multiplier moves toward zero. */
-export function slowBonus(state: GameState): number {
-  return perkStacks(state, 'slow') * PERK_RULES.slowPerStack;
+/**
+ * Slows last LONGER, never bite harder.
+ *
+ * Deliberately duration and not strength: slow strength is fixed everywhere so
+ * that a wave can always keep moving, and a perk that deepened it would undo
+ * that in three picks.
+ */
+export function slowDurationMul(state: GameState): number {
+  return 1 + perkStacks(state, 'slow') * PERK_RULES.slowDurationPerStack;
 }
 
 export function refundRate(state: GameState, base: number): number {

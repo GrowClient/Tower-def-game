@@ -509,15 +509,30 @@ function drawFrostTower(ctx: CanvasRenderingContext2D, s: number, tier: Tier): v
 
 /** A wheeled gunpowder cannon. Barrel tracks the target. */
 function drawCannon(ctx: CanvasRenderingContext2D, s: number, aim: number, tier: Tier): void {
-  // Carriage.
-  ctx.fillStyle = '#5E4830';
+  // Carriage. The wheels carry the upgrade tier as well as the barrel does:
+  // a change confined to the muzzle was too small to spot on the board, and
+  // the wheels are the widest, most visible part of this silhouette.
+  ctx.fillStyle = mat(tier, '#5E4830');
   ctx.beginPath();
   ctx.rect(-s * 0.6, s * 0.06, s * 1.2, s * 0.34);
   ctx.fill();
   ctx.stroke();
   for (const dir of [-1, 1]) {
-    circle(ctx, dir * s * 0.42, s * 0.36, s * 0.26, '#6B5233', true);
-    circle(ctx, dir * s * 0.42, s * 0.36, s * 0.09, '#3A2A1C', false);
+    circle(ctx, dir * s * 0.42, s * 0.36, s * 0.26, mat(tier, '#6B5233'), true);
+    // Spokes, in the tier's bright metal — turns a flat disc into a wheel and
+    // makes silver-vs-gold obvious at a glance.
+    ctx.strokeStyle = matLit(tier, '#3A2A1C');
+    ctx.lineWidth = s * 0.055;
+    for (let i = 0; i < 4; i++) {
+      const ang = (i / 4) * Math.PI;
+      ctx.beginPath();
+      ctx.moveTo(dir * s * 0.42 - Math.cos(ang) * s * 0.22, s * 0.36 - Math.sin(ang) * s * 0.22);
+      ctx.lineTo(dir * s * 0.42 + Math.cos(ang) * s * 0.22, s * 0.36 + Math.sin(ang) * s * 0.22);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = s * 0.14;
+    circle(ctx, dir * s * 0.42, s * 0.36, s * 0.09, matLit(tier, '#3A2A1C'), false);
   }
 
   // Barrel, with a wider muzzle so the firing end is obvious.
@@ -960,14 +975,37 @@ function drawEnemy(
 
   drawTypeMark(ctx, e, x, y, r, a, skin);
 
-  // Slowed units get a frost ring — the player has to be able to see that the
-  // slower is actually doing something.
+  // Rime on a chilled unit.
+  //
+  // Slowers fire a shot that lands on ONE target now, rather than blanketing a
+  // radius, so "is that one slowed?" is a question the player actually has to
+  // answer per enemy. A thin ring was not enough — the mark is a blue frosting
+  // over the body plus crystals growing off it, readable in a crowd at 4x.
   if (e.slowTimer > 0) {
+    ctx.save();
     ctx.beginPath();
-    ctx.arc(x, y, r * 1.28, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(160, 224, 240, 0.85)';
-    ctx.lineWidth = r * 0.14;
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(150, 214, 240, 0.42)';
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(214, 244, 255, 0.95)';
+    ctx.lineWidth = r * 0.13;
     ctx.stroke();
+
+    // Ice crystals around the rim.
+    ctx.fillStyle = '#DCF3FF';
+    for (let i = 0; i < 5; i++) {
+      const ang = (i / 5) * Math.PI * 2 + a * 0.5;
+      const bx = x + Math.cos(ang) * r * 0.95;
+      const by = y + Math.sin(ang) * r * 0.95;
+      ctx.beginPath();
+      ctx.moveTo(bx + Math.cos(ang + 1.6) * r * 0.16, by + Math.sin(ang + 1.6) * r * 0.16);
+      ctx.lineTo(bx + Math.cos(ang) * r * 0.42, by + Math.sin(ang) * r * 0.42);
+      ctx.lineTo(bx + Math.cos(ang - 1.6) * r * 0.16, by + Math.sin(ang - 1.6) * r * 0.16);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
   }
 
   // Shield: an arc per remaining hit, so you can count what's left rather

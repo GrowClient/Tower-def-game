@@ -108,7 +108,7 @@ cyan), and a full biome each — advancing re-skins the ground, the road and the
 props, not just a colour.
 
 Advancement is **player-triggered by spending gold**, never automatic on a wave
-number. Prices are many times a tower (**1000**, then **3000**) so paying is a
+number. Prices are many times a tower (**3000**, then **10000**) so paying is a
 real commitment — you are giving up several towers' worth of defence for it.
 
 **Advancing UNLOCKS the next age's four towers to build. It does not transform,
@@ -140,7 +140,7 @@ ceiling, stacking cheap towers was strictly better than advancing, and the age
 system was decorative.
 
 It is a balance in both directions. Cranked too high, runs ended around wave 12
-— *before* anyone could save the 1000 gold an age costs — which made the age
+— *before* anyone could save the gold an age costs — which made the age
 system unreachable instead of merely unattractive. The pressure has to bite
 without ending the run before the decision can be made.
 
@@ -152,7 +152,7 @@ After clearing every **5th** wave the run pauses and offers **3 of 10** perks;
 the player takes one. They are run-wide and stack, so a run compounds in a
 direction rather than every run converging on the same board.
 
-Damage, fire rate, range, splash radius, kill gold, slow strength, extra
+Damage, fire rate, range, splash radius, kill gold, slow duration, extra
 pierce, restored lives, a better sell refund, and burn damage. The draft holds
 wave progression while it is open — a player must never be punished for reading
 their options.
@@ -161,7 +161,7 @@ their options.
 
 ## Towers
 
-Fourteen towers across three ages. Each age has its own **visual vocabulary**,
+Sixteen towers across three ages. Each age has its own **visual vocabulary**,
 not a recoloured version of the last — stone is timber and rock, the middle age
 is masonry and gunpowder, the tech age is plated steel and glowing optics. "The
 towers look the same" is exactly the complaint that makes an age advance feel
@@ -169,12 +169,12 @@ like it did nothing.
 
 | Role | Stone Age | Middle Age | Tech Age |
 |---|---|---|---|
-| Single target | Thrower (90g) — sling on a timber frame | **Archer Tower** (215g) — crenellated turret, the bolt runs *through* a line | **Gun Turret** (540g) — plated barrel, pierces up to 8 |
-| On the path | Spike Pit (75g) | **Oil Cauldron** (190g) — stacking burn that bypasses armor | **Tesla Coil** (480g) — chains to 4 nearby enemies |
-| Slower | Cold Mud (120g) | **Frost Tower** (270g) — ice spire, much harder slow | **Cryo Field** (620g) — plus a chance to freeze solid |
-| Heavy | Boulder (195g) | **Cannon** (440g) — wheeled gunpowder cannon, ignores armor | **Singularity** (1000g) — enormous damage and splash |
-| Economy | **Campfire** (120g) | **Gold Mine** (350g) | **Factory** (900g) |
-| Special | — | — | **Sniper** (1300g) |
+| Single target | Thrower (90g) — sling on a timber frame | **Archer Tower** (250g) — crenellated turret, the bolt runs *through* a line | **Gun Turret** (675g) — plated barrel, pierces up to 8 |
+| On the path | Spike Pit (75g) | **Oil Cauldron** (220g) — stacking burn that bypasses armor | **Tesla Coil** (600g) — chains to 4 nearby enemies |
+| Slower | Cold Mud (120g) | **Frost Tower** (310g) — faster, bursts on impact | **Cryo Field** (775g) — fastest, widest burst |
+| Heavy | Boulder (195g) | **Cannon** (510g) — wheeled gunpowder cannon, ignores armor | **Singularity** (1250g) — enormous damage and splash |
+| Economy | **Campfire** (120g) | **Gold Mine** (400g) | **Factory** (1100g) |
+| Special | — | — | **Sniper** (1625g) |
 
 ### Economy buildings
 
@@ -230,12 +230,12 @@ and Cryo Field are both `ice`.
 
 | Combo | Tags | Effect |
 |---|---|---|
-| **Thermal Shock** | ice + fire | +50% damage, +60% burn |
-| **Shatter** | ice + heavy | +40% damage |
-| **Conduction** | ice + chain | +2 chain targets, +15% damage |
-| **Spotter** | precision + rapid | +25% fire rate |
-| **Kill Zone** | trap + trap | +30% fire rate |
-| **Foundry** | economy + heavy | +20% fire rate, +30% gold |
+| **Thermal Shock** | ice + fire | +22% damage, +30% burn |
+| **Shatter** | ice + heavy | +20% damage |
+| **Conduction** | ice + chain | +1 chain target, +8% damage |
+| **Spotter** | precision + rapid | +12% fire rate |
+| **Kill Zone** | trap + trap | +15% fire rate |
+| **Foundry** | economy + heavy | +10% fire rate, +20% gold |
 
 Both towers in a pairing receive the same effect and each uses only the parts
 that mean anything to it — which is how the Foundry pays the mine and hurries
@@ -243,8 +243,12 @@ the cannon without needing per-side rules.
 
 Three properties keep this a mechanic rather than a hidden spreadsheet:
 
-- **The trigger is visible.** Rings overlap, and those are the rings already
-  drawn on the board. There is no second invisible adjacency rule.
+- **The trigger is small and visible.** Two towers link when they are within
+  about two cells — immediate neighbours, diagonals included, and nothing else.
+  The placement ghost draws that exact radius. It was originally "your range
+  rings overlap", which sounded elegant and played terribly: two 250-range Tech
+  towers linked from five cells apart, so on a developed board everything
+  comboed with everything and there was no placement decision left to make.
 - **A combo counts once**, however many partners supply it. Otherwise "stack
   more partners" becomes the new mindless answer.
 - **It is taught, not discovered.** The board draws named links while a tower is
@@ -257,6 +261,60 @@ healer at the back undoes the damage. Slowers and mines have no target and are
 not offered the choice.
 
 Any tower can be **sold** for 60% of everything sunk into it.
+
+### Slowers are shooters, not auras
+
+A slower **fires a damage-free shot** that chills whatever it hits for a few
+seconds, and the target wears visible rime while it lasts. It aims, reloads and
+leads its target exactly like a Thrower.
+
+The old aura version pinned everything inside a radius permanently. It was
+simultaneously the strongest effect in the game and the least interesting: it
+could not miss, needed no placement thought, and two of them stopped a wave
+dead.
+
+**No slow anywhere gets stronger.** All three ages share one slow strength;
+upgrades raise range and fire rate; the perk extends duration. A later slower is
+not a colder slower, it is a faster one that keeps more of the lane chilled.
+There is also a hard floor on how slow anything can be made, because a parked
+enemy is not a handled enemy — the wave has to keep flowing. The Cryo Field's
+freeze-solid roll was deleted outright for the same reason.
+
+### Why crowding is taxed
+
+Every tower you own makes the **next** one cost more (+2% each).
+
+Without it the game is a dumping sim, and that is measured rather than assumed:
+a scripted player that never advanced, never upgraded and simply filled 115 of
+the board's ~145 buildable cells with cheap Stone Age towers reached wave 30 —
+*further* than the same probe got playing the game as designed. Quantity had no
+cost curve, so quantity was the answer to everything.
+
+Upgrades are priced off a tower's base cost and are untaxed, so the fuller your
+board gets, the better improving what you own looks against squeezing in one
+more. That is the pressure that makes selling to fund an upgrade a real move.
+The build bar always quotes the live price, never the list price.
+
+### Feedback rules learned from play
+
+- **No floating damage numbers.** The health bar is the readable channel; a
+  crowd of twenty units generating damage text is a wall of digits covering the
+  thing it describes.
+- **Screenshake is for events that matter.** Shots landing and ordinary kills
+  add none. Trauma accumulates faster than it decays, so shaking on every
+  impact meant the screen never stopped moving. Losing a life, a boss dying and
+  an age turning still shake.
+- **Build mode is amber in every age**, never the biome accent — the Middle Age
+  accent is crimson, which is already the colour for "illegal placement", so
+  the whole board lit up red while holding a perfectly legal tower.
+- **The tower panel hangs off its tower**, with a leader line, rather than
+  living in a corner with nothing connecting the numbers to the thing.
+
+### The pause menu
+
+Pausing is the one moment a player is guaranteed to be reading rather than
+reacting, so it is where the reference material lives: settings, the combo
+table, what each enemy type demands, and every unlocked tower's real numbers.
 
 ---
 

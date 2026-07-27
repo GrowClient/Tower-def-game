@@ -39,15 +39,21 @@ const FX = {
    *  an unreadable smear anyway, so the cap costs nothing legible. */
   floatersPerFrame: 3,
 
-  /** Shake. Trauma is squared before use, so small hits barely register and
-   *  big ones dominate — a linear response feels like constant vibration. */
-  traumaPerHit: 0.09,
-  traumaPerKill: 0.13,
-  traumaPerBossKill: 0.7,
-  traumaPerLeak: 0.45,
-  traumaPerAdvance: 0.85,
-  traumaDecay: 1.9,
-  maxShake: 17,
+  /**
+   * Shake is reserved for events that MATTER, and nothing else.
+   *
+   * Ordinary shots landing and ordinary kills used to add trauma. On a mature
+   * board that is dozens of impacts a second, and since trauma accumulates
+   * faster than it decays the screen simply never stopped moving — playable
+   * for about a minute and unbearable after that. Shots, kills and placements
+   * now shake by exactly zero; they have sparks, debris and recoil to sell the
+   * impact. Losing a life, a boss dying and an age turning still shake, because
+   * those happen a handful of times in a run and are supposed to land hard.
+   */
+  traumaPerLeak: 0.4,
+  traumaPerBossSpawn: 0.35,
+  traumaDecay: 2.2,
+  maxShake: 15,
 
   /** Boss-kill slow motion. */
   slowmoScale: 0.28,
@@ -186,13 +192,12 @@ export function consumeEvents(fx: FxState, events: SimEvent[], accent: string): 
 
   for (const e of events) {
     switch (e.type) {
+      // Damage is read from the health bar, NOT from a number. Floating damage
+      // numbers over a crowd of twenty units is a wall of digits that hides the
+      // thing it is describing — the bar is the readable channel, so the hit
+      // gets sparks and shake and nothing to read.
       case 'enemyHit': {
-        fx.trauma = Math.min(1, fx.trauma + FX.traumaPerHit * Math.min(1, e.damage / 200));
         sparks(fx, e.at, 3, '#FFE9B0', 90);
-        if (floatersThisFrame < FX.floatersPerFrame && e.damage >= 1) {
-          addFloater(fx, e.at, String(e.damage), '#FFF0C8', 19);
-          floatersThisFrame++;
-        }
         break;
       }
 
@@ -204,7 +209,6 @@ export function consumeEvents(fx: FxState, events: SimEvent[], accent: string): 
         break;
 
       case 'enemyKilled': {
-        fx.trauma = Math.min(1, fx.trauma + FX.traumaPerKill);
         burst(fx, e.at, 12, DEBRIS[e.kind] ?? '#E8C88A');
         if (e.bounty > 0 && floatersThisFrame < FX.floatersPerFrame) {
           addFloater(fx, e.at, `+${e.bounty}`, '#F0C46A', 20);
@@ -241,13 +245,14 @@ export function consumeEvents(fx: FxState, events: SimEvent[], accent: string): 
 
       case 'bossSpawned':
         addShockwave(fx, e.at, 200, 'rgba(240, 120, 90, 0.7)', 6);
-        fx.trauma = Math.min(1, fx.trauma + 0.4);
+        fx.trauma = Math.min(1, fx.trauma + FX.traumaPerBossSpawn);
         break;
 
+      // No trauma: you place towers constantly, and a thump every time you
+      // spend gold is exactly the sort of shake that wears a player out.
       case 'towerPlaced':
         addShockwave(fx, e.at, 70, hexToRgba(accent, 0.8), 4);
         sparks(fx, e.at, 10, '#C8B48A', 120);
-        fx.trauma = Math.min(1, fx.trauma + 0.12);
         break;
 
       case 'towerUpgraded':
@@ -262,9 +267,14 @@ export function consumeEvents(fx: FxState, events: SimEvent[], accent: string): 
         addFloater(fx, e.at, `+${e.refund}`, '#E8A08A', 20);
         break;
 
+      // Payday. This is the one moment an economy building does anything at
+      // all, so it gets a proper coin fountain and a number big enough to read
+      // from across the board — otherwise a mine is a building that visibly
+      // does nothing for the entire run.
       case 'goldMined':
-        addFloater(fx, e.at, `+${e.amount}`, '#F0C46A', 21);
-        sparks(fx, e.at, 8, '#F5C842', 90);
+        addFloater(fx, e.at, `+${e.amount}g`, '#FFD766', 30, 1.5);
+        coinFountain(fx, e.at);
+        addShockwave(fx, e.at, 66, 'rgba(245, 200, 70, 0.85)', 4);
         break;
 
       case 'chainArc':
@@ -380,7 +390,15 @@ function burst(fx: FxState, at: Vec2, count: number, color: string): void {
   }
 }
 
-function addFloater(fx: FxState, at: Vec2, text: string, color: string, size: number): void {
+function addFloater(
+  fx: FxState,
+  at: Vec2,
+  text: string,
+  color: string,
+  size: number,
+  lifeScale = 1,
+): void {
+  const life = 0.85 * lifeScale;
   push(
     fx.floaters,
     {
@@ -388,14 +406,43 @@ function addFloater(fx: FxState, at: Vec2, text: string, color: string, size: nu
       x: at.x + (Math.random() - 0.5) * 14,
       y: at.y - 10,
       vy: -46 - Math.random() * 22,
-      life: 0.85,
-      maxLife: 0.85,
+      life,
+      maxLife: life,
       text,
       color,
       size,
     },
     FX.maxFloaters,
   );
+}
+
+/**
+ * Coins tossed up out of the building and falling back. Deliberately slower
+ * and heavier than a spark shower: this should read as money being counted
+ * out, not as an explosion.
+ */
+function coinFountain(fx: FxState, at: Vec2): void {
+  for (let i = 0; i < 14; i++) {
+    const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.5;
+    const v = 120 + Math.random() * 130;
+    push(
+      fx.particles,
+      {
+        x: at.x + (Math.random() - 0.5) * 22,
+        y: at.y,
+        vx: Math.cos(a) * v * 0.7,
+        vy: Math.sin(a) * v,
+        life: 0.6 + Math.random() * 0.35,
+        maxLife: 0.95,
+        size: 3.4 + Math.random() * 2.2,
+        color: i % 3 === 0 ? '#FFF0B0' : '#F5C842',
+        gravity: 420,
+        spin: (Math.random() - 0.5) * 22,
+        angle: Math.random() * Math.PI,
+      },
+      FX.maxParticles,
+    );
+  }
 }
 
 function addShockwave(

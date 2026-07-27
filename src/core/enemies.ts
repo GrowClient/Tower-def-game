@@ -339,19 +339,18 @@ export function damageEnemy(
   if (enemy.hp <= 0) kill(state, enemy, ownerTowerId);
 }
 
-/** Apply (or refresh) a slow. The strongest active slow wins. */
-export function applySlow(enemy: Enemy, factor: number, seconds: number = COMBAT.slowLinger): void {
+/**
+ * Apply (or refresh) a slow. The strongest active slow wins, and the result is
+ * clamped so that no stack of slowers can ever park a unit — see
+ * COMBAT.minSlowFactor.
+ */
+export function applySlow(enemy: Enemy, factor: number, seconds: number): void {
   if (enemy.slowImmune) return;
-  if (enemy.slowTimer <= 0) enemy.slowFactor = factor;
-  else enemy.slowFactor = Math.min(enemy.slowFactor, factor);
-  // Never shorten an existing, longer slow — a freeze must not be cut short by
-  // the aura that keeps re-applying a mild slow on top of it.
+  const clamped = Math.max(COMBAT.minSlowFactor, factor);
+  if (enemy.slowTimer <= 0) enemy.slowFactor = clamped;
+  else enemy.slowFactor = Math.min(enemy.slowFactor, clamped);
+  // Never shorten an existing, longer slow.
   enemy.slowTimer = Math.max(enemy.slowTimer, seconds);
-}
-
-/** Freeze solid: a very hard slow for a fixed time. Slow-immune units resist. */
-export function applyFreeze(enemy: Enemy, seconds: number): void {
-  applySlow(enemy, COMBAT.freezeFactor, seconds);
 }
 
 /**

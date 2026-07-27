@@ -25,12 +25,10 @@ import {
   COMBO_RULES,
   COMBOS,
   TOWERS,
-  UPGRADES,
   type ComboEffect,
   type ComboKey,
   type TowerTag,
 } from '../config/balance';
-import { rangeMul } from './perks';
 import type { GameState, Tower } from './types';
 
 const NEUTRAL: ComboEffect = {
@@ -39,38 +37,24 @@ const NEUTRAL: ComboEffect = {
   burnMul: 1,
   goldMul: 1,
   chainBonus: 0,
-  slowBonus: 0,
 };
 
 /**
- * How far a tower's "field" reaches for combo purposes.
+ * Are these two towers close enough to combo?
  *
- * Not simply `towerRange`, for two reasons. A trap or an economy building has
- * no range at all and would otherwise be uncombinable, so it gets a fallback of
- * roughly one cell. A Sniper's range is the entire board, and a tower that
- * combos with literally everything is not a placement decision — so its field
- * is clamped.
+ * ONE fixed radius for every tower, deliberately independent of range. The
+ * original rule was "your range rings overlap", which sounded elegant and
+ * played badly: two 250-range Tech towers linked from five cells apart, so on
+ * a developed board everything comboed with everything and there was no
+ * placement decision left. A small fixed radius makes a combo a question about
+ * the cell you are clicking, which is the decision this system exists to
+ * create.
  */
-export function comboRadius(state: GameState, tower: Tower): number {
-  const def = TOWERS[tower.kind]!;
-  if (def.unlimitedRange) return COMBO_RULES.maxRadius;
-  if (def.range <= 0) return COMBO_RULES.fallbackRadius;
-  // Deliberately the tower's UPGRADED, perked range: a Farsight perk really
-  // does spread your combos, and the ring on screen grows to match.
-  //
-  // Recomputed from UPGRADES here rather than calling towers.ts's towerRange,
-  // because towers.ts imports this module for its derived stats and routing the
-  // radius back through it would close that loop.
-  const levelMul = UPGRADES.rangeMul[tower.level - 1] ?? 1;
-  return Math.min(COMBO_RULES.maxRadius, def.range * levelMul * rangeMul(state));
-}
-
-/** Do these two towers' fields overlap? The rule the player can see. */
-export function fieldsOverlap(state: GameState, a: Tower, b: Tower): boolean {
-  const reach = comboRadius(state, a) + comboRadius(state, b);
+export function towersLinked(a: Tower, b: Tower): boolean {
+  const r = COMBO_RULES.linkRadius;
   const dx = a.pos.x - b.pos.x;
   const dy = a.pos.y - b.pos.y;
-  return dx * dx + dy * dy <= reach * reach;
+  return dx * dx + dy * dy <= r * r;
 }
 
 /** Which combos this specific pair of towers forms. */
@@ -105,7 +89,7 @@ export function refreshCombos(state: GameState): void {
     for (let j = i + 1; j < towers.length; j++) {
       const a = towers[i]!;
       const b = towers[j]!;
-      if (!fieldsOverlap(state, a, b)) continue;
+      if (!towersLinked(a, b)) continue;
       for (const key of combosBetween(a, b)) {
         found[i]!.add(key);
         found[j]!.add(key);
@@ -134,7 +118,6 @@ export function comboEffect(tower: Tower): ComboEffect {
     out.burnMul *= def.effect.burnMul;
     out.goldMul *= def.effect.goldMul;
     out.chainBonus += def.effect.chainBonus;
-    out.slowBonus += def.effect.slowBonus;
   }
   return out;
 }
@@ -151,7 +134,7 @@ export function comboPartners(
   const out: { partner: Tower; keys: ComboKey[] }[] = [];
   for (const other of state.towers) {
     if (other.id === tower.id) continue;
-    if (!fieldsOverlap(state, tower, other)) continue;
+    if (!towersLinked(tower, other)) continue;
     const keys = combosBetween(tower, other);
     if (keys.length > 0) out.push({ partner: other, keys });
   }
@@ -181,6 +164,7 @@ export function previewCombos(
     cooldown: 0,
     invested: 0,
     kills: 0,
+    earned: 0,
     aim: 0,
     recoil: 0,
     targetMode: 'first',

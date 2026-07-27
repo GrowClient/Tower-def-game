@@ -73,10 +73,12 @@ export const MAP = {
 export const SIM = {
   /** Fixed timestep. The sim ONLY ever advances by exactly this much. */
   dt: 1 / 60,
-  /** Safety clamp: max sim steps per rendered frame (prevents spiral of death). */
-  maxStepsPerFrame: 8,
+  /** Safety clamp: max sim steps per rendered frame (prevents spiral of death).
+   *  Has to clear 4x speed at 60fps (4 steps a frame) with room to catch up
+   *  after a hitch, or the top speed silently runs slow on a busy wave. */
+  maxStepsPerFrame: 12,
   /** Speed toggle multipliers, cycled by the HUD button / [F] key. */
-  speeds: [1, 2],
+  speeds: [1, 2, 4],
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -331,8 +333,20 @@ export interface TowerDef {
   splash: number;
   /** Flat armor ignored by this tower's hits. */
   armorPierce: number;
-  /** Movement multiplier applied to enemies in range; 1 = no slow. */
+  /**
+   * Movement multiplier applied to an enemy this tower HITS; 1 = no slow.
+   *
+   * Slowers are shooters, not auras. An aura that permanently pinned
+   * everything in a radius was both the strongest effect in the game and the
+   * least interesting: it needed no aiming, could not miss, and stacking two
+   * of them stopped a wave dead. Firing a real (damage-free) shot means a
+   * slower has a rate, a range and a travel time like everything else, and the
+   * enemies keep flowing.
+   */
   slowFactor: number;
+  /** How long a slow from this tower lasts. Its reload vs this number is what
+   *  decides how much of the lane it can keep chilled at once. */
+  slowSeconds: number;
   /** True for towers that sit ON the path instead of beside it. */
   onPath: boolean;
 
@@ -344,9 +358,6 @@ export interface TowerDef {
   /** Extra nearby enemies struck when this tower hits. */
   chainCount: number;
   chainRange: number;
-  /** Chance per hit to freeze an enemy nearly solid, and for how long. */
-  freezeChance: number;
-  freezeSeconds: number;
 
   /**
    * Gold paid out when a wave is CLEARED. A tower with this set is an ECONOMY
@@ -374,8 +385,7 @@ const PLAIN = {
   burnSeconds: 0,
   chainCount: 0,
   chainRange: 0,
-  freezeChance: 0,
-  freezeSeconds: 0,
+  slowSeconds: 0,
 };
 
 /**
@@ -422,18 +432,26 @@ export const TOWERS = {
     onPath: true,
     tags: ['trap'],
   },
+  /**
+   * The slower line, across all three ages, deliberately shares ONE slow
+   * strength. A later slower is not a colder slower — it is a faster, longer
+   * ranged one that catches more of the lane per second. Escalating the
+   * multiplier instead is what produced a Tech-age tower that simply stopped
+   * the wave, and a stopped wave is not a harder wave, it is a stalled game.
+   */
   slower: {
     ...PLAIN,
     label: 'Cold Mud',
     age: 0,
     cost: 120,
-    range: 135,
+    range: 150,
     damage: 0,
-    fireRate: 0,
-    projectileSpeed: 0,
+    fireRate: 1.1,
+    projectileSpeed: 400,
     splash: 0,
     armorPierce: 0,
-    slowFactor: 0.55,
+    slowFactor: 0.6,
+    slowSeconds: 1.8,
     onPath: false,
     tags: ['ice'],
   },
@@ -482,9 +500,9 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Archer Tower',
     age: 1,
-    cost: 215,
+    cost: 250,
     range: 215,
-    damage: 85,
+    damage: 99,
     fireRate: 1.45,
     projectileSpeed: 640,
     splash: 0,
@@ -500,16 +518,16 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Oil Cauldron',
     age: 1,
-    cost: 190,
+    cost: 220,
     range: 0,
-    damage: 28,
+    damage: 32,
     fireRate: 0.85,
     projectileSpeed: 0,
     splash: 0,
     armorPierce: 0,
     slowFactor: 1,
     onPath: true,
-    burnDps: 59,
+    burnDps: 68,
     burnSeconds: 3.5,
     tags: ['fire', 'trap'],
   },
@@ -517,14 +535,16 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Frost Tower',
     age: 1,
-    cost: 270,
-    range: 175,
+    cost: 310,
+    range: 200,
     damage: 0,
-    fireRate: 0,
-    projectileSpeed: 0,
-    splash: 0,
+    fireRate: 1.7,
+    projectileSpeed: 520,
+    // Bursts on impact, so one shot chills a clump rather than one straggler.
+    splash: 44,
     armorPierce: 0,
-    slowFactor: 0.34,
+    slowFactor: 0.6,
+    slowSeconds: 2,
     onPath: false,
     tags: ['ice'],
   },
@@ -534,9 +554,9 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Cannon',
     age: 1,
-    cost: 440,
+    cost: 510,
     range: 235,
-    damage: 600,
+    damage: 695,
     fireRate: 0.36,
     projectileSpeed: 380,
     splash: 22,
@@ -559,7 +579,7 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Gold Mine',
     age: 1,
-    cost: 350,
+    cost: 400,
     range: 0,
     damage: 0,
     fireRate: 0,
@@ -568,7 +588,7 @@ export const TOWERS = {
     armorPierce: 0,
     slowFactor: 1,
     onPath: false,
-    goldPerWave: 62,
+    goldPerWave: 71,
     tags: ['economy'],
   },
 
@@ -577,9 +597,9 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Gun Turret',
     age: 2,
-    cost: 540,
+    cost: 675,
     range: 290,
-    damage: 400,
+    damage: 500,
     fireRate: 1.7,
     projectileSpeed: 1500,
     splash: 0,
@@ -595,9 +615,9 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Tesla Coil',
     age: 2,
-    cost: 480,
+    cost: 600,
     range: 0,
-    damage: 260,
+    damage: 325,
     fireRate: 1.1,
     projectileSpeed: 0,
     splash: 0,
@@ -608,30 +628,35 @@ export const TOWERS = {
     chainRange: 135,
     tags: ['chain', 'trap'],
   },
+  /**
+   * No freeze-solid mechanic. It used to roll a chance to pin a unit at 6% of
+   * its speed, which read as "the enemies stopped" — the wave queued up at the
+   * tower instead of flowing past it, and the answer to every late wave became
+   * "build another Cryo". Its Tech-age edge is now reach and a wide burst.
+   */
   cryo: {
     ...PLAIN,
     label: 'Cryo Field',
     age: 2,
-    cost: 620,
-    range: 200,
+    cost: 775,
+    range: 250,
     damage: 0,
-    fireRate: 0,
-    projectileSpeed: 0,
-    splash: 0,
+    fireRate: 2.4,
+    projectileSpeed: 660,
+    splash: 88,
     armorPierce: 0,
-    slowFactor: 0.28,
+    slowFactor: 0.6,
+    slowSeconds: 2.2,
     onPath: false,
-    freezeChance: 0.12,
-    freezeSeconds: 1.1,
     tags: ['ice'],
   },
   singularity: {
     ...PLAIN,
     label: 'Singularity',
     age: 2,
-    cost: 1000,
+    cost: 1250,
     range: 260,
-    damage: 3000,
+    damage: 3750,
     fireRate: 0.3,
     projectileSpeed: 420,
     splash: 92,
@@ -650,9 +675,9 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Sniper',
     age: 2,
-    cost: 1300,
+    cost: 1625,
     range: 0,
-    damage: 620,
+    damage: 775,
     fireRate: 0.6,
     projectileSpeed: 2200,
     splash: 0,
@@ -668,7 +693,7 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Factory',
     age: 2,
-    cost: 900,
+    cost: 1100,
     range: 0,
     damage: 0,
     fireRate: 0,
@@ -677,7 +702,7 @@ export const TOWERS = {
     armorPierce: 0,
     slowFactor: 1,
     onPath: false,
-    goldPerWave: 168,
+    goldPerWave: 205,
     tags: ['economy'],
   },
 } satisfies Record<string, TowerDef>;
@@ -709,8 +734,8 @@ export const TARGET_MODE_LABELS: Record<TargetMode, string> = {
  */
 export const AGES = [
   { name: 'Stone Age', advanceCost: 0 },
-  { name: 'Middle Age', advanceCost: 1000 },
-  { name: 'Tech Age', advanceCost: 3000 },
+  { name: 'Middle Age', advanceCost: 3000 },
+  { name: 'Tech Age', advanceCost: 10000 },
 ] as const;
 
 /**
@@ -741,6 +766,26 @@ export const BUILD_ORDER: TowerKind[][] = [
  * instead of a cost you weigh against leaving the old towers firing.
  */
 export const SELL_REFUND = 0.6;
+
+/**
+ * Every tower you already own makes the NEXT one more expensive.
+ *
+ * Without this the game is a dumping sim, and that is not a guess: a scripted
+ * player that never advanced an age, never upgraded anything and simply filled
+ * 115 of the board's ~145 buildable cells with cheap Stone Age towers reached
+ * wave 30 — further than the same probe got by advancing properly. Quantity had
+ * no cost curve, so quantity was the answer to everything.
+ *
+ * A flat percentage per tower owned fixes it at the root. Upgrades are priced
+ * off the tower's BASE cost and are unaffected, so the more crowded your board
+ * gets, the better improving what you already have looks compared to squeezing
+ * in one more. That is the pressure that makes selling to fund an upgrade a
+ * real move — and it is why the build bar shows the live price, not the base.
+ *
+ * Deliberately gentle early: at five towers it is +10%, which nobody notices,
+ * and it only starts to bite around the twentieth.
+ */
+export const CROWDING_TAX = 0.02;
 
 // ---------------------------------------------------------------------------
 // Combos
@@ -784,8 +829,6 @@ export interface ComboEffect {
   goldMul: number;
   /** Extra enemies a chain jumps to. */
   chainBonus: number;
-  /** Pushes a slow multiplier further toward zero. */
-  slowBonus: number;
 }
 
 export interface ComboDef {
@@ -805,7 +848,6 @@ const NO_EFFECT = {
   burnMul: 1,
   goldMul: 1,
   chainBonus: 0,
-  slowBonus: 0,
 };
 
 export const COMBOS: ComboDef[] = [
@@ -815,7 +857,7 @@ export const COMBOS: ComboDef[] = [
     detail: 'Ice + fire — chilled armor cracks: +50% damage, +60% burn',
     a: 'ice',
     b: 'fire',
-    effect: { ...NO_EFFECT, damageMul: 1.5, burnMul: 1.6 },
+    effect: { ...NO_EFFECT, damageMul: 1.22, burnMul: 1.3 },
   },
   {
     key: 'shatter',
@@ -823,7 +865,7 @@ export const COMBOS: ComboDef[] = [
     detail: 'Ice + heavy — a frozen target breaks: +40% damage',
     a: 'ice',
     b: 'heavy',
-    effect: { ...NO_EFFECT, damageMul: 1.4 },
+    effect: { ...NO_EFFECT, damageMul: 1.2 },
   },
   {
     key: 'conduction',
@@ -831,7 +873,7 @@ export const COMBOS: ComboDef[] = [
     detail: 'Ice + chain — wet ground carries the arc: +2 chain targets',
     a: 'ice',
     b: 'chain',
-    effect: { ...NO_EFFECT, damageMul: 1.15, chainBonus: 2 },
+    effect: { ...NO_EFFECT, damageMul: 1.08, chainBonus: 1 },
   },
   {
     key: 'spotter',
@@ -839,7 +881,7 @@ export const COMBOS: ComboDef[] = [
     detail: 'Precision + rapid — called shots: +25% fire rate',
     a: 'precision',
     b: 'rapid',
-    effect: { ...NO_EFFECT, fireRateMul: 1.25 },
+    effect: { ...NO_EFFECT, fireRateMul: 1.12 },
   },
   {
     key: 'killZone',
@@ -847,7 +889,7 @@ export const COMBOS: ComboDef[] = [
     detail: 'Two traps on one stretch of road: +30% fire rate',
     a: 'trap',
     b: 'trap',
-    effect: { ...NO_EFFECT, fireRateMul: 1.3 },
+    effect: { ...NO_EFFECT, fireRateMul: 1.15 },
   },
   {
     key: 'foundry',
@@ -855,23 +897,25 @@ export const COMBOS: ComboDef[] = [
     detail: 'Economy + heavy — the works keeps it fed: +20% fire rate, +30% gold',
     a: 'economy',
     b: 'heavy',
-    effect: { ...NO_EFFECT, fireRateMul: 1.2, goldMul: 1.3 },
+    effect: { ...NO_EFFECT, fireRateMul: 1.1, goldMul: 1.2 },
   },
 ];
 
 export const COMBO_RULES = {
   /**
-   * Field radius for a tower that has no range of its own — traps, slow-free
-   * economy buildings. Roughly one cell, so a trap combos with what is
-   * genuinely beside it rather than with half the board.
+   * Centre-to-centre distance within which two towers combo. ONE number for
+   * every tower, regardless of range.
+   *
+   * It used to be "your rings overlap", i.e. rangeA + rangeB. That sounded
+   * elegant and played terribly: two 250-range Tech towers linked from five
+   * cells apart, so on a mature board essentially everything comboed with
+   * everything and there was no placement decision left to make. At ~1.8 cells
+   * a tower links to its immediate neighbours including diagonals and nothing
+   * else, which is small enough to plan a board around and easy to eyeball.
+   *
+   * A cell is ~74 world units, so this is a little under two cells.
    */
-  fallbackRadius: 74,
-  /**
-   * A Sniper's range is the whole board. Left uncapped it would combo with
-   * every tower in existence, which is not a placement decision at all — so
-   * for combo purposes only, its field is clamped to this.
-   */
-  maxRadius: 250,
+  linkRadius: 130,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -909,7 +953,10 @@ export const PERKS: PerkDef[] = [
   { key: 'range', label: 'Farsight', detail: '+12% tower range', maxStacks: 3 },
   { key: 'splash', label: 'Wider Blast', detail: '+30% splash radius', maxStacks: 3 },
   { key: 'bounty', label: 'Scavenger', detail: '+20% gold from kills', maxStacks: 4 },
-  { key: 'slow', label: 'Deep Freeze', detail: 'Slows bite 20% harder', maxStacks: 3 },
+  // Duration, not strength. Slow strength is fixed everywhere on purpose, so a
+  // perk that deepened it would reintroduce exactly the pinned-wave problem
+  // the slower rework exists to remove.
+  { key: 'slow', label: 'Lingering Chill', detail: 'Slows last 30% longer', maxStacks: 3 },
   { key: 'pierce', label: 'Punch Through', detail: 'Piercing shots hit +1 enemy', maxStacks: 3 },
   { key: 'lives', label: 'Rally', detail: 'Restore 3 lives', maxStacks: 4 },
   { key: 'refund', label: 'Salvage', detail: 'Sell towers for 85%, not 60%', maxStacks: 1 },
@@ -927,22 +974,36 @@ export const PERK_RULES = {
   rangePerStack: 0.12,
   splashPerStack: 0.3,
   bountyPerStack: 0.2,
-  slowPerStack: 0.2,
+  slowDurationPerStack: 0.3,
   piercePerStack: 1,
   livesPerStack: 3,
   refundBoost: 0.85,
   burnPerStack: 0.4,
 } as const;
 
+/**
+ * Upgrades have to beat buying another tower, or the game is a dumping sim.
+ *
+ * The old curve made spam strictly correct: a level 2 cost 0.85x base for +60%
+ * damage (70 damage per 100 gold) while a whole new tower cost 1.0x for +100%
+ * (100 per 100 gold). So the optimal play was to never upgrade and fill every
+ * cell, and the board became a carpet of level 1s.
+ *
+ * Now a level 2 buys +90% for 0.85x — better per gold than a new tower — and a
+ * level 3 buys +150 points more for 1.6x, which is roughly break-even on raw
+ * numbers and clearly ahead once you count the cell it does NOT consume and
+ * the combo links it does not have to re-establish. Selling something to fund
+ * an upgrade is now a real move rather than a mistake.
+ *
+ * Deliberately NO slow scaling: see TowerDef.slowFactor.
+ */
 export const UPGRADES = {
   maxLevel: 3,
   /** Cost of reaching level i+1, as a multiple of the tower's base cost. */
   costMul: [0, 0.85, 1.6],
-  damageMul: [1, 1.6, 2.45],
-  rangeMul: [1, 1.12, 1.26],
-  fireRateMul: [1, 1.18, 1.4],
-  /** Slowers get stronger by slowing harder, not by hitting harder. */
-  slowBonus: [0, 0.1, 0.2],
+  damageMul: [1, 1.9, 3.4],
+  rangeMul: [1, 1.14, 1.3],
+  fireRateMul: [1, 1.22, 1.5],
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -951,11 +1012,13 @@ export const UPGRADES = {
 export const COMBAT = {
   /** Damage floor after armor, so armor can never make a tower useless. */
   minDamage: 1,
-  /** How long a slow lingers after leaving the aura. Also the refresh window. */
-  slowLinger: 0.25,
-  /** Movement multiplier while frozen solid — not quite zero, so a frozen
-   *  enemy still reads as an enemy rather than a decoration. */
-  freezeFactor: 0.06,
+  /**
+   * Hard floor on how slow any enemy can ever be made, however many slowers
+   * hit it. The whole point of the slower rework is that the wave keeps
+   * moving: an enemy at 35% speed is being handled, an enemy at 6% is a
+   * parked car and the run stops being a game.
+   */
+  minSlowFactor: 0.35,
   /** Projectiles self-destruct after this long, in case a target vanishes. */
   projectileLifetime: 3,
   /** A projectile counts as hitting when this close to its target. */

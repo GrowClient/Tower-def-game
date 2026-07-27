@@ -21,7 +21,7 @@ import { biomeFor, COLORS } from './palette';
 import {
   drawCombosCodex,
   drawGameOverOverlay,
-  drawPauseOverlay,
+  drawPauseMenu,
   drawPerkDraft,
   drawRotateHint,
 } from './screens';
@@ -61,14 +61,14 @@ export function render(
   ctx.translate(fx.shakeX, fx.shakeY);
 
   drawTerrain(ctx, state, ageIndex, vp.scale * vp.dpr);
-  drawGrid(ctx, state, ui, biome.accent);
+  drawGrid(ctx, state, ui);
 
   const selected = findSelectedTower(state, ui);
   if (selected) drawSelectionRing(ctx, state, selected, biome.accent);
 
   drawComboLinks(ctx, state, ui, selected);
   drawEntities(ctx, state, biome, selected?.id ?? null, fx);
-  drawPlacementGhost(ctx, state, ui, biome.accent);
+  drawPlacementGhost(ctx, state, ui);
   drawBoardEffects(ctx, fx);
 
   ctx.restore();
@@ -78,8 +78,8 @@ export function render(
 
   if (state.phase === 'gameover') drawGameOverOverlay(ctx, state, biome, bestWave);
   else if (state.perkChoices !== null) drawPerkDraft(ctx, state.perkChoices, biome, state.perks);
+  else if (ui.paused) drawPauseMenu(ctx, state, ui, biome);
   else if (ui.showCombos) drawCombosCodex(ctx, biome);
-  else if (ui.paused) drawPauseOverlay(ctx);
 
   // Over the overlays too: a flash is the screen, not a layer in it.
   drawScreenFlash(ctx, fx);

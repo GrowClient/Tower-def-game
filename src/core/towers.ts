@@ -17,14 +17,13 @@ import {
   fireRateMul,
   rangeMul,
   refundRate,
-  slowBonus,
+  slowDurationMul,
   splashMul,
 } from './perks';
 import { cellCenter, cellIndex, inBounds, kindAt } from './grid';
-import { applyBurn, applyFreeze, applySlow, damageEnemy } from './enemies';
+import { applyBurn, applySlow, damageEnemy } from './enemies';
 import { emit } from './events';
 import { spend, towerCost, upgradeCost } from './economy';
-import { nextFloat } from './rng';
 import { spawnProjectile } from './projectiles';
 import {
   CellKind,
@@ -91,16 +90,22 @@ export function towerFireRate(state: GameState, tower: Tower): number {
   );
 }
 
-export function towerSlowFactor(state: GameState, tower: Tower): number {
-  const def = TOWERS[tower.kind]!;
-  if (def.slowFactor >= 1) return 1;
-  // Upgrades, the Deep Freeze perk and combos all push the multiplier toward
-  // zero rather than scaling it, so stacking sources can't loop past a stop.
-  const strength =
-    (UPGRADES.slowBonus[tower.level - 1] ?? 0) +
-    slowBonus(state) * def.slowFactor +
-    comboEffect(tower).slowBonus;
-  return Math.max(0.1, def.slowFactor - strength);
+/**
+ * Slow strength is a FIXED property of the tower — not of its level, not of
+ * your perks, not of what it stands next to.
+ *
+ * Every source that used to deepen it has been removed on purpose. Upgrades
+ * make a slower shoot faster and further; the perk makes the chill last
+ * longer. Nothing anywhere makes a slow stronger, because the failure mode is
+ * not "slows are weak", it is "the wave stopped moving".
+ */
+export function towerSlowFactor(tower: Tower): number {
+  return TOWERS[tower.kind]!.slowFactor;
+}
+
+/** How long this tower's chill lasts, extended by the Lingering Chill perk. */
+export function towerSlowSeconds(state: GameState, tower: Tower): number {
+  return TOWERS[tower.kind]!.slowSeconds * slowDurationMul(state);
 }
 
 /**
@@ -139,7 +144,7 @@ export function placementError(
   // Traps are the inverse of every other tower: they only work underfoot.
   if (TOWERS[kind]!.onPath !== onPath) return 'wrongTerrain';
 
-  if (state.gold < towerCost(kind)) return 'tooPoor';
+  if (state.gold < towerCost(state, kind)) return 'tooPoor';
   return null;
 }
 
@@ -154,7 +159,11 @@ export function placeTower(
     emit(state, { type: 'purchaseDenied', at: pos });
     return null;
   }
-  if (!spend(state, towerCost(kind))) {
+  // Priced ONCE, before the tower joins the list. The crowding tax counts
+  // towers already standing, so quoting it again after the push would record a
+  // higher `invested` than was actually charged and inflate the refund.
+  const paid = towerCost(state, kind);
+  if (!spend(state, paid)) {
     emit(state, { type: 'purchaseDenied', at: pos });
     return null;
   }
@@ -166,8 +175,9 @@ export function placeTower(
     pos,
     level: 1,
     cooldown: 0,
-    invested: towerCost(kind),
+    invested: paid,
     kills: 0,
+    earned: 0,
     aim: 0,
     recoil: 0,
     targetMode: 'first',
@@ -304,37 +314,14 @@ export function updateTowers(state: GameState, dt: number): void {
     // see collectIncome in waves.ts — so there is nothing to do per step.
     if (def.goldPerWave > 0) continue;
 
-    if (def.slowFactor < 1) {
-      updateSlower(state, tower);
-      continue;
-    }
+    // Slowers go through the SAME path as every other shooter now. They aim,
+    // reload and lead their target like a Thrower does; the only difference is
+    // that their shot carries a chill instead of damage.
     if (def.onPath) {
       updateTrap(state, tower);
       continue;
     }
     updateShooter(state, tower);
-  }
-}
-
-/** Auras re-apply every step; the slow itself expires on a short timer. */
-function updateSlower(state: GameState, tower: Tower): void {
-  const def = TOWERS[tower.kind]!;
-  const range = towerRange(state, tower);
-  const rangeSq = range * range;
-  const factor = towerSlowFactor(state, tower);
-
-  for (const e of state.enemies) {
-    if (e.dead) continue;
-    const dx = e.pos.x - tower.pos.x;
-    const dy = e.pos.y - tower.pos.y;
-    if (dx * dx + dy * dy > rangeSq) continue;
-
-    applySlow(e, factor);
-    // Cryo occasionally locks a unit solid. Rolled from the run RNG so a seed
-    // reproduces exactly which enemies froze and when.
-    if (def.freezeChance > 0 && nextFloat(state.rng) < def.freezeChance) {
-      applyFreeze(e, def.freezeSeconds);
-    }
   }
 }
 
@@ -361,6 +348,9 @@ function updateTrap(state: GameState, tower: Tower): void {
     damageEnemy(state, e, damage, def.armorPierce, tower.id);
     if (def.burnDps > 0) {
       applyBurn(e, def.burnDps * burnMul(state) * combo.burnMul, def.burnSeconds);
+    }
+    if (def.slowFactor < 1) {
+      applySlow(e, towerSlowFactor(tower), towerSlowSeconds(state, tower));
     }
     struck.push(e);
   }
@@ -446,6 +436,8 @@ function updateShooter(state: GameState, tower: Tower): void {
     pierce: def.pierce > 0 ? def.pierce + bonusPierce(state) : 0,
     burnDps: def.burnDps * burnMul(state) * combo.burnMul,
     burnSeconds: def.burnSeconds,
+    slowFactor: towerSlowFactor(tower),
+    slowSeconds: towerSlowSeconds(state, tower),
   });
 
   tower.cooldown = 1 / towerFireRate(state, tower);

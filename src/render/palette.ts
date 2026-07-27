@@ -20,6 +20,17 @@ export const COLORS = {
   entrance: '#6FE39A',
   exit: '#F4664F',
 
+  /**
+   * Build mode uses ONE colour in every age, not the biome accent.
+   *
+   * The Middle Age accent is crimson, and crimson is already the game's colour
+   * for "this placement is illegal". So the whole board lighting up red while
+   * you were holding a perfectly legal tower read as a giant error state. A
+   * fixed amber means "you are placing" everywhere, and red keeps meaning "no".
+   */
+  buildOk: '#F0C046',
+  buildBad: '#F4664F',
+
   text: '#F2EDE1',
   textDim: '#9A8F7C',
 

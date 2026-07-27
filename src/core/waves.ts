@@ -73,6 +73,9 @@ function collectIncome(state: GameState): number {
     const income = towerIncome(tower);
     if (income <= 0) continue;
     total += income;
+    // Tracked per tower so the panel can show lifetime earnings against what
+    // was sunk in, which is the only way to tell whether a mine has paid off.
+    tower.earned += income;
     emit(state, { type: 'goldMined', at: { ...tower.pos }, amount: income, kind: tower.kind });
   }
   return total;

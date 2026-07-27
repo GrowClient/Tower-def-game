@@ -6,11 +6,24 @@
  * lives in balance.ts — nothing here invents a number.
  */
 
-import { SCALING, TOWERS, UPGRADES } from '../config/balance';
+import { CROWDING_TAX, SCALING, TOWERS, UPGRADES } from '../config/balance';
 import { bountyMul } from './perks';
 import type { GameState, Tower, TowerKind } from './types';
 
-export function towerCost(kind: TowerKind): number {
+/**
+ * What the next tower of this kind actually costs right now.
+ *
+ * Scales with how many towers are already standing — see CROWDING_TAX. Every
+ * caller goes through this (placement, the ghost, the build bar), so the price
+ * the player is quoted is always the price they are charged.
+ */
+export function towerCost(state: GameState, kind: TowerKind): number {
+  return Math.round(TOWERS[kind]!.cost * (1 + CROWDING_TAX * state.towers.length));
+}
+
+/** The unscaled list price, for reference screens that describe a tower rather
+ *  than sell you one. */
+export function baseTowerCost(kind: TowerKind): number {
   return TOWERS[kind]!.cost;
 }
 
