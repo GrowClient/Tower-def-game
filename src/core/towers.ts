@@ -8,7 +8,14 @@
  *   heavy   — huge hit, punishing reload, shrugs off armor
  */
 
-import { SELL_REFUND, TARGET_MODES, TOWERS, UPGRADES, VETERANCY } from '../config/balance';
+import {
+  SELL_REFUND,
+  TARGET_MODES,
+  TOWER_CAP,
+  TOWERS,
+  UPGRADES,
+  VETERANCY,
+} from '../config/balance';
 import { comboEffect, refreshCombos } from './combos';
 import {
   burnMul,
@@ -159,7 +166,22 @@ export function veteranNext(tower: Tower): number | null {
 // Placement
 // ---------------------------------------------------------------------------
 
-export type PlacementError = 'outOfBounds' | 'occupied' | 'wrongTerrain' | 'tooPoor' | null;
+export type PlacementError =
+  | 'outOfBounds'
+  | 'occupied'
+  | 'wrongTerrain'
+  | 'tooPoor'
+  | 'atCapacity'
+  | null;
+
+/** How many towers this age allows. */
+export function towerCap(state: GameState): number {
+  return TOWER_CAP[Math.min(state.age, TOWER_CAP.length - 1)]!;
+}
+
+export function atCapacity(state: GameState): boolean {
+  return state.towers.length >= towerCap(state);
+}
 
 /**
  * Why a placement would fail, or null if it's legal. The renderer uses this to
@@ -179,6 +201,9 @@ export function placementError(
   // Traps are the inverse of every other tower: they only work underfoot.
   if (TOWERS[kind]!.onPath !== onPath) return 'wrongTerrain';
 
+  // Checked before gold, so a full board says "full" rather than blaming your
+  // wallet for a purchase that was never going to be allowed.
+  if (atCapacity(state)) return 'atCapacity';
   if (state.gold < towerCost(kind)) return 'tooPoor';
   return null;
 }

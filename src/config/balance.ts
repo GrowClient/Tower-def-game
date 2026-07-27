@@ -880,6 +880,29 @@ export const BUILD_ORDER: TowerKind[][] = [
  */
 export const SELL_REFUND = 0.6;
 
+/**
+ * How many towers you may have standing, per age.
+ *
+ * Veterancy rewards concentrating your board; this is what makes concentrating
+ * it necessary. Measured, the difference is not marginal: with no limit at all
+ * a scripted player built 157 towers and survived past wave 60 on 10 of 11
+ * seeds. Veterancy alone could not close that, because it only makes sprawl
+ * WORSE — it never makes it impossible, so given enough cells sheer quantity
+ * still won.
+ *
+ * A cap is the one brake that leaves prices alone. The earlier attempt scaled
+ * the price of each new tower, which worked and looked terrible: every number
+ * in the build bar drifted to an arbitrary figure like 154g. Here the sticker
+ * price is a clean round number you can learn, and the limit is a single line
+ * in the HUD you can read at a glance.
+ *
+ * Raised by advancing, which gives the age a second concrete reward beyond
+ * unlocking towers: not just better tools, but room for more of them. And
+ * because a capped board must concentrate, it is exactly the board veterancy
+ * pays out on — the two mechanics push the same way.
+ */
+export const TOWER_CAP = [16, 22, 28] as const;
+
 // ---------------------------------------------------------------------------
 // Veterancy
 // ---------------------------------------------------------------------------
@@ -912,17 +935,9 @@ export const VETERANCY = {
   /** XP for an economy building each time it pays out. */
   payoutXp: 3,
 
-  /**
-   * Kills-equivalent needed for each rank.
-   *
-   * Measured: at 20/60/140 a ten-tower board averaged only 0.5 ranks by wave
-   * 21, so most players would finish a run having never seen a chevron. These
-   * are set so a tower covering a decent stretch of road earns its first rank
-   * within a few waves, while Elite still takes real commitment.
-   */
-  thresholds: [12, 40, 100],
+  thresholds: [18, 55, 130],
   /** Output multiplier at rank 0 (recruit) through rank 3 (elite). */
-  outputMul: [1, 1.15, 1.3, 1.5],
+  outputMul: [1, 1.07, 1.15, 1.26],
   names: ['', 'Seasoned', 'Veteran', 'Elite'],
 } as const;
 
@@ -1284,9 +1299,16 @@ export const WAVES = {
    * of the goal. At 1.03 the median holds around 26 while the good runs still
    * reach 38-41, so surviving the Tech transition is what earns the late waves
    * rather than the curve deciding for you.
+   *
+   * Raised 1.03 -> 1.07 after the boss rework. That measurement exposed
+   * something the death histogram had been hiding: the BOSSES were carrying
+   * the entire late-game difficulty, and ordinary waves past 20 were not
+   * threatening a capped, upgraded, veteran board at all. Fixing the Ancient
+   * removed the wall and runs simply never ended. The pressure belongs in the
+   * wave curve, where it applies continuously, rather than in three spikes.
    */
   budgetSurgeWave: 15,
-  budgetSurgeGrowth: 1.03,
+  budgetSurgeGrowth: 1.07,
 
   /**
    * Intro waves are chosen against where runs actually END, not against a

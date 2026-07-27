@@ -123,6 +123,16 @@ export function drawPlacementGhost(
   // was trying to: they show you exactly which towers you would pair with, and
   // they say what the pairing is called.
 
+  // Name the reason on the ghost when it is the cap, because "everything is
+  // red" is otherwise indistinguishable from "this cell is wrong".
+  if (err === 'atCapacity') {
+    ctx.font = font(14);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = COLORS.buildBad;
+    ctx.fillText('TOWER LIMIT', center.x, center.y - layout.cellSize * 0.6);
+    ctx.textAlign = 'left';
+  }
+
   const o = cellOrigin(layout, cx, cy);
   ctx.fillStyle = hexToRgba(tint, 0.28);
   ctx.fillRect(o.x + 2, o.y + 2, layout.cellSize - 4, layout.cellSize - 4);

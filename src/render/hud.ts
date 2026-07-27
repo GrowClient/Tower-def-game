@@ -24,6 +24,8 @@ import {
 import { advanceCost, isMaxAge } from '../core/ages';
 import { towerCost, upgradeCost } from '../core/economy';
 import {
+  atCapacity,
+  towerCap,
   sellValue,
   towerDamage,
   towerFireRate,
@@ -268,6 +270,15 @@ function drawTopStrip(
   x = stat(ctx, x, 'GOLD', String(Math.floor(state.gold)), '#F0C46A');
   x = stat(ctx, x, 'LIVES', String(state.lives), state.lives <= 5 ? '#F4664F' : COLORS.text);
   x = stat(ctx, x, 'AGE', AGE_NAMES[ageIndex] ?? '—', accent);
+  // The cap is only a fair rule if it is visible BEFORE you try to build.
+  const cap = towerCap(state);
+  x = stat(
+    ctx,
+    x,
+    'TOWERS',
+    `${state.towers.length}/${cap}`,
+    state.towers.length >= cap ? '#F4664F' : COLORS.text,
+  );
 
   // Between waves, the countdown is the most useful number on screen — it's
   // the build window. During a wave, show what's left to kill instead.
@@ -337,10 +348,27 @@ function drawBuildBar(
   const y = WORLD.height - WORLD.hudBottom;
   slab(ctx, 0, y, WORLD.width, WORLD.hudBottom, 'up', accent);
 
+  // Say why the bar is dead rather than letting the player tap a greyed button
+  // and guess. Sell something or advance an age — both are real answers.
+  if (atCapacity(state)) {
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#F4664F';
+    ctx.font = font(15);
+    ctx.fillText(
+      isMaxAge(state)
+        ? 'TOWER LIMIT REACHED — sell one, or upgrade what you have'
+        : 'TOWER LIMIT REACHED — sell one, upgrade what you have, or advance an age',
+      WORLD.width / 2,
+      y + 15,
+    );
+    ctx.textAlign = 'left';
+  }
+
   for (const b of buildButtons(state.age)) {
     const def = TOWERS[b.kind]!;
     const price = towerCost(b.kind);
-    const affordable = state.gold >= price;
+    const full = atCapacity(state);
+    const affordable = state.gold >= price && !full;
     const armed = ui.buildKind === b.kind;
 
     panel(ctx, b, armed ? '#5A4A2E' : '#3A3223', armed ? accent : 'rgba(0,0,0,0.55)', armed ? 3 : 2.5);

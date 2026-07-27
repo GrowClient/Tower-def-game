@@ -280,6 +280,26 @@ not offered the choice.
 
 Any tower can be **sold** for 60% of everything sunk into it.
 
+### The tower cap
+
+**You may only field a limited number of towers, raised by advancing:
+16 in the Stone Age, 22 in the Middle Age, 28 in the Tech Age.**
+
+Veterancy rewards concentrating a board; the cap is what makes concentrating it
+necessary. Measured, the difference is not marginal: with no limit at all a
+scripted player built 157 towers and survived past wave 60 on 10 of 11 seeds.
+Veterancy alone could not close that, because a carrot only makes sprawl
+*worse* — never impossible — so given enough cells, quantity still won.
+
+A cap is the one brake that leaves prices alone. The earlier attempt scaled the
+price of each new tower, which worked and looked terrible: every number in the
+build bar drifted to an arbitrary figure like 154g. Here the sticker price is a
+clean round number you can learn, and the limit is one line in the HUD.
+
+It also gives advancing a second concrete reward — not just better tools, but
+room for more of them — and because a capped board must concentrate, it is
+exactly the board veterancy pays out on. The two mechanics push the same way.
+
 ### Veterancy — why fewer towers beat more towers
 
 **Towers get better at their job the longer they do it.** They earn service XP
