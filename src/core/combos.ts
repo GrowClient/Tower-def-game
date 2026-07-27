@@ -164,6 +164,7 @@ export function previewCombos(
     cooldown: 0,
     invested: 0,
     kills: 0,
+    xp: 0,
     earned: 0,
     aim: 0,
     recoil: 0,

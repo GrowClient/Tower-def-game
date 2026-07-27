@@ -12,6 +12,7 @@
 import { TOWERS, type TowerKind } from '../config/balance';
 
 import type { Enemy, GameState, Projectile, Tower } from '../core/types';
+import { veteranRank } from '../core/towers';
 import { popScale, type FxState } from '../fx/effects';
 import { COLORS, tierFor, type Biome, type Tier } from './palette';
 
@@ -77,6 +78,12 @@ function drawTower(
   drawTowerArt(ctx, tower.kind, s, tower.aim, tower.cooldown, biome, tower.level);
   ctx.restore();
 
+  // Service rank, as chevrons under the tower. Deliberately a DIFFERENT
+  // language from the upgrade tiers (which re-forge the tower's working end in
+  // silver and gold), because they are different things: level is what you
+  // bought, rank is what the tower earned.
+  drawRankChevrons(ctx, tower, s);
+
   if (selected) {
     ctx.beginPath();
     ctx.arc(tower.pos.x, tower.pos.y, s * 1.35, 0, Math.PI * 2);
@@ -87,6 +94,28 @@ function drawTower(
 }
 
 const OUTLINE = '#14100B';
+
+/** Earned rank, drawn as military chevrons rather than pips. */
+function drawRankChevrons(ctx: CanvasRenderingContext2D, tower: Tower, s: number): void {
+  const rank = veteranRank(tower);
+  if (rank <= 0) return;
+
+  const { x, y } = tower.pos;
+  ctx.save();
+  ctx.strokeStyle = rank >= 3 ? '#FFE082' : rank === 2 ? '#DCE4F0' : '#C0A87A';
+  ctx.lineWidth = s * 0.1;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  for (let i = 0; i < rank; i++) {
+    const cy = y + s * 0.86 + i * s * 0.19;
+    ctx.beginPath();
+    ctx.moveTo(x - s * 0.26, cy);
+    ctx.lineTo(x, cy - s * 0.13);
+    ctx.lineTo(x + s * 0.26, cy);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
 
 /**
  * Every tower's silhouette, in one place.

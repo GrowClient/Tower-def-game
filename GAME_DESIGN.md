@@ -244,9 +244,7 @@ and Cryo Field are both `ice`.
 |---|---|---|
 | **Thermal Shock** | ice + fire | +22% damage, +30% burn |
 | **Shatter** | ice + heavy | +20% damage |
-| **Conduction** | ice + chain | +1 chain target, +8% damage |
 | **Spotter** | precision + rapid | +12% fire rate |
-| **Kill Zone** | trap + trap | +15% fire rate |
 | **Foundry** | economy + heavy | +10% fire rate, +20% gold |
 
 Both towers in a pairing receive the same effect and each uses only the parts
@@ -257,12 +255,20 @@ Three properties keep this a mechanic rather than a hidden spreadsheet:
 
 - **The trigger is small and visible.** Two towers link when they are within
   about two cells — immediate neighbours, diagonals included, and nothing else.
-  The placement ghost draws that exact radius. It was originally "your range
+  The placement ghost no longer draws that radius as a second dashed ring: two
+  concentric circles of different sizes around one ghost read as a confusing
+  diagram rather than two facts, and the named link lines already say which
+  towers you would pair with. It was originally "your range
   rings overlap", which sounded elegant and played terribly: two 250-range Tech
   towers linked from five cells apart, so on a developed board everything
   comboed with everything and there was no placement decision left to make.
-- **A combo counts once**, however many partners supply it. Otherwise "stack
-  more partners" becomes the new mindless answer.
+- **A combo counts once**, however many partners supply it — ten Frost Towers
+  around one Oil Cauldron is one Thermal Shock, not ten. Different combos DO
+  multiply with each other; each of them just applies exactly once. Otherwise
+  "stack more partners" becomes the new mindless answer. This is stated on the
+  combos sheet and beside the list in the tower panel, because players
+  reasonably assume more neighbours means more bonus and nothing on screen
+  said otherwise.
 - **It is taught, not discovered.** The board draws named links while a tower is
   selected, the placement ghost previews what a tower *would* gain before you
   pay for it, and a combos sheet lists all of them.
@@ -273,6 +279,36 @@ healer at the back undoes the damage. Slowers and mines have no target and are
 not offered the choice.
 
 Any tower can be **sold** for 60% of everything sunk into it.
+
+### Veterancy — why fewer towers beat more towers
+
+**Towers get better at their job the longer they do it.** They earn service XP
+from what they actually do — kills for shooters, chills for slowers, payouts
+for economy buildings — and rise through three ranks (Seasoned, Veteran, Elite)
+worth up to +50% to that tower's own output. Rank shows as chevrons under the
+tower, and is a deliberately different visual language from upgrade tiers:
+**level is what you bought, rank is what the tower earned.**
+
+This is the brake on tower-dumping, and it is a carrot rather than a wall.
+Nothing is forbidden — you may still fill every cell. But a run contains a
+roughly fixed amount of killing, so spreading it across forty towers leaves
+every one of them a raw recruit, while concentrating it into a dozen
+well-placed ones turns those into veterans.
+
+Measured over three seeds, capping how many towers the probe could build:
+
+| Board size | Average rank | Towers still at rank 0 | Wave reached |
+|---|---|---|---|
+| 10 towers | 0.77 | 3.3 | 21.7 |
+| 20 towers | 0.35 | 14.3 | 19.0 |
+| 40 towers | 0.14 | 24.3 | 15.0 |
+
+A previous attempt taxed the *price* of each new tower instead. It worked and
+looked terrible: every price in the build bar drifted to an arbitrary number
+like 154g, so nothing on screen was memorable and the bar read as broken rather
+than deliberate. Putting the pressure on the OUTPUT side means it can be shown
+as a rank badge instead of a fractional price — and prices stay round numbers a
+player can learn.
 
 ### Slowers are shooters, not auras
 

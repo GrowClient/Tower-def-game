@@ -857,6 +857,52 @@ export const BUILD_ORDER: TowerKind[][] = [
  */
 export const SELL_REFUND = 0.6;
 
+// ---------------------------------------------------------------------------
+// Veterancy
+// ---------------------------------------------------------------------------
+/**
+ * Towers get better at their job the longer they do it.
+ *
+ * This is the brake on tower-dumping, and deliberately a CARROT rather than a
+ * wall. Nothing is ever forbidden: you may still fill every cell. But the work
+ * of a run is a roughly fixed amount of killing, so spreading it across forty
+ * towers leaves every one of them a raw recruit, while concentrating it into
+ * twelve well-placed ones turns those twelve Elite. Sprawl is not banned, it
+ * is simply weaker than investment.
+ *
+ * A previous attempt taxed the price of each new tower instead. It worked and
+ * looked terrible — every price in the build bar drifted to an arbitrary
+ * number, so nothing was memorable. This puts the pressure on the OUTPUT side,
+ * where it can be shown as a rank badge instead of a fractional price.
+ *
+ * XP is earned from what a tower actually does, so a Cold Mud that never kills
+ * anything and a Gold Mine that never fires still rank up. The reward likewise
+ * lands on whatever that tower's real output is — damage, chill rate, or gold.
+ */
+export const VETERANCY = {
+  /** XP for a kill credited to this tower. */
+  killXp: 1,
+  /** XP for landing a chill, for towers that deal no damage and so can never
+   *  be credited with a kill. Below 1 because a slower hits far more often
+   *  than a shooter kills. */
+  chillXp: 0.34,
+  /** XP for an economy building each time it pays out. */
+  payoutXp: 3,
+
+  /**
+   * Kills-equivalent needed for each rank.
+   *
+   * Measured: at 20/60/140 a ten-tower board averaged only 0.5 ranks by wave
+   * 21, so most players would finish a run having never seen a chevron. These
+   * are set so a tower covering a decent stretch of road earns its first rank
+   * within a few waves, while Elite still takes real commitment.
+   */
+  thresholds: [12, 40, 100],
+  /** Output multiplier at rank 0 (recruit) through rank 3 (elite). */
+  outputMul: [1, 1.15, 1.3, 1.5],
+  names: ['', 'Seasoned', 'Veteran', 'Elite'],
+} as const;
+
 
 // ---------------------------------------------------------------------------
 // Combos

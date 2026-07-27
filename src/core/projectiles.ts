@@ -10,7 +10,7 @@
  * enemies they touch along the way rather than only at the destination.
  */
 
-import { COMBAT } from '../config/balance';
+import { COMBAT, VETERANCY } from '../config/balance';
 import { applyBurn, applySlow, damageEnemy } from './enemies';
 import type { Enemy, GameState, Projectile, ProjectileLook, Tower } from './types';
 
@@ -144,7 +144,17 @@ function impact(state: GameState, p: Projectile, target: Enemy | null): void {
  * events and impact sounds that belong to weapons.
  */
 function applyPayload(state: GameState, p: Projectile, enemy: Enemy): void {
-  if (p.slowFactor < 1) applySlow(enemy, p.slowFactor, p.slowSeconds);
+  if (p.slowFactor < 1) {
+    applySlow(enemy, p.slowFactor, p.slowSeconds);
+    // A slower deals no damage, so it can never be credited with a kill and
+    // would otherwise stay a raw recruit for the whole run. Its service is
+    // measured in chills landed instead. Only looked up for damage-free shots,
+    // so this costs nothing on the hot path.
+    if (p.damage <= 0) {
+      const owner = state.towers.find((t) => t.id === p.ownerId);
+      if (owner) owner.xp += VETERANCY.chillXp;
+    }
+  }
   if (p.damage > 0) damageEnemy(state, enemy, p.damage, p.armorPierce, p.ownerId);
   if (p.burnDps > 0) applyBurn(enemy, p.burnDps, p.burnSeconds);
 }

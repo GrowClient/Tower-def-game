@@ -16,13 +16,23 @@ import {
   COMBOS,
   TARGET_MODE_LABELS,
   TOWERS,
+  VETERANCY,
   WAVES,
   WORLD,
   type TowerKind,
 } from '../config/balance';
 import { advanceCost, isMaxAge } from '../core/ages';
 import { towerCost, upgradeCost } from '../core/economy';
-import { sellValue, towerDamage, towerFireRate, towerIncome, towerRange } from '../core/towers';
+import {
+  sellValue,
+  towerDamage,
+  towerFireRate,
+  towerIncome,
+  towerRange,
+  veteranMul,
+  veteranNext,
+  veteranRank,
+} from '../core/towers';
 import type { GameState, Tower } from '../core/types';
 import type { UiState } from '../uiState';
 import { speedMultiplier } from '../uiState';
@@ -407,6 +417,24 @@ function drawSelectionPanel(
   ctx.fillStyle = accent;
   ctx.font = font(15);
   ctx.fillText(`LEVEL ${tower.level}`, P.x + PANEL_PAD, P.y + 58);
+
+  // Earned rank sits beside bought level, because they are different currencies
+  // and the player needs to see both: one you paid for, one this tower worked
+  // for. The progress line is what makes concentrating fire feel like it counts.
+  const rank = veteranRank(tower);
+  if (rank > 0) {
+    const bonus = Math.round((veteranMul(tower) - 1) * 100);
+    ctx.fillStyle = rank >= 3 ? '#FFE082' : rank === 2 ? '#DCE4F0' : '#C0A87A';
+    ctx.font = font(15);
+    ctx.fillText(`${VETERANCY.names[rank]}  +${bonus}%`, P.x + PANEL_PAD + 96, P.y + 58);
+  }
+  const toNext = veteranNext(tower);
+  if (toNext !== null) {
+    ctx.fillStyle = '#6A6152';
+    ctx.font = font(12);
+    const unit = TOWERS[tower.kind]!.goldPerWave > 0 ? 'payouts' : def.damage <= 0 ? 'chills' : 'kills';
+    ctx.fillText(`${toNext} more ${unit} to rank up`, P.x + PANEL_PAD + 96, P.y + 74);
+  }
 
   ctx.font = font(15);
   if (def.goldPerWave > 0) {

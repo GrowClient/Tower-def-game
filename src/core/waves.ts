@@ -12,7 +12,7 @@
  * can be brutal and first impressions decide whether the loop gets a chance.
  */
 
-import { ENEMIES, WAVES } from '../config/balance';
+import { ENEMIES, VETERANCY, WAVES } from '../config/balance';
 import { bossForWave, hpMultiplier } from './enemies';
 import { waveClearReward } from './economy';
 import { openDraft, shouldDraft } from './perks';
@@ -76,6 +76,7 @@ function collectIncome(state: GameState): number {
     // Tracked per tower so the panel can show lifetime earnings against what
     // was sunk in, which is the only way to tell whether a mine has paid off.
     tower.earned += income;
+    tower.xp += VETERANCY.payoutXp;
     emit(state, { type: 'goldMined', at: { ...tower.pos }, amount: income, kind: tower.kind });
   }
   return total;

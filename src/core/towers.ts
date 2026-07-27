@@ -8,7 +8,7 @@
  *   heavy   — huge hit, punishing reload, shrugs off armor
  */
 
-import { SELL_REFUND, TARGET_MODES, TOWERS, UPGRADES } from '../config/balance';
+import { SELL_REFUND, TARGET_MODES, TOWERS, UPGRADES, VETERANCY } from '../config/balance';
 import { comboEffect, refreshCombos } from './combos';
 import {
   burnMul,
@@ -76,17 +76,22 @@ export function towerDamage(state: GameState, tower: Tower): number {
     def.damage *
     (UPGRADES.damageMul[tower.level - 1] ?? 1) *
     damageMul(state) *
-    comboEffect(tower).damageMul
+    comboEffect(tower).damageMul *
+    veteranMul(tower)
   );
 }
 
 export function towerFireRate(state: GameState, tower: Tower): number {
   const def = TOWERS[tower.kind]!;
+  // A slower has no damage for veterancy to improve, so its service shows up
+  // as a faster reload — more of the lane kept chilled, never a deeper chill.
+  const veteran = def.damage <= 0 && def.slowFactor < 1 ? veteranMul(tower) : 1;
   return (
     def.fireRate *
     (UPGRADES.fireRateMul[tower.level - 1] ?? 1) *
     fireRateMul(state) *
-    comboEffect(tower).fireRateMul
+    comboEffect(tower).fireRateMul *
+    veteran
   );
 }
 
@@ -119,8 +124,35 @@ export function towerIncome(state: GameState, tower: Tower): number {
     def.goldPerWave *
       (UPGRADES.damageMul[tower.level - 1] ?? 1) *
       comboEffect(tower).goldMul *
-      interestMul(state),
+      interestMul(state) *
+      veteranMul(tower),
   );
+}
+
+/**
+ * How many ranks of service this tower has earned, 0 to 3.
+ *
+ * Derived from `xp` at the point of use rather than stored, so there is no
+ * second copy to keep in sync when a threshold is retuned.
+ */
+export function veteranRank(tower: Tower): number {
+  let rank = 0;
+  for (const need of VETERANCY.thresholds) {
+    if (tower.xp >= need) rank++;
+  }
+  return rank;
+}
+
+/** The multiplier a tower's rank applies to its own primary output. */
+export function veteranMul(tower: Tower): number {
+  return VETERANCY.outputMul[veteranRank(tower)] ?? 1;
+}
+
+/** XP still needed for the next rank, or null once Elite. */
+export function veteranNext(tower: Tower): number | null {
+  const rank = veteranRank(tower);
+  const need = VETERANCY.thresholds[rank];
+  return need === undefined ? null : Math.ceil(need - tower.xp);
 }
 
 // ---------------------------------------------------------------------------
@@ -177,6 +209,7 @@ export function placeTower(
     cooldown: 0,
     invested: paid,
     kills: 0,
+    xp: 0,
     earned: 0,
     aim: 0,
     recoil: 0,

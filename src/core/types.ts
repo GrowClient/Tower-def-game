@@ -186,6 +186,10 @@ export interface Tower {
   invested: number;
   /** Kills credited to this tower, for the end-of-run summary. */
   kills: number;
+  /** Service record. Earned from whatever this tower actually does — kills for
+   *  shooters, chills for slowers, payouts for economy buildings — and spent
+   *  on nothing: it only ever raises the tower's rank. See VETERANCY. */
+  xp: number;
   /** Gold this tower has paid out over its life. Only ever non-zero on an
    *  economy building, and the number the panel compares against `invested`
    *  to tell the player whether it is in profit yet. */

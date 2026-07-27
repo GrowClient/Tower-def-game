@@ -16,6 +16,7 @@ import {
   COMBAT,
   ENEMIES,
   SCALING,
+  VETERANCY,
   WAVES,
 } from '../config/balance';
 import { killReward } from './economy';
@@ -408,7 +409,10 @@ function kill(state: GameState, enemy: Enemy, ownerTowerId: number): void {
   state.gold += enemy.bounty;
 
   const owner = state.towers.find((t) => t.id === ownerTowerId);
-  if (owner) owner.kills++;
+  if (owner) {
+    owner.kills++;
+    owner.xp += VETERANCY.killXp;
+  }
 
   emit(state, {
     type: 'enemyKilled',
