@@ -8,7 +8,7 @@
  * Render rule: reads game state, never mutates it.
  */
 
-import { COMBO_RULES, COMBOS, TOWERS, type ComboKey } from '../config/balance';
+import { COMBOS, TOWERS, type ComboKey } from '../config/balance';
 import { comboPartners, previewCombos } from '../core/combos';
 import { cellOrigin, cellCenter, inBounds } from '../core/grid';
 import { placementError } from '../core/towers';
@@ -115,16 +115,13 @@ export function drawPlacementGhost(
     ctx.setLineDash([]);
   }
 
-  // The combo link radius, which is a completely different (and much smaller)
-  // distance from the range ring. Drawn so the player can see exactly which
-  // neighbours this cell would pair with before committing to it.
-  ctx.beginPath();
-  ctx.arc(center.x, center.y, COMBO_RULES.linkRadius, 0, Math.PI * 2);
-  ctx.strokeStyle = hexToRgba(tint, 0.75);
-  ctx.lineWidth = 2;
-  ctx.setLineDash([4, 5]);
-  ctx.stroke();
-  ctx.setLineDash([]);
+  // Deliberately NO second circle for the combo link radius.
+  //
+  // It was drawn here, and two concentric dashed rings of different sizes
+  // around one ghost read as one confusing diagram rather than two facts. The
+  // named link lines to the actual partners already say everything the radius
+  // was trying to: they show you exactly which towers you would pair with, and
+  // they say what the pairing is called.
 
   const o = cellOrigin(layout, cx, cy);
   ctx.fillStyle = hexToRgba(tint, 0.28);
@@ -241,12 +238,8 @@ export function comboColor(key: ComboKey): string {
       return '#FF9A5C';
     case 'shatter':
       return '#9FD8F0';
-    case 'conduction':
-      return '#BFF4FF';
     case 'spotter':
       return '#C8E88A';
-    case 'killZone':
-      return '#F0C46A';
     case 'foundry':
       return '#E8B93D';
   }

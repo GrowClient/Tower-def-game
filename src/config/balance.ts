@@ -857,25 +857,6 @@ export const BUILD_ORDER: TowerKind[][] = [
  */
 export const SELL_REFUND = 0.6;
 
-/**
- * Every tower you already own makes the NEXT one more expensive.
- *
- * Without this the game is a dumping sim, and that is not a guess: a scripted
- * player that never advanced an age, never upgraded anything and simply filled
- * 115 of the board's ~145 buildable cells with cheap Stone Age towers reached
- * wave 30 — further than the same probe got by advancing properly. Quantity had
- * no cost curve, so quantity was the answer to everything.
- *
- * A flat percentage per tower owned fixes it at the root. Upgrades are priced
- * off the tower's BASE cost and are unaffected, so the more crowded your board
- * gets, the better improving what you already have looks compared to squeezing
- * in one more. That is the pressure that makes selling to fund an upgrade a
- * real move — and it is why the build bar shows the live price, not the base.
- *
- * Deliberately gentle early: at five towers it is +10%, which nobody notices,
- * and it only starts to bite around the twentieth.
- */
-export const CROWDING_TAX = 0.02;
 
 // ---------------------------------------------------------------------------
 // Combos
@@ -893,18 +874,14 @@ export const CROWDING_TAX = 0.02;
  *
  *  - The trigger is ring overlap, which the player can SEE. No invisible
  *    adjacency radius that disagrees with the rings drawn on the board.
- *  - A combo counts ONCE per tower no matter how many partners supply it, so
- *    six Frost Towers around one Cannon is not six times the bonus. Otherwise
- *    the answer to combos would be "stack more partners", which is the same
- *    mindless-spam problem in a new hat.
+ *  - **A combo counts ONCE per tower**, no matter how many partners supply it.
+ *    Ten Frost Towers around one Oil Cauldron is one Thermal Shock, not ten.
+ *    Otherwise the answer to combos would be "stack more partners", which is
+ *    the same mindless-spam problem in a new hat. Different combos DO multiply
+ *    with each other — a tower can hold Thermal Shock and Shatter at once —
+ *    but each of them exactly once.
  */
-export type ComboKey =
-  | 'thermalShock'
-  | 'shatter'
-  | 'conduction'
-  | 'spotter'
-  | 'killZone'
-  | 'foundry';
+export type ComboKey = 'thermalShock' | 'shatter' | 'spotter' | 'foundry';
 
 /**
  * What a combo does. Both towers in the pairing receive the SAME effect, and
@@ -958,28 +935,12 @@ export const COMBOS: ComboDef[] = [
     effect: { ...NO_EFFECT, damageMul: 1.2 },
   },
   {
-    key: 'conduction',
-    label: 'Conduction',
-    detail: 'Ice + chain — wet ground carries the arc: +2 chain targets',
-    a: 'ice',
-    b: 'chain',
-    effect: { ...NO_EFFECT, damageMul: 1.08, chainBonus: 1 },
-  },
-  {
     key: 'spotter',
     label: 'Spotter',
     detail: 'Precision + rapid — called shots: +25% fire rate',
     a: 'precision',
     b: 'rapid',
     effect: { ...NO_EFFECT, fireRateMul: 1.12 },
-  },
-  {
-    key: 'killZone',
-    label: 'Kill Zone',
-    detail: 'Two traps on one stretch of road: +30% fire rate',
-    a: 'trap',
-    b: 'trap',
-    effect: { ...NO_EFFECT, fireRateMul: 1.15 },
   },
   {
     key: 'foundry',

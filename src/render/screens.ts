@@ -156,10 +156,19 @@ function drawCombosContent(ctx: CanvasRenderingContext2D, top: number): void {
   ctx.font = font(17);
   ctx.fillStyle = COLORS.textDim;
   ctx.fillText(
-    'two towers built within about two cells of each other both get stronger — a combo counts once, however many partners',
+    'Build two towers within about two cells of each other and both get stronger.',
     WORLD.width / 2,
     top,
   );
+  ctx.fillStyle = '#F0C46A';
+  ctx.font = font(17);
+  ctx.fillText(
+    'EACH COMBO APPLIES ONCE — ten partners give the same bonus as one. Different combos do stack with each other.',
+    WORLD.width / 2,
+    top + 24,
+  );
+  ctx.fillStyle = COLORS.textDim;
+  ctx.font = font(17);
 
   const cols = 2;
   const cardW = 690;
@@ -170,7 +179,7 @@ function drawCombosContent(ctx: CanvasRenderingContext2D, top: number): void {
 
   COMBOS.forEach((combo, i) => {
     const cx = startX + (i % cols) * (cardW + gapX);
-    const cy = top + 38 + Math.floor(i / cols) * (cardH + gapY);
+    const cy = top + 58 + Math.floor(i / cols) * (cardH + gapY);
 
     ctx.fillStyle = 'rgba(26, 21, 15, 0.94)';
     roundRect(ctx, cx, cy, cardW, cardH, 12);
@@ -211,7 +220,7 @@ function drawCombosContent(ctx: CanvasRenderingContext2D, top: number): void {
   });
 
   // Which tower carries which tag — otherwise the tags above are abstractions.
-  const legendY = top + 38 + Math.ceil(COMBOS.length / cols) * (cardH + gapY) + 22;
+  const legendY = top + 58 + Math.ceil(COMBOS.length / cols) * (cardH + gapY) + 22;
   ctx.textAlign = 'center';
   ctx.fillStyle = COLORS.textDim;
   ctx.font = font(15);

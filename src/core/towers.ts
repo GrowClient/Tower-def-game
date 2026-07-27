@@ -147,7 +147,7 @@ export function placementError(
   // Traps are the inverse of every other tower: they only work underfoot.
   if (TOWERS[kind]!.onPath !== onPath) return 'wrongTerrain';
 
-  if (state.gold < towerCost(state, kind)) return 'tooPoor';
+  if (state.gold < towerCost(kind)) return 'tooPoor';
   return null;
 }
 
@@ -162,10 +162,7 @@ export function placeTower(
     emit(state, { type: 'purchaseDenied', at: pos });
     return null;
   }
-  // Priced ONCE, before the tower joins the list. The crowding tax counts
-  // towers already standing, so quoting it again after the push would record a
-  // higher `invested` than was actually charged and inflate the refund.
-  const paid = towerCost(state, kind);
+  const paid = towerCost(kind);
   if (!spend(state, paid)) {
     emit(state, { type: 'purchaseDenied', at: pos });
     return null;

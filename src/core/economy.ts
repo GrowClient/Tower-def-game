@@ -6,24 +6,20 @@
  * lives in balance.ts — nothing here invents a number.
  */
 
-import { CROWDING_TAX, SCALING, TOWERS, UPGRADES } from '../config/balance';
+import { SCALING, TOWERS, UPGRADES } from '../config/balance';
 import { bountyMul } from './perks';
 import type { GameState, Tower, TowerKind } from './types';
 
 /**
- * What the next tower of this kind actually costs right now.
+ * What a tower costs. A flat, stable sticker price.
  *
- * Scales with how many towers are already standing — see CROWDING_TAX. Every
- * caller goes through this (placement, the ghost, the build bar), so the price
- * the player is quoted is always the price they are charged.
+ * It briefly scaled with how many towers you already owned, as a brake on
+ * filling every cell. It worked mechanically and read terribly: every price in
+ * the build bar drifted to an arbitrary number like 154g, so nothing on screen
+ * was memorable and the bar looked broken rather than deliberate. A price the
+ * player can learn is worth more than a clever curve.
  */
-export function towerCost(state: GameState, kind: TowerKind): number {
-  return Math.round(TOWERS[kind]!.cost * (1 + CROWDING_TAX * state.towers.length));
-}
-
-/** The unscaled list price, for reference screens that describe a tower rather
- *  than sell you one. */
-export function baseTowerCost(kind: TowerKind): number {
+export function towerCost(kind: TowerKind): number {
   return TOWERS[kind]!.cost;
 }
 

@@ -96,7 +96,12 @@ const BUILD_GAP = 14;
  * contents change when you advance.
  */
 export function buildButtons(age: number): BuildButton[] {
-  const kinds = BUILD_ORDER[Math.min(age, BUILD_ORDER.length - 1)]!;
+  // Cheapest on the left, dearest on the right. Sorted HERE rather than in the
+  // balance table so the bar can never drift out of order when a price is
+  // retuned, and so the number-key shortcuts always match what is on screen.
+  const kinds = [...BUILD_ORDER[Math.min(age, BUILD_ORDER.length - 1)]!].sort(
+    (a, b) => TOWERS[a]!.cost - TOWERS[b]!.cost,
+  );
   const total = kinds.length * BUILD_W + (kinds.length - 1) * BUILD_GAP;
   return kinds.map((kind, i) => ({
     kind,
@@ -324,9 +329,7 @@ function drawBuildBar(
 
   for (const b of buildButtons(state.age)) {
     const def = TOWERS[b.kind]!;
-    // The LIVE price, which climbs with every tower already standing — quoting
-    // the base cost here would mean the bar and the charge disagree.
-    const price = towerCost(state, b.kind);
+    const price = towerCost(b.kind);
     const affordable = state.gold >= price;
     const armed = ui.buildKind === b.kind;
 
@@ -508,6 +511,14 @@ function drawActiveCombos(ctx: CanvasRenderingContext2D, tower: Tower, P: Rect):
   ctx.textAlign = 'left';
   ctx.fillStyle = COLORS.textDim;
   ctx.fillText('COMBOS', P.x + PANEL_PAD, y - 4);
+  // Stated right where the bonuses are listed. Players reasonably assume more
+  // neighbours means more bonus, and nothing on screen said otherwise.
+  if (tower.combos.length > 0) {
+    ctx.font = font(11);
+    ctx.fillStyle = '#6A6152';
+    ctx.fillText('each applies once', P.x + PANEL_PAD + 66, y - 4);
+    ctx.font = font(13);
+  }
 
   if (tower.combos.length === 0) {
     ctx.fillStyle = '#6A6152';
