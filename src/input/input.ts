@@ -58,38 +58,74 @@ export function attachInput(
 ): void {
   const toWorld = (e: PointerEvent) => screenToWorld(getViewport(), e.clientX, e.clientY);
 
+  /** Is this press on the board rather than on a HUD strip? */
+  const onBoard = (y: number) => y >= WORLD.hudTop && y <= WORLD.height - WORLD.hudBottom;
+
   canvas.addEventListener('pointerdown', (e) => {
     // preventDefault stops a touch from also firing synthetic mouse events and
     // from starting a text-selection / scroll gesture on mobile.
     e.preventDefault();
     const p = toWorld(e);
-    handleTap(ui, getState(), actions, p.x, p.y);
-    // AFTER the tap, so handleTap could compare the tapped cell against where
-    // the ghost already was. On a mouse the pointermove handler has already
-    // put it here; on a finger this is the move that pins the preview.
     ui.pointer = p;
     ui.ghostCell = cellUnder(getState(), p.x, p.y);
+
+    // Pressing on the board with a tool armed STARTS a placement drag; it does
+    // not build. The build happens on release, wherever the ghost ended up —
+    // which is what lets a finger drag around and watch the range ring and the
+    // combo links before committing. A plain click is simply a drag of zero
+    // length, so a mouse behaves exactly as it always did.
+    if (ui.buildKind !== null && onBoard(p.y) && ui.ghostCell !== null) {
+      ui.placing = true;
+      // Capture, so a drag that wanders off the canvas still tracks and still
+      // delivers its pointerup rather than stranding the ghost mid-placement.
+      try {
+        canvas.setPointerCapture(e.pointerId);
+      } catch {
+        // Some browsers refuse capture for synthetic pointers; the drag still
+        // works, it just stops updating outside the canvas.
+      }
+      return;
+    }
+
+    handleTap(ui, getState(), actions, p.x, p.y);
   });
 
   canvas.addEventListener('pointermove', (e) => {
     const p = toWorld(e);
     ui.pointer = p;
-    ui.ghostCell = cellUnder(getState(), p.x, p.y);
+    // The ghost follows a hovering mouse AND a dragging finger, from the same
+    // line — that is the whole of "one input path" for this feature.
+    const cell = cellUnder(getState(), p.x, p.y);
+    if (cell !== null || !ui.placing) ui.ghostCell = cell;
   });
 
-  // A lifted finger has no hover position; nor does a mouse leaving the window.
-  // But keep the last position while a build tool is armed on touch, or the
-  // placement ghost flickers out between taps.
   canvas.addEventListener('pointerup', (e) => {
-    if (e.pointerType !== 'mouse' && ui.buildKind === null) ui.pointer = null;
+    if (ui.placing) {
+      ui.placing = false;
+      const kind = ui.buildKind;
+      const cell = ui.ghostCell;
+      if (kind !== null && cell !== null) {
+        actions.placeTower(kind, cell.cx, cell.cy);
+        // Disarm only for a placement that will actually succeed, checked with
+        // the SAME placementError the sim uses — a rejected drag leaves the
+        // tool armed for another try rather than silently dropping it.
+        if (placementError(getState(), kind, cell.cx, cell.cy) === null) {
+          armBuild(ui, null);
+        }
+      }
+    }
+    // A lifted finger has no hover position; a mouse still does.
+    if (e.pointerType !== 'mouse') ui.pointer = null;
   });
+
   canvas.addEventListener('pointercancel', () => {
+    // A cancelled gesture must not build anything — that is what cancelled
+    // means. The armed tool survives so the player can simply try again.
+    ui.placing = false;
     ui.pointer = null;
-    // Deliberately NOT clearing ghostCell: a cancelled touch gesture must not
-    // throw away the preview the player just placed with their first tap.
   });
   canvas.addEventListener('pointerleave', () => {
-    ui.pointer = null;
+    if (!ui.placing) ui.pointer = null;
   });
 
   // Block the long-press context menu so it can't interrupt placement.
@@ -323,27 +359,9 @@ function handleTap(
     return;
   }
 
-  if (ui.buildKind !== null) {
-    // ONE rule for every device: you may only build where the ghost already
-    // is. A mouse has been hovering, so this matches on the first click and
-    // desktop is unchanged. A finger produced no hover, so the first tap only
-    // moves the ghost — which is what finally gives a touchscreen the range
-    // ring and the named combo links BEFORE the gold is spent, instead of
-    // discovering both after the tower is down.
-    const ghost = ui.ghostCell;
-    if (ghost === null || ghost.cx !== cell.cx || ghost.cy !== cell.cy) return;
-
-    actions.placeTower(ui.buildKind, cell.cx, cell.cy);
-    // Disarm after a placement that will actually succeed, so one tap on the
-    // build bar buys exactly one tower. Checked with the SAME placementError
-    // the simulation uses to accept the intent, so a rejected tap (no gold,
-    // occupied cell, wrong terrain) leaves the tool armed for a retry rather
-    // than silently dropping it.
-    if (placementError(state, ui.buildKind, cell.cx, cell.cy) === null) {
-      armBuild(ui, null);
-    }
-    return;
-  }
+  // Placement is resolved on pointerup by the drag handler, never here — see
+  // the pointerdown listener. If a build tool is armed this tap was already
+  // claimed there and never reaches handleTap.
 
   // Not building: tap a tower to open its panel, tap bare ground to close it.
   const towerId = state.occupancy[cell.cy * state.map.cols + cell.cx] ?? 0;

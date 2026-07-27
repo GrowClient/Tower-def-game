@@ -84,6 +84,18 @@ const DEBRIS: Record<string, string> = {
   bossRegenerator: '#8AD8EA',
 };
 
+/** Ring and spark colours per upgrade tier — silver, gold, emerald. */
+const UPGRADE_TINT: Record<number, string> = {
+  2: 'rgba(196, 203, 216, 0.9)',
+  3: 'rgba(232, 185, 61, 0.9)',
+  4: 'rgba(70, 240, 160, 0.95)',
+};
+const UPGRADE_SPARK: Record<number, string> = {
+  2: '#F2F6FC',
+  3: '#FFF3B0',
+  4: '#9CF5C8',
+};
+
 /** One tint per ability, matching its tray icon so a cast and its card agree. */
 const ABILITY_TINT: Record<AbilityKey, string> = {
   stoneRain: '#B9A98C',
@@ -310,8 +322,10 @@ export function consumeEvents(fx: FxState, events: SimEvent[], accent: string): 
       case 'towerUpgraded':
         // Silver at 2, gold at 3 — the burst matches what the tower just
         // became, so the upgrade reads before you look at the tower.
-        addShockwave(fx, e.at, 90, e.level >= 3 ? 'rgba(232,185,61,0.9)' : 'rgba(196,203,216,0.9)', 5);
-        sparks(fx, e.at, 16, e.level >= 3 ? '#FFF3B0' : '#F2F6FC', 150);
+        // Tinted to the tier just reached, so the burst tells you WHICH
+        // upgrade landed rather than only that one did.
+        addShockwave(fx, e.at, e.level >= 4 ? 120 : 90, UPGRADE_TINT[e.level] ?? UPGRADE_TINT[2]!, 5);
+        sparks(fx, e.at, e.level >= 4 ? 26 : 16, UPGRADE_SPARK[e.level] ?? UPGRADE_SPARK[2]!, 150);
         break;
 
       case 'towerSold':

@@ -1500,7 +1500,17 @@ export const PERK_RULES = {
  * Deliberately NO slow scaling: see TowerDef.slowFactor.
  */
 export const UPGRADES = {
-  maxLevel: 3,
+  /**
+   * Four levels: the tower's own material, then silver, then gold, then
+   * EMERALD.
+   *
+   * The fourth exists because a board reaching its ceiling was the moment a
+   * run stopped having decisions in it — every tower maxed, gold piling up,
+   * nothing left to buy. A fourth tier is somewhere for late gold to go that
+   * is not simply "another tower", and it is priced so that maxing a whole
+   * board is a project rather than a formality.
+   */
+  maxLevel: 4,
   /**
    * Cost of reaching level i+1, as a multiple of the tower's base cost.
    *
@@ -1509,7 +1519,7 @@ export const UPGRADES = {
    * of playing, and once every tower was level 3 the run had no remaining
    * decisions in it — which is most of why a wave-40 board coasted to 100.
    */
-  costMul: [0, 0.8, 1.7],
+  costMul: [0, 0.8, 2.2, 4.6],
   /**
    * The output ceiling, and the single most important number for late-game
    * difficulty.
@@ -1522,13 +1532,21 @@ export const UPGRADES = {
    *
    * Deliberately FRONT-LOADED. The first upgrade has to beat buying a second
    * tower per gold or the anti-dumping rule inverts, and it is measured
-   * (+0.85 damage for 0.8 cost). Level 3 is deliberately the expensive one:
-   * it buys less per gold, and what you are really paying for is output that
-   * does not consume one of your capped tower slots.
+   * (+0.85 damage for 0.8 cost, and it costs no tower slot either).
+   * Every level after that buys less per gold than the one before, which is
+   * the point: what you are really paying for at the top is output that does
+   * not consume one of your capped slots.
+   *
+   * EMERALD is deliberately the worst deal in the game per gold — 4.6x the
+   * sticker price for +0.75 damage. It is a gold SINK, not a power spike. A
+   * fully emerald board costs 8.8x each tower's price, which is the only
+   * reason a late run has anywhere to put its money, and the reason the wave
+   * curve does not have to out-scale it: almost nobody gets there on
+   * everything.
    */
-  damageMul: [1, 1.85, 2.5],
-  rangeMul: [1, 1.12, 1.24],
-  fireRateMul: [1, 1.18, 1.4],
+  damageMul: [1, 1.85, 2.5, 3.25],
+  rangeMul: [1, 1.12, 1.24, 1.34],
+  fireRateMul: [1, 1.18, 1.4, 1.58],
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -1833,6 +1851,29 @@ export const SCALING = {
    * and it is the only number a capped, maxed, Elite defence cannot out-scale.
    */
   hpQuadratic: 0.017,
+
+  /**
+   * An EXPONENTIAL HP term past `lateHpWave`, mirroring the budget's late
+   * surge — and the piece that was missing from every previous attempt to end
+   * the late game.
+   *
+   * The arithmetic nobody had done: with threat cost tracking HP, a wave's
+   * TOTAL hit points are set by its budget and almost nothing else. Unit count
+   * is budget/hp and per-unit hp is hp, so the two cancel. That is why raising
+   * `hpQuadratic` on its own moved the median death wave by nothing at all
+   * across three separate attempts — it made the same wall of HP arrive as
+   * fewer, tougher units, which is better pacing but identical difficulty.
+   *
+   * Raising the BUDGET alone has the opposite failure: an exponential budget
+   * against a quadratic HP curve means an exponential number of BODIES, which
+   * is 190 enemies and two-minute waves.
+   *
+   * Growing both at the same exponential rate is the answer. Counts stay flat,
+   * total wave HP climbs exponentially, and a board that has stopped improving
+   * gets out-scaled — which is the whole point.
+   */
+  lateHpWave: 30,
+  lateHpGrowth: 1.075,
 
   /** Speed creeps up slowly and caps, or late waves become unreactable. */
   speedLinear: 0.012,

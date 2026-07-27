@@ -474,17 +474,15 @@ The build bar always quotes the live price, never the list price.
   the whole board lit up red while holding a perfectly legal tower.
 - **The tower panel hangs off its tower**, with a leader line, rather than
   living in a corner with nothing connecting the numbers to the thing.
-- **You may only build where the ghost already is.** ONE rule, which the two
-  input devices satisfy differently because they generate different event
-  streams — not a separate touch code path. A mouse has been hovering, so the
-  ghost is already under the cursor and a click builds immediately; desktop is
-  unchanged. A finger produces no hover at all, so the first tap moves the
-  ghost (range ring, placement legality, named combo links) and the second
-  builds. Before this, a touchscreen player could not preview a combo at all:
-  they tapped a cell and found out what it linked to after the gold was spent.
-  The ghost is keyed to a CELL rather than to the pointer, because a touch
-  gesture can end in `pointercancel` and that was clearing the whole preview
-  between the two taps.
+- **Placement resolves on RELEASE, and the ghost follows the drag.** Press
+  anywhere on the board with a tool armed, drag, and the range ring, placement
+  legality and named combo links update live under your finger; lift to build
+  where it ended up. Before this a touchscreen player could not preview a combo
+  at all — they tapped a cell and found out what it linked to after the gold
+  was spent. Not a separate touch path: a mouse does the identical thing, and
+  an ordinary click is a drag of zero length, so desktop plays exactly as
+  before while gaining the same drag-to-aim. A cancelled gesture builds
+  nothing, which is what cancelled means.
 - **The only irreversible action asks.** Restart sits in the same cluster as
   pause and speed, which are pressed constantly and without looking, so it was
   one mis-tap from ending a forty-wave run. It now names what is about to be
@@ -699,6 +697,42 @@ probe's wave-60 ceiling on most seeds and ran past 80 when the ceiling was
 lifted. It now ends at a **median wave 50, with almost every seed landing
 between 45 and 52** — a consistent ending rather than a staircase of boss
 walls, and nothing anywhere near 100.
+
+### Four upgrade tiers, and why the last one is a bad deal
+
+A tower's own material, then **silver**, then **gold**, then **emerald**.
+Emerald is deliberately a gem rather than a fourth metal: silver and gold read
+as "better, then best", and a third metal would have to be brighter than gold,
+which on a lit board means whiter, which reads as cheaper. A green stone steps
+outside the sequence instead of trying to top it, and it is the only green on
+any tower.
+
+Maxing a tower now costs **8.6× its sticker price**, up from 3.5×. Each tier
+buys less per gold than the one before, and emerald is the worst gold in the
+game by a wide margin — 4.6× the price for +0.75 damage. That is the point:
+**it is a gold sink, not a power spike.** It exists because a board reaching
+its ceiling was the moment a run stopped having decisions in it, and it is
+priced so that maxing a whole board is a project almost nobody completes.
+
+### Why raising the HP curve alone never worked
+
+Worth writing down, because three separate attempts failed the same way.
+
+With threat cost tracking HP, **a wave's total hit points are set by its budget
+and almost nothing else.** Unit count is `budget / hp` and per-unit toughness is
+`hp`, so the two cancel. Raising `hpQuadratic` therefore moved the median death
+wave by nothing at all — it delivered the same wall of HP as fewer, tougher
+units. Better pacing, identical difficulty.
+
+Raising the budget alone fails the other way: an exponential budget against a
+quadratic HP curve is an exponential number of BODIES, which measured out at
+190 concurrent enemies and two-minute waves.
+
+The answer is to grow **both on the same exponential** past the wave where the
+board stops improving (`lateHpGrowth` mirroring `lateSurgeGrowth`). Counts stay
+flat, total wave HP climbs exponentially, and a finished board gets out-scaled.
+Measured: median death wave went from 80 to 41 with peak concurrent enemies
+*falling* from 84 to 31.
 
 ### Prices, and why they went up tenfold
 

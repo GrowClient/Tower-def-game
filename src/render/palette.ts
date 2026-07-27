@@ -46,8 +46,17 @@ export const COLORS = {
  * readout, not a picture — you had to stop and count them, and at board scale
  * they were invisible anyway. Instead each level re-forges the tower's working
  * end: the sling that throws the rock, the muzzle the shell leaves, the tip of
- * the ice spire. Wood and stone, then silver, then gold. The player reads
- * "that one's fully upgraded" from across the board without counting anything.
+ * the ice spire. Wood and stone, then silver, then gold, then emerald. The
+ * player reads "that one's fully upgraded" from across the board without
+ * counting anything.
+ *
+ * Emerald is the fourth and last, and it is deliberately a GEM rather than a
+ * fourth metal. Silver and gold are a natural pair and a player reads them as
+ * "better, then best"; a third metal would have to be brighter than gold to
+ * out-rank it, which on a lit board means whiter, which reads as cheaper. A
+ * green stone steps outside the sequence instead of trying to top it, and it
+ * is the only green on any tower — so a level 4 is identifiable at a glance
+ * even in a crowd of level 3s.
  *
  * `metal` of null means "use whatever this tower is natively made of", which is
  * what keeps a level 1 tower looking like an honest piece of its own age
@@ -64,7 +73,10 @@ export interface Tier {
 export const TIERS: Tier[] = [
   { metal: null, metalLit: '#FFFFFF', glow: null },
   { metal: '#C4CBD8', metalLit: '#F2F6FC', glow: null },
-  { metal: '#E8B93D', metalLit: '#FFF3B0', glow: 'rgba(245, 205, 90, 0.30)' },
+  // Gold no longer glows: the halo is the top tier's marker, and two glowing
+  // tiers would make it mean "upgraded a lot" instead of "finished".
+  { metal: '#E8B93D', metalLit: '#FFF3B0', glow: null },
+  { metal: '#2FBF7A', metalLit: '#9CF5C8', glow: 'rgba(70, 240, 160, 0.34)' },
 ];
 
 export function tierFor(level: number): Tier {

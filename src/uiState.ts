@@ -52,19 +52,21 @@ export interface UiState {
   /**
    * The cell the placement ghost is currently sitting on, or null.
    *
-   * This is what makes the combo preview work on a touchscreen. The rule is
-   * ONE rule for every device: **you may only build where the ghost already
-   * is.** A mouse has been hovering, so the ghost is already under the cursor
-   * and a click builds immediately — desktop is unchanged. A finger produces
-   * no hover at all, so the first tap moves the ghost there (showing the range
-   * ring and the named combo links) and the second tap builds.
+   * Placement RESOLVES ON RELEASE, not on press. That one change is what gives
+   * a touchscreen the combo preview it never had: press down anywhere on the
+   * board, drag, and the ghost follows your finger the whole way — range ring,
+   * placement legality and named combo links updating live — then lift to
+   * build where it ended up.
    *
-   * That is deliberately not a separate touch code path — see CLAUDE.md. It is
-   * one rule that the two devices satisfy differently because they generate
-   * different event streams, which is exactly the distinction that rule is
-   * about.
+   * Deliberately not a separate touch path (see CLAUDE.md). A mouse does the
+   * identical thing: press, optionally drag, release. An ordinary click is
+   * just a drag of zero distance, so desktop plays exactly as before while
+   * gaining the same drag-to-aim if you want it.
    */
   ghostCell: { cx: number; cy: number } | null;
+  /** True between pressing on the board with a build tool armed and releasing.
+   *  While it is set the ghost tracks the pointer without needing a hover. */
+  placing: boolean;
   /** The restart button has been pressed once and is awaiting confirmation. */
   confirmingRestart: boolean;
   /**
@@ -95,6 +97,7 @@ export function newUiState(): UiState {
     abilityMenuOpen: false,
     armorBriefingDismissed: false,
     ghostCell: null,
+    placing: false,
     confirmingRestart: false,
     armedAbility: null,
     fps: 0,
@@ -120,6 +123,7 @@ export function armBuild(ui: UiState, kind: TowerKind | null): void {
   // survive into the new one — the next tap would build something the player
   // never saw a preview of.
   ui.ghostCell = null;
+  ui.placing = false;
   if (ui.buildKind !== null) {
     ui.selectedTowerId = null;
     ui.armedAbility = null;

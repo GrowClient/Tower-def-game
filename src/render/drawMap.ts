@@ -133,15 +133,18 @@ export function drawPlacementGhost(
     ctx.textAlign = 'left';
   }
 
-  // Says what the next tap will do. On a mouse this is read while hovering and
-  // one click follows; on a touchscreen the ghost is already pinned here by
-  // the first tap, and this is the prompt for the second — the one that makes
-  // the two-step obvious instead of feeling like the game ignored a tap.
-  if (ok) {
+  // Only while actually dragging — that is the moment the player needs telling
+  // that lifting is what commits. A hovering mouse does not need a caption on
+  // every cell it passes over.
+  if (ui.placing) {
     ctx.font = font(13);
     ctx.textAlign = 'center';
     ctx.fillStyle = hexToRgba(tint, 0.95);
-    ctx.fillText('TAP AGAIN TO BUILD', center.x, center.y + layout.cellSize * 0.78);
+    ctx.fillText(
+      ok ? 'RELEASE TO BUILD' : 'CANNOT BUILD HERE',
+      center.x,
+      center.y + layout.cellSize * 0.78,
+    );
     ctx.textAlign = 'left';
   }
 

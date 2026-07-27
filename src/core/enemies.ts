@@ -33,7 +33,15 @@ import type { BossMechanic, Enemy, EnemyKind, GameState } from './types';
 
 export function hpMultiplier(wave: number): number {
   const w = Math.max(0, wave - 1);
-  return 1 + SCALING.hpLinear * w + SCALING.hpQuadratic * w * w;
+  const poly = 1 + SCALING.hpLinear * w + SCALING.hpQuadratic * w * w;
+  // Past the point where the board stops growing, HP climbs on the same
+  // exponential as the wave budget. Both together is what raises total wave
+  // HP without also raising the body count — see SCALING.lateHpGrowth.
+  const late = Math.pow(
+    SCALING.lateHpGrowth,
+    Math.max(0, wave - SCALING.lateHpWave),
+  );
+  return poly * late;
 }
 
 export function speedMultiplier(wave: number): number {
