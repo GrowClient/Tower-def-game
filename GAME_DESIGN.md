@@ -474,6 +474,22 @@ The build bar always quotes the live price, never the list price.
   the whole board lit up red while holding a perfectly legal tower.
 - **The tower panel hangs off its tower**, with a leader line, rather than
   living in a corner with nothing connecting the numbers to the thing.
+- **You may only build where the ghost already is.** ONE rule, which the two
+  input devices satisfy differently because they generate different event
+  streams — not a separate touch code path. A mouse has been hovering, so the
+  ghost is already under the cursor and a click builds immediately; desktop is
+  unchanged. A finger produces no hover at all, so the first tap moves the
+  ghost (range ring, placement legality, named combo links) and the second
+  builds. Before this, a touchscreen player could not preview a combo at all:
+  they tapped a cell and found out what it linked to after the gold was spent.
+  The ghost is keyed to a CELL rather than to the pointer, because a touch
+  gesture can end in `pointercancel` and that was clearing the whole preview
+  between the two taps.
+- **The only irreversible action asks.** Restart sits in the same cluster as
+  pause and speed, which are pressed constantly and without looking, so it was
+  one mis-tap from ending a forty-wave run. It now names what is about to be
+  lost — the wave and the tower count — and a tap anywhere outside cancels,
+  because the safe answer should be the easy one.
 - **Every weapon fires something recognisably its own** — a rock, a boulder, a
   clod of cold mud, an arrow, a cannonball trailing smoke, a frost shard, a
   laser, a cryo orb, a black hole, a rail lance. They were all one grey pebble
@@ -692,10 +708,16 @@ commitment against roughly 2,300g before.
 
 **Kills pay half what they used to, and buildings pay several times more.**
 Income is meant to follow from what you chose to invest in, not from what
-happened to walk past your towers — so a Gold Mine now pays back in about two
-waves and out-earns a whole wave of kills, and what brakes stacking them is
-that every one eats a capped tower slot and only pays out on a wave you
-actually survive.
+happened to walk past your towers — so a Gold Mine out-earns a whole wave of
+kills, and what brakes stacking them is that every one eats a capped tower
+slot and only pays out on a wave you actually survive.
+
+**Payback is about 4.5 waves, and an upgrade is the same bet.** At two waves a
+building was in profit on the wave after you bought it, which is not a
+decision, it is a button you press. Both the cost and the output rose to
+lengthen it: the point is to DELAY the return, not shrink it, so a mine stays
+a serious lever once it has paid for itself. Upgrading follows automatically —
+an upgrade costs 0.8× base for 0.85× the output, landing on the same clock.
 
 Income rose too — because it had to. **A 100,000 gold age
 that cannot be banked before the boss that gates it is not an expensive age, it

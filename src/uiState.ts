@@ -50,6 +50,24 @@ export interface UiState {
    */
   armorBriefingDismissed: boolean;
   /**
+   * The cell the placement ghost is currently sitting on, or null.
+   *
+   * This is what makes the combo preview work on a touchscreen. The rule is
+   * ONE rule for every device: **you may only build where the ghost already
+   * is.** A mouse has been hovering, so the ghost is already under the cursor
+   * and a click builds immediately — desktop is unchanged. A finger produces
+   * no hover at all, so the first tap moves the ghost there (showing the range
+   * ring and the named combo links) and the second tap builds.
+   *
+   * That is deliberately not a separate touch code path — see CLAUDE.md. It is
+   * one rule that the two devices satisfy differently because they generate
+   * different event streams, which is exactly the distinction that rule is
+   * about.
+   */
+  ghostCell: { cx: number; cy: number } | null;
+  /** The restart button has been pressed once and is awaiting confirmation. */
+  confirmingRestart: boolean;
+  /**
    * An ability picked from the tray and waiting for a target on the board.
    *
    * Two-step on purpose, exactly like placing a tower: an ability costs a
@@ -76,6 +94,8 @@ export function newUiState(): UiState {
     pauseTab: 'game',
     abilityMenuOpen: false,
     armorBriefingDismissed: false,
+    ghostCell: null,
+    confirmingRestart: false,
     armedAbility: null,
     fps: 0,
   };
@@ -96,6 +116,10 @@ export function cycleSpeed(ui: UiState): void {
  */
 export function armBuild(ui: UiState, kind: TowerKind | null): void {
   ui.buildKind = ui.buildKind === kind ? null : kind;
+  // The pinned ghost previewed the OLD tool's range and combos, so it must not
+  // survive into the new one — the next tap would build something the player
+  // never saw a preview of.
+  ui.ghostCell = null;
   if (ui.buildKind !== null) {
     ui.selectedTowerId = null;
     ui.armedAbility = null;

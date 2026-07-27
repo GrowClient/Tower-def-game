@@ -25,6 +25,7 @@ import {
   PAUSE_BUTTONS,
   PAUSE_TAB_RECTS,
   PERK_CARDS,
+  RESTART_CONFIRM,
   armorBriefingVisible,
 } from '../render/screens';
 import { visibleAbilityCards } from '../render/abilityMenu';
@@ -62,12 +63,18 @@ export function attachInput(
     // from starting a text-selection / scroll gesture on mobile.
     e.preventDefault();
     const p = toWorld(e);
-    ui.pointer = p;
     handleTap(ui, getState(), actions, p.x, p.y);
+    // AFTER the tap, so handleTap could compare the tapped cell against where
+    // the ghost already was. On a mouse the pointermove handler has already
+    // put it here; on a finger this is the move that pins the preview.
+    ui.pointer = p;
+    ui.ghostCell = cellUnder(getState(), p.x, p.y);
   });
 
   canvas.addEventListener('pointermove', (e) => {
-    ui.pointer = toWorld(e);
+    const p = toWorld(e);
+    ui.pointer = p;
+    ui.ghostCell = cellUnder(getState(), p.x, p.y);
   });
 
   // A lifted finger has no hover position; nor does a mouse leaving the window.
@@ -78,6 +85,8 @@ export function attachInput(
   });
   canvas.addEventListener('pointercancel', () => {
     ui.pointer = null;
+    // Deliberately NOT clearing ghostCell: a cancelled touch gesture must not
+    // throw away the preview the player just placed with their first tap.
   });
   canvas.addEventListener('pointerleave', () => {
     ui.pointer = null;
@@ -101,7 +110,10 @@ export function attachInput(
         break;
       case 'r':
       case 'R':
-        actions.restart();
+        // Same destructive action as the button, so it gets the same question.
+        // R sits next to the number keys that arm build tools, which is
+        // exactly the sort of neighbour a mis-key finds.
+        ui.confirmingRestart = true;
         break;
       case 'Escape':
         armBuild(ui, null);
@@ -109,7 +121,8 @@ export function attachInput(
         ui.showCombos = false;
         // Escape means "put down whatever I am holding", in the order a player
         // would expect: the thing in hand first, then the menu it came from.
-        if (ui.armedAbility !== null) armAbility(ui, null);
+        if (ui.confirmingRestart) ui.confirmingRestart = false;
+        else if (ui.armedAbility !== null) armAbility(ui, null);
         else ui.abilityMenuOpen = false;
         break;
       case 'm':
@@ -143,6 +156,16 @@ export function attachInput(
   });
 }
 
+/** The grid cell a world position falls in, or null if it is off the board. */
+function cellUnder(
+  state: GameState,
+  x: number,
+  y: number,
+): { cx: number; cy: number } | null {
+  const c = worldToCell(state.layout, x, y);
+  return inBounds(state.map, c.cx, c.cy) ? c : null;
+}
+
 /**
  * One tap, resolved in priority order: chrome first, then the board. Chrome
  * wins because its buttons overlap the board's world coordinates, and a tap
@@ -155,6 +178,21 @@ function handleTap(
   x: number,
   y: number,
 ): void {
+  // The restart confirmation outranks everything, including the perk draft:
+  // it is a question the player just asked for, and nothing behind it should
+  // be reachable while it is up.
+  if (ui.confirmingRestart) {
+    if (hitTest(RESTART_CONFIRM.yes, x, y)) {
+      ui.confirmingRestart = false;
+      actions.restart();
+    } else if (hitTest(RESTART_CONFIRM.no, x, y) || !hitTest(RESTART_CONFIRM.panel, x, y)) {
+      // Tapping outside cancels, which is the safe default for a destructive
+      // question — a stray tap must never be the one that ends the run.
+      ui.confirmingRestart = false;
+    }
+    return;
+  }
+
   // A perk draft is modal: it takes the whole screen and nothing behind it is
   // reachable, so it must be resolved before anything else is considered.
   if (state.perkChoices !== null) {
@@ -178,7 +216,7 @@ function handleTap(
       for (const b of PAUSE_BUTTONS) {
         if (!hitTest(b.rect, x, y)) continue;
         if (b.id === 'resume') actions.togglePause();
-        else if (b.id === 'restart') actions.restart();
+        else if (b.id === 'restart') ui.confirmingRestart = true;
         else if (b.id === 'mute') actions.toggleMute();
         else if (b.id === 'speed') actions.cycleSpeed();
         else actions.toggleFullscreen();
@@ -216,7 +254,7 @@ function handleTap(
       // ability can never outlive the menu it came from and turn the next
       // board click into a surprise 8-diamond cast.
       if (!ui.abilityMenuOpen) armAbility(ui, null);
-    } else actions.restart();
+    } else ui.confirmingRestart = true;
     return;
   }
 
@@ -286,6 +324,15 @@ function handleTap(
   }
 
   if (ui.buildKind !== null) {
+    // ONE rule for every device: you may only build where the ghost already
+    // is. A mouse has been hovering, so this matches on the first click and
+    // desktop is unchanged. A finger produced no hover, so the first tap only
+    // moves the ghost — which is what finally gives a touchscreen the range
+    // ring and the named combo links BEFORE the gold is spent, instead of
+    // discovering both after the tower is down.
+    const ghost = ui.ghostCell;
+    if (ghost === null || ghost.cx !== cell.cx || ghost.cy !== cell.cy) return;
+
     actions.placeTower(ui.buildKind, cell.cx, cell.cy);
     // Disarm after a placement that will actually succeed, so one tap on the
     // build bar buys exactly one tower. Checked with the SAME placementError

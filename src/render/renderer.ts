@@ -22,6 +22,7 @@ import { drawHud, drawWaveBanner, findSelectedTower } from './hud';
 import { biomeFor, COLORS } from './palette';
 import {
   drawArmorBriefing,
+  drawRestartConfirm,
   drawCombosCodex,
   drawGameOverOverlay,
   drawPauseMenu,
@@ -90,10 +91,17 @@ export function render(
   // Above the HUD, but hidden entirely behind any full-screen overlay. A tray
   // showing through a pause menu is a menu you can see two of at once.
   const overlayUp =
-    state.phase === 'gameover' || state.perkChoices !== null || ui.paused || ui.showCombos;
+    state.phase === 'gameover' ||
+    state.perkChoices !== null ||
+    ui.paused ||
+    ui.showCombos ||
+    ui.confirmingRestart;
   if (!overlayUp) drawAbilityTray(ctx, state, ui, biome);
 
-  if (state.phase === 'gameover') drawGameOverOverlay(ctx, state, biome, bestWave);
+  // Above every other overlay: it is a modal question, and the answer has to
+  // be the only thing on screen that can be clicked.
+  if (ui.confirmingRestart) drawRestartConfirm(ctx, state, biome);
+  else if (state.phase === 'gameover') drawGameOverOverlay(ctx, state, biome, bestWave);
   else if (state.perkChoices !== null) drawPerkDraft(ctx, state.perkChoices, biome, state.perks);
   else if (ui.paused) drawPauseMenu(ctx, state, ui, biome);
   else if (ui.showCombos) drawCombosCodex(ctx, biome);

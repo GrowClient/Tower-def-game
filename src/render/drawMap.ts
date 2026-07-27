@@ -88,11 +88,11 @@ export function drawPlacementGhost(
   ui: UiState,
 ): void {
   const kind = ui.buildKind;
-  if (kind === null || ui.pointer === null) return;
+  const cell = ui.ghostCell;
+  if (kind === null || cell === null) return;
 
   const { layout } = state;
-  const cx = Math.floor((ui.pointer.x - layout.originX) / layout.cellSize);
-  const cy = Math.floor((ui.pointer.y - layout.originY) / layout.cellSize);
+  const { cx, cy } = cell;
   if (!inBounds(state.map, cx, cy)) return;
 
   const err = placementError(state, kind, cx, cy);
@@ -130,6 +130,18 @@ export function drawPlacementGhost(
     ctx.textAlign = 'center';
     ctx.fillStyle = COLORS.buildBad;
     ctx.fillText('TOWER LIMIT', center.x, center.y - layout.cellSize * 0.6);
+    ctx.textAlign = 'left';
+  }
+
+  // Says what the next tap will do. On a mouse this is read while hovering and
+  // one click follows; on a touchscreen the ghost is already pinned here by
+  // the first tap, and this is the prompt for the second — the one that makes
+  // the two-step obvious instead of feeling like the game ignored a tap.
+  if (ok) {
+    ctx.font = font(13);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = hexToRgba(tint, 0.95);
+    ctx.fillText('TAP AGAIN TO BUILD', center.x, center.y + layout.cellSize * 0.78);
     ctx.textAlign = 'left';
   }
 
@@ -173,16 +185,21 @@ export function drawComboLinks(
     return;
   }
 
-  // While building: preview what the tower under the cursor WOULD gain, so a
-  // combo can be seen before it is paid for rather than discovered after.
+  // While building: preview what the tower at the ghost WOULD gain, so a combo
+  // can be seen before it is paid for rather than discovered after.
+  //
+  // Keyed off the ghost CELL, not the pointer. A finger has no hover, and a
+  // touch gesture can end in `pointercancel` — which cleared the pointer and
+  // took the whole preview with it, leaving the two-step placement with
+  // nothing to show between the taps.
   const kind = ui.buildKind;
-  if (kind === null || ui.pointer === null) {
+  const cell = ui.ghostCell;
+  if (kind === null || cell === null) {
     ctx.restore();
     return;
   }
   const { layout } = state;
-  const cx = Math.floor((ui.pointer.x - layout.originX) / layout.cellSize);
-  const cy = Math.floor((ui.pointer.y - layout.originY) / layout.cellSize);
+  const { cx, cy } = cell;
   if (!inBounds(state.map, cx, cy)) {
     ctx.restore();
     return;

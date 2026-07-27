@@ -68,6 +68,8 @@ function restart(): void {
   ui.armedAbility = null;
   // A new run has not been warned yet, so the briefing must come back.
   ui.armorBriefingDismissed = false;
+  ui.confirmingRestart = false;
+  ui.ghostCell = null;
   // Otherwise the previous run's smoke, shake and slow motion carry into the
   // first frame of the new one.
   fx = newFx();

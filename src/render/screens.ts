@@ -865,6 +865,79 @@ export function drawArmorBriefing(
   ctx.restore();
 }
 
+// ---------------------------------------------------------------------------
+// Restart confirmation
+// ---------------------------------------------------------------------------
+
+const CONFIRM_W = 520;
+const CONFIRM_H = 210;
+const CONFIRM_X = (WORLD.width - CONFIRM_W) / 2;
+const CONFIRM_Y = (WORLD.height - CONFIRM_H) / 2;
+
+/**
+ * "Are you sure?" for the restart button.
+ *
+ * The button sits in the top-right cluster next to pause and speed, which are
+ * both things you press constantly and without looking — so the one control
+ * that throws away a forty-wave run was one mis-tap away at all times. It is
+ * the only irreversible action in the game and the only one that asks.
+ */
+export const RESTART_CONFIRM: { yes: Rect; no: Rect; panel: Rect } = {
+  panel: { x: CONFIRM_X, y: CONFIRM_Y, w: CONFIRM_W, h: CONFIRM_H },
+  no: { x: CONFIRM_X + 28, y: CONFIRM_Y + 126, w: 216, h: 60 },
+  yes: { x: CONFIRM_X + CONFIRM_W - 244, y: CONFIRM_Y + 126, w: 216, h: 60 },
+};
+
+export function drawRestartConfirm(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  biome: Biome,
+): void {
+  scrim(ctx, 0.7);
+  const r = RESTART_CONFIRM;
+
+  ctx.fillStyle = 'rgba(22, 18, 13, 0.97)';
+  roundRect(ctx, r.panel.x, r.panel.y, r.panel.w, r.panel.h, 14);
+  ctx.fill();
+  ctx.strokeStyle = biome.accent;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.textAlign = 'center';
+  ctx.font = font(30);
+  ctx.fillStyle = COLORS.text;
+  ctx.fillText('RESTART THIS RUN?', WORLD.width / 2, r.panel.y + 56);
+
+  // Naming what is actually lost, rather than a generic "are you sure".
+  ctx.font = font(17, 500);
+  ctx.fillStyle = COLORS.textDim;
+  ctx.fillText(
+    `Wave ${state.wave.number} and ${state.towers.length} towers will be gone.`,
+    WORLD.width / 2,
+    r.panel.y + 90,
+  );
+
+  ctx.fillStyle = '#2C2519';
+  roundRect(ctx, r.no.x, r.no.y, r.no.w, r.no.h, 10);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = COLORS.text;
+  ctx.font = font(21);
+  ctx.fillText('KEEP PLAYING', r.no.x + r.no.w / 2, r.no.y + 39);
+
+  ctx.fillStyle = '#3A2A22';
+  roundRect(ctx, r.yes.x, r.yes.y, r.yes.w, r.yes.h, 10);
+  ctx.fill();
+  ctx.strokeStyle = '#8A5A46';
+  ctx.stroke();
+  ctx.fillStyle = '#E8A08A';
+  ctx.fillText('RESTART', r.yes.x + r.yes.w / 2, r.yes.y + 39);
+
+  ctx.textAlign = 'left';
+}
+
 function scrim(ctx: CanvasRenderingContext2D, alpha: number): void {
   ctx.fillStyle = `rgba(6, 8, 14, ${alpha})`;
   ctx.fillRect(0, 0, WORLD.width, WORLD.height);
