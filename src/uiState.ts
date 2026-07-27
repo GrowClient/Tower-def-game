@@ -43,6 +43,13 @@ export interface UiState {
   /** The ability tray on the right edge is open. */
   abilityMenuOpen: boolean;
   /**
+   * The wave-7 armor briefing has been closed by hand.
+   *
+   * Session state, not simulation: dismissing a warning does not change the
+   * run, and a replay of the same seed must not care whether you read it.
+   */
+  armorBriefingDismissed: boolean;
+  /**
    * An ability picked from the tray and waiting for a target on the board.
    *
    * Two-step on purpose, exactly like placing a tower: an ability costs a
@@ -68,6 +75,7 @@ export function newUiState(): UiState {
     showCombos: false,
     pauseTab: 'game',
     abilityMenuOpen: false,
+    armorBriefingDismissed: false,
     armedAbility: null,
     fps: 0,
   };

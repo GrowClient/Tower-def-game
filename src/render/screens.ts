@@ -744,24 +744,55 @@ export function drawRotateHint(ctx: CanvasRenderingContext2D, vp: Viewport): voi
  * It draws no scrim and swallows no input: the whole point of the long pause
  * is that you can go and buy the tower while reading about it.
  */
+const BRIEF_W = 760;
+const BRIEF_H = 250;
+const BRIEF_X = (WORLD.width - BRIEF_W) / 2;
+const BRIEF_Y = 150;
+
+/**
+ * The briefing's close button, exported so input hit-tests exactly what was
+ * drawn.
+ *
+ * It exists because the card sits over the middle of the board for
+ * twenty-four seconds, which is the whole point — and also means it covers
+ * whatever towers are under it. A player who has read it and wants to go build
+ * the answer it just told them about must be able to get it out of the way;
+ * a warning you cannot dismiss stops being help and becomes an obstacle.
+ */
+export const ARMOR_BRIEFING_CLOSE: Rect = {
+  x: BRIEF_X + BRIEF_W - 46,
+  y: BRIEF_Y + 10,
+  w: 36,
+  h: 36,
+};
+
+/** Is the briefing on screen right now? Shared by the renderer and input, so
+ *  the close button can only be clicked while it is actually visible. */
+export function armorBriefingVisible(state: GameState, ui: UiState): boolean {
+  if (ui.armorBriefingDismissed) return false;
+  if (state.phase !== 'playing') return false;
+  if (state.wave.active) return false;
+  if (state.wave.number + 1 !== WAVES.armorBriefingWave) return false;
+  return state.perkChoices === null;
+}
+
 export function drawArmorBriefing(
   ctx: CanvasRenderingContext2D,
   state: GameState,
+  ui: UiState,
   biome: Biome,
 ): void {
-  if (state.wave.active) return;
-  if (state.wave.number + 1 !== WAVES.armorBriefingWave) return;
-  if (state.perkChoices !== null) return;
+  if (!armorBriefingVisible(state, ui)) return;
 
   const unlocked: TowerKind[] = [];
   for (let a = 0; a <= state.age; a++) unlocked.push(...BUILD_ORDER[a]!);
   const answers = unlocked.filter(piercesPlating);
   const ready = state.towers.some((t) => piercesPlating(t.kind));
 
-  const w = 760;
-  const h = 250;
-  const x = (WORLD.width - w) / 2;
-  const y = 150;
+  const w = BRIEF_W;
+  const h = BRIEF_H;
+  const x = BRIEF_X;
+  const y = BRIEF_Y;
 
   ctx.save();
   ctx.fillStyle = 'rgba(18, 15, 11, 0.93)';
@@ -805,10 +836,30 @@ export function drawArmorBriefing(
   ctx.font = font(15, 500);
   ctx.fillStyle = COLORS.textDim;
   ctx.fillText(
-    `The wave starts in ${state.wave.timer.toFixed(0)}s — build while you read.`,
+    `The wave starts in ${state.wave.timer.toFixed(0)}s — close this (✕) and build.`,
     cx,
     y + 222,
   );
+
+  // Close button, top right. Drawn last so it sits over the panel edge.
+  const c = ARMOR_BRIEFING_CLOSE;
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+  roundRect(ctx, c.x, c.y, c.w, c.h, 8);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.strokeStyle = COLORS.text;
+  ctx.lineWidth = 2.6;
+  ctx.lineCap = 'round';
+  const pad = 11;
+  ctx.beginPath();
+  ctx.moveTo(c.x + pad, c.y + pad);
+  ctx.lineTo(c.x + c.w - pad, c.y + c.h - pad);
+  ctx.moveTo(c.x + c.w - pad, c.y + pad);
+  ctx.lineTo(c.x + pad, c.y + c.h - pad);
+  ctx.stroke();
+  ctx.lineCap = 'butt';
 
   ctx.textAlign = 'left';
   ctx.restore();

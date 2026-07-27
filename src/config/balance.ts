@@ -1253,10 +1253,23 @@ export const TRAPS = {
 export const VETERANCY = {
   /** XP for a kill credited to this tower. */
   killXp: 1,
-  /** XP for landing a chill, for towers that deal no damage and so can never
-   *  be credited with a kill. Below 1 because a slower hits far more often
-   *  than a shooter kills. */
-  chillXp: 0.34,
+  /**
+   * XP for landing a chill, for towers that deal no damage and so can never
+   * be credited with a kill.
+   *
+   * Cut from 0.34, and it needed to be much lower than "below 1". A slower
+   * fires two or three times a second and lands a chill on nearly every shot,
+   * where a shooter is credited with a kill maybe once a second on a good
+   * wave — so at 0.34 an ice tower reached Elite in under a minute of play,
+   * long before any weapon on the board, and its rank was a formality rather
+   * than a record of service.
+   *
+   * At 0.07 a slower ranks up roughly on the same schedule as a busy shooter:
+   * it still gets there, but it has to actually work a lane for several waves
+   * first. Veterancy is the one reward in this game you cannot buy, and it
+   * should not be the one that arrives fastest.
+   */
+  chillXp: 0.07,
   /** XP for an economy building each time it pays out. */
   payoutXp: 3,
 

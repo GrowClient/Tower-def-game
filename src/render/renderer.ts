@@ -84,7 +84,7 @@ export function render(
   drawHorn(ctx, state);
   // Outside the shake transform with the rest of the chrome, and BEFORE the
   // HUD so the build bar it tells you to use is never covered by it.
-  if (state.phase === 'playing') drawArmorBriefing(ctx, state, biome);
+  drawArmorBriefing(ctx, state, ui, biome);
   drawHud(ctx, state, ui, ageIndex);
 
   // Above the HUD, but hidden entirely behind any full-screen overlay. A tray

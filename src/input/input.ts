@@ -20,7 +20,13 @@ import {
   hitTest,
   towerPanelRects,
 } from '../render/hud';
-import { PAUSE_BUTTONS, PAUSE_TAB_RECTS, PERK_CARDS } from '../render/screens';
+import {
+  ARMOR_BRIEFING_CLOSE,
+  PAUSE_BUTTONS,
+  PAUSE_TAB_RECTS,
+  PERK_CARDS,
+  armorBriefingVisible,
+} from '../render/screens';
 import { visibleAbilityCards } from '../render/abilityMenu';
 import { placementError } from '../core/towers';
 import { screenToWorld, type Viewport } from '../render/viewport';
@@ -186,6 +192,14 @@ function handleTap(
   // swallow a tap meant for the board underneath.
   if (ui.showCombos) {
     ui.showCombos = false;
+    return;
+  }
+
+  // The briefing's close button. Before the HUD and the board, because the
+  // card is drawn over both and a tap on its X must not fall through to a
+  // tower placement underneath it.
+  if (armorBriefingVisible(state, ui) && hitTest(ARMOR_BRIEFING_CLOSE, x, y)) {
+    ui.armorBriefingDismissed = true;
     return;
   }
 

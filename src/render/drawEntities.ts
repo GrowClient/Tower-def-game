@@ -113,19 +113,22 @@ function drawTower(
   if (def.onPath && tower.charge > 0) {
     const frac = Math.min(1, tower.charge / TRAPS.maxCharge);
     ctx.save();
+    // Tucked in against the trap rather than ringing the whole cell. At 1.12
+    // the arc was wider than the tile it sat on, so a mined stretch of road
+    // read as a row of big yellow hoops with the traps lost inside them. The
+    // gauge only has to be legible, not loud — it is ambient information, not
+    // an alert.
     ctx.beginPath();
-    ctx.arc(tower.pos.x, tower.pos.y, s * 1.12, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
-    ctx.strokeStyle = frac >= 1 ? '#FFD24A' : 'rgba(255, 210, 74, 0.55)';
-    ctx.lineWidth = s * 0.16;
+    ctx.arc(tower.pos.x, tower.pos.y, s * 0.74, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+    ctx.strokeStyle = frac >= 1 ? '#FFD24A' : 'rgba(255, 210, 74, 0.5)';
+    ctx.lineWidth = s * 0.1;
     ctx.lineCap = 'round';
     ctx.stroke();
-    // Fully banked reads differently from merely charging: a full trap is
-    // about to do something worth watching.
+    // Fully banked gets a brighter arc rather than a second ring — the extra
+    // ring was most of the visual weight and none of the information.
     if (frac >= 1) {
-      ctx.globalAlpha = 0.5;
-      ctx.beginPath();
-      ctx.arc(tower.pos.x, tower.pos.y, s * 1.32, 0, Math.PI * 2);
-      ctx.lineWidth = s * 0.09;
+      ctx.globalAlpha = 0.45;
+      ctx.lineWidth = s * 0.2;
       ctx.stroke();
     }
     ctx.restore();

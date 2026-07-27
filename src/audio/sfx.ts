@@ -407,9 +407,16 @@ function play(id: SoundId): boolean {
       tone(now + 0.03, 'square', 160, 80, 0.09, 0.07);
       break;
     // Compressed gas venting: pure noise, no pitch at all.
+    // A soft exhale, not a hiss.
+    //
+    // This one fires 2.4 times a second from every Cryo Field on the board, so
+    // it is the most-played sound in the Tech Age by a wide margin — and it
+    // sat in the 4kHz band, which is exactly where sibilance fatigues an ear.
+    // Quieter, shorter, and moved well down the spectrum: a Cryo Field should
+    // be something you notice stopping, not something you notice happening.
     case 'cryoHiss':
-      noise(now, 0.34, 0.11, 'highpass', 4200, 0.6);
-      noise(now + 0.05, 0.2, 0.07, 'bandpass', 2200, 1.4);
+      noise(now, 0.16, 0.032, 'lowpass', 1400, 0.7);
+      tone(now, 'sine', 660, 420, 0.14, 0.022);
       break;
     // Something collapsing inward: a pitch that falls away rather than decays.
     case 'singularityHum':
@@ -418,10 +425,17 @@ function play(id: SoundId): boolean {
       noise(now, 0.3, 0.12, 'lowpass', 300, 1);
       break;
     // A supersonic round: crack first, then the long tail of the report.
+    // A distant report rather than a rifle going off next to your head.
+    //
+    // The old one led with a 0.36-gain highpass crack at 3.6kHz and a 1900Hz
+    // sawtooth — piercing on its own, and the Sniper covers the WHOLE board,
+    // so it fires constantly no matter where the wave is. Most of the level
+    // now lives in the low thump that follows, which carries the weight
+    // without the sting.
     case 'sniperCrack':
-      noise(now, 0.02, 0.36, 'highpass', 3600, 0.6);
-      tone(now, 'sawtooth', 1900, 140, 0.16, 0.16);
-      noise(now + 0.03, 0.3, 0.09, 'lowpass', 900, 1);
+      noise(now, 0.015, 0.1, 'bandpass', 1800, 1.2);
+      tone(now, 'triangle', 900, 180, 0.1, 0.05);
+      noise(now + 0.02, 0.26, 0.075, 'lowpass', 620, 1);
       break;
     // Industrial: a press cycling.
     case 'factoryStamp':
