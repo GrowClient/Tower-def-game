@@ -98,7 +98,7 @@ export function drawAbilityTray(
   ctx.font = font(12, 500);
   ctx.fillStyle = COLORS.textDim;
   ctx.fillText(
-    `${DIAMONDS.goldPerDiamond}g = 1 diamond  ·  build an Exchanger`,
+    `1 diamond = ${DIAMONDS.goldPerDiamond.toLocaleString('en-US')}g  ·  Exchanger converts per wave`,
     TRAY_X,
     TRAY_TOP - 18,
   );

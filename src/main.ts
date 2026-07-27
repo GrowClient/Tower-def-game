@@ -89,6 +89,7 @@ attachInput(
     advanceAge: () => queueIntent(state, { type: 'advanceAge' }),
     choosePerk: (key) => queueIntent(state, { type: 'choosePerk', key }),
     castAbility: (key, x, y) => queueIntent(state, { type: 'castAbility', key, x, y }),
+    toggleTower: (towerId) => queueIntent(state, { type: 'toggleTower', towerId }),
     toggleFullscreen,
     toggleMute: () => {
       setMuted(!isMuted());

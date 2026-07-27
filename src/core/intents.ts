@@ -13,7 +13,7 @@
 import { advanceAge } from './ages';
 import { castAbility } from './abilities';
 import { choosePerk } from './perks';
-import { cycleTargetMode, placeTower, sellTower, upgradeTower } from './towers';
+import { cycleTargetMode, placeTower, sellTower, toggleTower, upgradeTower } from './towers';
 import type { GameState, Intent } from './types';
 
 export function queueIntent(state: GameState, intent: Intent): void {
@@ -45,6 +45,9 @@ export function applyIntents(state: GameState): void {
         break;
       case 'castAbility':
         castAbility(state, intent.key, intent.x, intent.y);
+        break;
+      case 'toggleTower':
+        toggleTower(state, intent.towerId);
         break;
     }
   }

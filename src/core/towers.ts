@@ -288,6 +288,7 @@ export function placeTower(
     targetMode: 'first',
     lastTargetId: 0,
     charge: 0,
+    enabled: true,
     combos: [],
   };
   state.towers.push(tower);
@@ -344,6 +345,23 @@ export function sellTower(state: GameState, towerId: number): boolean {
 // ---------------------------------------------------------------------------
 // Targeting
 // ---------------------------------------------------------------------------
+
+/**
+ * Flip a tower's switch. Only buildings that SPEND something can be switched
+ * off — a tower that merely shoots has no reason to be idle, and offering the
+ * button on one would be a way to break your own board by accident.
+ */
+export function canToggle(kind: TowerKind): boolean {
+  return TOWERS[kind]!.diamondsPerWave > 0;
+}
+
+export function toggleTower(state: GameState, towerId: number): boolean {
+  const tower = state.towers.find((t) => t.id === towerId);
+  if (!tower || !canToggle(tower.kind)) return false;
+  tower.enabled = !tower.enabled;
+  emit(state, { type: 'towerToggled', at: tower.pos, on: tower.enabled });
+  return true;
+}
 
 export function cycleTargetMode(state: GameState, towerId: number): boolean {
   const tower = state.towers.find((t) => t.id === towerId);

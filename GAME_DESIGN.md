@@ -108,7 +108,7 @@ cyan), and a full biome each — advancing re-skins the ground, the road and the
 props, not just a colour.
 
 Advancement is **player-triggered by spending gold**, never automatic on a wave
-number. Prices are many times a tower (**10,000**, then **100,000**) so paying
+number. Prices are many times a tower (**6,000**, then **70,000**) so paying
 is a real commitment — you are giving up a board's worth of defence for it. See
 "Prices, and why they went up tenfold" below for what that cost is measured
 against.
@@ -375,7 +375,7 @@ do but watch it work or watch it fail. **Abilities are the only decision in
 this game that is taken while a wave is already going wrong.**
 
 They are paid for in **diamonds**, and diamonds are never earned — they are
-MINTED, by an **Exchanger** burning gold at a fixed rate every wave. That is
+MINTED, by an **Exchanger** burning **6,000 gold each** every wave. That is
 the whole design. A diamond is a tower you did not build, so "how much of my
 economy do I convert into saved answers?" is a real question with no correct
 answer. Income that simply accumulated would make abilities a reward for
@@ -383,8 +383,20 @@ surviving instead of a cost.
 
 The Exchanger is the only building available in **every** age, because the
 system it feeds runs the length of a run. Its sticker price is set for the
-Stone Age; what it actually costs you is the gold it burns every wave forever
-after.
+Stone Age; what it actually costs you is the gold it burns every wave.
+
+**It has an on/off switch, and that switch is the strategy.** Nobody wants a
+building draining six thousand gold a wave while they are saving for an age —
+so you turn it off, and turn it back on when you are rich. A switched-off
+Exchanger is drawn cold with a red cross over it and its panel reads *"idle —
+saving you 6,000g each wave"*, because the two ways to lose value here are
+forgetting it is on and forgetting it is off, and both have to be visible from
+the board.
+
+That switch is also the answer to **"a million gold and nothing to buy"**. Past
+the point where the board is capped and maxed, the Exchanger is the only
+remaining sink, and an unbounded one: surplus gold becomes ability power at a
+rate that can absorb any amount of it.
 
 Two abilities per age — one that kills, one that changes the terms:
 
@@ -678,7 +690,14 @@ Middle Age towers start at 1000g and the age costs 10,000; Tech Age towers
 start at 10,000g and the age costs 100,000. Maxing a Gun Turret is a ~36,000g
 commitment against roughly 2,300g before.
 
-Income rose too — roughly three times — because it had to. **A 100,000 gold age
+**Kills pay half what they used to, and buildings pay several times more.**
+Income is meant to follow from what you chose to invest in, not from what
+happened to walk past your towers — so a Gold Mine now pays back in about two
+waves and out-earns a whole wave of kills, and what brakes stacking them is
+that every one eats a capped tower slot and only pays out on a wave you
+actually survive.
+
+Income rose too — because it had to. **A 100,000 gold age
 that cannot be banked before the boss that gates it is not an expensive age, it
 is a removed one**, and this exact failure has now happened twice in this
 project's history. Net, gold is far tighter than it was: prices moved 10–16×

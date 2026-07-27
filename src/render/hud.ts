@@ -27,6 +27,7 @@ import { advanceCost, isMaxAge } from '../core/ages';
 import { towerCost, upgradeCost } from '../core/economy';
 import {
   atCapacity,
+  canToggle,
   cappedTowerCount,
   towerCap,
   sellValue,
@@ -148,6 +149,9 @@ export interface TowerPanel {
   panel: Rect;
   upgrade: Rect;
   target: Rect | null;
+  /** The Exchanger's on/off switch. Occupies the same row a shooter uses for
+   *  its targeting mode, since the two never appear on the same tower. */
+  toggle: Rect | null;
   sell: Rect;
 }
 
@@ -159,11 +163,12 @@ function hasTargeting(kind: TowerKind): boolean {
 
 export function towerPanelRects(state: GameState, tower: Tower): TowerPanel {
   const targeted = hasTargeting(tower.kind);
+  const switched = canToggle(tower.kind);
   // Leaves room for three stat lines AND the combo strip above it. At 132 the
   // upgrade button was drawn straight over the combo row.
   const upgradeY = 186;
   const targetY = upgradeY + 62;
-  const sellY = targeted ? targetY + 54 : targetY;
+  const sellY = targeted || switched ? targetY + 54 : targetY;
   const height = sellY + 52 + PANEL_PAD;
 
   // Prefer directly under the tower; flip above when that would run into the
@@ -182,6 +187,7 @@ export function towerPanelRects(state: GameState, tower: Tower): TowerPanel {
     panel: { x, y, w: PANEL_W, h: height },
     upgrade: { x: inner.x, y: y + upgradeY, w: inner.w, h: 54 },
     target: targeted ? { x: inner.x, y: y + targetY, w: inner.w, h: 46 } : null,
+    toggle: switched ? { x: inner.x, y: y + targetY, w: inner.w, h: 46 } : null,
     sell: { x: inner.x, y: y + sellY, w: inner.w, h: 52 },
   };
 }
@@ -488,16 +494,26 @@ function drawSelectionPanel(
     // bought me", and neither half means anything without the other.
     const out = exchangerOutput(state, tower);
     const burn = out * DIAMONDS.goldPerDiamond;
-    ctx.fillStyle = '#8FE3FF';
-    ctx.fillText(`${out}◆ per wave`, P.x + PANEL_PAD, P.y + 84);
-    ctx.fillStyle = '#F0C46A';
-    ctx.fillText(`costs ${burn}g each wave`, P.x + PANEL_PAD, P.y + 106);
+    // Starts at 100, not 84: the veterancy line sits at 74 and the three
+    // Exchanger stats were being drawn straight through it.
+    ctx.fillStyle = tower.enabled ? '#8FE3FF' : '#5E6E76';
+    ctx.fillText(
+      tower.enabled ? `${out}◆ per wave` : `idle — would make ${out}◆`,
+      P.x + PANEL_PAD,
+      P.y + 100,
+    );
+    ctx.fillStyle = tower.enabled ? '#F0C46A' : '#6A6152';
+    ctx.fillText(
+      tower.enabled ? `costs ${burn}g each wave` : `saving you ${burn}g each wave`,
+      P.x + PANEL_PAD,
+      P.y + 122,
+    );
     ctx.fillStyle = COLORS.textDim;
     ctx.font = font(14);
     ctx.fillText(
       `${tower.earned}g converted since built`,
       P.x + PANEL_PAD,
-      P.y + 128,
+      P.y + 143,
     );
   } else if (def.goldPerWave > 0) {
     // An economy building has no damage to report. Its numbers are what it
@@ -575,6 +591,29 @@ function drawSelectionPanel(
       r.target.x + r.target.w - 14,
       r.target.y + 29,
     );
+  }
+
+  // The Exchanger's switch, in the row a shooter uses for its targeting mode.
+  // Loud and unmissable in both states: an Exchanger you forgot to switch back
+  // on is a run's worth of diamonds you silently did not get, and one you
+  // forgot to switch OFF is the age you could not afford.
+  if (r.toggle) {
+    const on = tower.enabled;
+    panel(
+      ctx,
+      r.toggle,
+      on ? '#123542' : '#2A2419',
+      on ? '#8FE3FF' : 'rgba(0,0,0,0.5)',
+      2,
+    );
+    ctx.textAlign = 'left';
+    ctx.fillStyle = COLORS.textDim;
+    ctx.font = font(14);
+    ctx.fillText('CONVERTING', r.toggle.x + 14, r.toggle.y + 29);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = on ? '#8FE3FF' : '#F4664F';
+    ctx.font = font(19);
+    ctx.fillText(on ? 'ON' : 'OFF', r.toggle.x + r.toggle.w - 14, r.toggle.y + 29);
   }
 
   // Sell. Always available, and always shows the exact refund so the player

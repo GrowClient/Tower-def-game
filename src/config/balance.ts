@@ -201,7 +201,7 @@ export const ENEMIES = {
     speed: 108,
     radius: 14,
     armor: 0,
-    bounty: 43,
+    bounty: 21,
     leak: 1,
     threat: 1,
   },
@@ -213,7 +213,7 @@ export const ENEMIES = {
     speed: 46,
     radius: 22,
     armor: 2,
-    bounty: 158,
+    bounty: 79,
     leak: 2,
     threat: 6,
   },
@@ -226,7 +226,7 @@ export const ENEMIES = {
     speed: 88,
     radius: 9,
     armor: 0,
-    bounty: 19,
+    bounty: 9,
     leak: 1,
     threat: 0.55,
   },
@@ -240,7 +240,7 @@ export const ENEMIES = {
     speed: 62,
     radius: 18,
     armor: 11,
-    bounty: 120,
+    bounty: 60,
     leak: 1,
     threat: 4,
   },
@@ -253,7 +253,7 @@ export const ENEMIES = {
     speed: 70,
     radius: 17,
     armor: 1,
-    bounty: 110,
+    bounty: 55,
     leak: 1,
     threat: 3.5,
     shieldHits: 4,
@@ -275,7 +275,7 @@ export const ENEMIES = {
     speed: 60,
     radius: 17,
     armor: 2,
-    bounty: 158,
+    bounty: 79,
     leak: 2,
     threat: 4.5,
     speedAura: 1.5,
@@ -295,7 +295,7 @@ export const ENEMIES = {
     speed: 58,
     radius: 17,
     armor: 3,
-    bounty: 134,
+    bounty: 67,
     leak: 2,
     threat: 5,
     enrageBelowHp: 0.5,
@@ -315,7 +315,7 @@ export const ENEMIES = {
     speed: 66,
     radius: 20,
     armor: 4,
-    bounty: 182,
+    bounty: 91,
     leak: 2,
     threat: 7,
     splitInto: 'swarm',
@@ -333,7 +333,7 @@ export const ENEMIES = {
     speed: 34,
     radius: 26,
     armor: 14,
-    bounty: 352,
+    bounty: 176,
     leak: 3,
     threat: 14,
     regenPerSecond: 70,
@@ -354,7 +354,7 @@ export const ENEMIES = {
     speed: 38,
     radius: 34,
     armor: 4,
-    bounty: 1370,
+    bounty: 900,
     leak: 6,
     threat: 40,
   },
@@ -365,7 +365,7 @@ export const ENEMIES = {
     speed: 42,
     radius: 36,
     armor: 8,
-    bounty: 1810,
+    bounty: 1200,
     leak: 8,
     threat: 40,
     slowImmune: true,
@@ -379,7 +379,7 @@ export const ENEMIES = {
     speed: 34,
     radius: 38,
     armor: 6,
-    bounty: 2300,
+    bounty: 1520,
     leak: 8,
     threat: 40,
     shieldHits: 4,
@@ -640,7 +640,7 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Campfire',
     age: 0,
-    cost: 220,
+    cost: 240,
     range: 0,
     damage: 0,
     fireRate: 0,
@@ -649,7 +649,7 @@ export const TOWERS = {
     armorPierce: 0,
     slowFactor: 1,
     onPath: false,
-    goldPerWave: 44,
+    goldPerWave: 130,
     tags: ['economy'],
   },
 
@@ -739,7 +739,7 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Gold Mine',
     age: 1,
-    cost: 2400,
+    cost: 2600,
     range: 0,
     damage: 0,
     fireRate: 0,
@@ -748,7 +748,7 @@ export const TOWERS = {
     armorPierce: 0,
     slowFactor: 1,
     onPath: false,
-    goldPerWave: 480,
+    goldPerWave: 1500,
     tags: ['economy'],
   },
 
@@ -891,7 +891,7 @@ export const TOWERS = {
     ...PLAIN,
     label: 'Factory',
     age: 2,
-    cost: 18000,
+    cost: 19000,
     range: 0,
     damage: 0,
     fireRate: 0,
@@ -900,7 +900,7 @@ export const TOWERS = {
     armorPierce: 0,
     slowFactor: 1,
     onPath: false,
-    goldPerWave: 3400,
+    goldPerWave: 11000,
     tags: ['economy'],
   },
 } satisfies Record<string, TowerDef>;
@@ -925,8 +925,21 @@ export type TowerKind = keyof typeof TOWERS;
  * no correct answer.
  */
 export const DIAMONDS = {
-  /** Gold burned per diamond minted. */
-  goldPerDiamond: 850,
+  /**
+   * Gold burned per diamond minted. Raised from 850.
+   *
+   * At 850 an Exchanger was background noise: it paid for itself immediately,
+   * diamonds piled up, and every ability was always available — which made
+   * them a routine rather than a decision. At 6000 a single diamond costs more
+   * than two Middle Age towers, so converting is a genuine sacrifice and each
+   * cast is something you spent a board on.
+   *
+   * This price is also the answer to "a million gold and nothing to buy". Past
+   * the point where the board is finished, the Exchanger is the ONLY remaining
+   * sink, and a big one — surplus gold turns into ability power at a rate that
+   * can absorb any amount of it.
+   */
+  goldPerDiamond: 6000,
   /** You start with a couple, so the ability menu is not an empty room the
    *  first time curiosity opens it. */
   starting: 2,
@@ -1006,14 +1019,14 @@ export const ABILITIES: AbilityDef[] = [
     label: 'Stone Rain',
     age: 0,
     kind: 'barrage',
-    cost: 3,
-    cooldown: 26,
-    radius: 135,
-    duration: 3.6,
-    tickInterval: 0.4,
-    damage: 46,
-    armorPierce: 12,
-    detail: 'Boulders pound an area for a few seconds. Cuts armor.',
+    cost: 2,
+    cooldown: 20,
+    radius: 165,
+    duration: 5.0,
+    tickInterval: 0.34,
+    damage: 140,
+    armorPierce: 25,
+    detail: 'Boulders pound a wide area for five seconds. Cuts armor.',
   },
   {
     ...ABILITY_PLAIN,
@@ -1022,11 +1035,11 @@ export const ABILITIES: AbilityDef[] = [
     age: 0,
     kind: 'slowField',
     cost: 2,
-    cooldown: 22,
-    radius: 155,
-    duration: 9,
-    slowFactor: 0.45,
-    detail: 'The road stays sticky. Everything crossing crawls.',
+    cooldown: 18,
+    radius: 190,
+    duration: 14,
+    slowFactor: 0.38,
+    detail: 'The road stays sticky for 14s. Everything crossing crawls.',
   },
   {
     ...ABILITY_PLAIN,
@@ -1034,14 +1047,14 @@ export const ABILITIES: AbilityDef[] = [
     label: 'Arrow Rain',
     age: 1,
     kind: 'barrage',
-    cost: 5,
-    cooldown: 30,
-    radius: 175,
-    duration: 4,
-    tickInterval: 0.22,
-    damage: 130,
-    armorPierce: 30,
-    detail: 'A dense volley over a wide area. Shreds packed waves.',
+    cost: 3,
+    cooldown: 22,
+    radius: 205,
+    duration: 5.5,
+    tickInterval: 0.18,
+    damage: 420,
+    armorPierce: 60,
+    detail: 'A brutal volley over a wide area. Deletes packed waves.',
   },
   {
     ...ABILITY_PLAIN,
@@ -1049,12 +1062,12 @@ export const ABILITIES: AbilityDef[] = [
     label: 'War Horn',
     age: 1,
     kind: 'towerHaste',
-    cost: 4,
-    cooldown: 42,
+    cost: 3,
+    cooldown: 30,
     radius: 0,
-    duration: 11,
-    fireRateMul: 1.65,
-    detail: 'EVERY tower reloads 65% faster for 11 seconds.',
+    duration: 16,
+    fireRateMul: 2.2,
+    detail: 'EVERY tower reloads 2.2x faster for 16 seconds.',
   },
   {
     ...ABILITY_PLAIN,
@@ -1062,13 +1075,13 @@ export const ABILITIES: AbilityDef[] = [
     label: 'Orbital Lance',
     age: 2,
     kind: 'strike',
-    cost: 8,
-    cooldown: 38,
-    radius: 120,
+    cost: 5,
+    cooldown: 26,
+    radius: 150,
     duration: 0,
-    damage: 34000,
+    damage: 260000,
     armorPierce: 9999,
-    detail: 'One column of light. Huge instant hit, ignores armor.',
+    detail: 'One column of light. Deletes almost anything it lands on.',
   },
   {
     ...ABILITY_PLAIN,
@@ -1076,12 +1089,12 @@ export const ABILITIES: AbilityDef[] = [
     label: 'Null Field',
     age: 2,
     kind: 'vulnField',
-    cost: 6,
-    cooldown: 34,
-    radius: 185,
-    duration: 10,
-    vulnerableMul: 2.1,
-    detail: 'Enemies inside take 2.1x damage. Drop it on a boss.',
+    cost: 4,
+    cooldown: 24,
+    radius: 215,
+    duration: 15,
+    vulnerableMul: 3.2,
+    detail: 'Enemies inside take 3.2x damage for 15s. Use it on a boss.',
   },
 ];
 
@@ -1116,8 +1129,8 @@ export const TARGET_MODE_LABELS: Record<TargetMode, string> = {
  */
 export const AGES = [
   { name: 'Stone Age', advanceCost: 0 },
-  { name: 'Middle Age', advanceCost: 10000 },
-  { name: 'Tech Age', advanceCost: 100000 },
+  { name: 'Middle Age', advanceCost: 6000 },
+  { name: 'Tech Age', advanceCost: 70000 },
 ] as const;
 
 /**
@@ -1735,7 +1748,7 @@ export const WAVES = {
   /** Boss every N waves. */
   bossEvery: 10,
   /** A boss wave's normal budget is scaled down — the boss IS the wave. */
-  bossWaveBudgetMul: 0.45,
+  bossWaveBudgetMul: 0.32,
   /** Head start so the boss arrives amid its escort, not alone in front. */
   bossSpawnDelay: 2.5,
 } as const;
@@ -1787,7 +1800,7 @@ export const BOSS_SCALING = {
    * life bar, so from the fifth boss onward "let it through" stops being a
    * strategy at all.
    */
-  leakPerAppearance: 4,
+  leakPerAppearance: 3,
 } as const;
 
 /**
@@ -1806,7 +1819,7 @@ export const SCALING = {
    * documents once. Per-unit HP is what a finished board has to chew through,
    * and it is the only number a capped, maxed, Elite defence cannot out-scale.
    */
-  hpQuadratic: 0.024,
+  hpQuadratic: 0.017,
 
   /** Speed creeps up slowly and caps, or late waves become unreactable. */
   speedLinear: 0.012,

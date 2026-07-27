@@ -75,8 +75,28 @@ function drawTower(
   ctx.strokeStyle = OUTLINE;
 
   if (!def.onPath) drawPlinth(ctx, s, biome);
+  // A switched-off building is drawn cold and dark. It has to be obvious from
+  // the board rather than only from its panel: an Exchanger you left off is
+  // gold you are saving, and one you forgot to switch on is a run's worth of
+  // diamonds you silently did not get.
+  if (!tower.enabled) ctx.globalAlpha = 0.42;
   drawTowerArt(ctx, tower.kind, s, tower.aim, tower.cooldown, biome, tower.level);
   ctx.restore();
+
+  if (!tower.enabled) {
+    ctx.save();
+    ctx.strokeStyle = '#F4664F';
+    ctx.lineWidth = s * 0.14;
+    ctx.lineCap = 'round';
+    const d = s * 0.42;
+    ctx.beginPath();
+    ctx.moveTo(tower.pos.x - d, tower.pos.y - s * 0.9 - d);
+    ctx.lineTo(tower.pos.x + d, tower.pos.y - s * 0.9 + d);
+    ctx.moveTo(tower.pos.x + d, tower.pos.y - s * 0.9 - d);
+    ctx.lineTo(tower.pos.x - d, tower.pos.y - s * 0.9 + d);
+    ctx.stroke();
+    ctx.restore();
+  }
 
   // Service rank, as chevrons under the tower. Deliberately a DIFFERENT
   // language from the upgrade tiers (which re-forge the tower's working end in

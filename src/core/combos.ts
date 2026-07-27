@@ -171,6 +171,7 @@ export function previewCombos(
     targetMode: 'first',
     lastTargetId: 0,
     charge: 0,
+    enabled: true,
     combos: [],
   };
   return comboPartners(state, ghost);

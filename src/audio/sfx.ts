@@ -64,6 +64,8 @@ type SoundId =
   | 'lanceCast'
   | 'nullFieldCast'
   | 'trapCharged'
+  | 'switchOn'
+  | 'switchOff'
   // --- Shared feedback ---
   | 'zap'
   | 'hit'
@@ -116,6 +118,8 @@ const THROTTLE: Record<SoundId, number> = {
   lanceCast: 0,
   nullFieldCast: 0,
   trapCharged: 0.12,
+  switchOn: 0,
+  switchOff: 0,
   zap: 0.06,
   hit: 0.045,
   hitHeavy: 0.07,
@@ -221,6 +225,8 @@ function soundFor(e: SimEvent): SoundId | null {
       return e.key === 'arrowRain' ? 'arrowRainTick' : 'stoneRainTick';
     case 'abilityDenied':
       return 'denied';
+    case 'towerToggled':
+      return e.on ? 'switchOn' : 'switchOff';
     // A hit that landed for 3000 should not sound like one that landed for 4.
     case 'enemyHit':
       return e.damage >= 150 ? 'hitHeavy' : 'hit';
@@ -477,6 +483,15 @@ function play(id: SoundId): boolean {
       // sound is unmistakably not a damage sound.
       tone(now, 'sine', 1400, 180, 0.4, 0.09);
       tone(now + 0.1, 'triangle', 92, 92, 0.7, 0.06);
+      break;
+
+    // A physical throw switch, up and down. Two clearly different sounds:
+    // "did I leave it on?" must be answerable by ear.
+    case 'switchOn':
+      tone(now, 'square', 320, 640, 0.09, 0.09);
+      break;
+    case 'switchOff':
+      tone(now, 'square', 640, 260, 0.11, 0.08);
       break;
 
     case 'zap':

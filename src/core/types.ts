@@ -242,6 +242,18 @@ export interface Tower {
    */
   charge: number;
   /**
+   * Switched on. Only an Exchanger can be switched off, and it is the whole
+   * reason the building is a strategy rather than a purchase: it SPENDS gold
+   * every wave, so "is converting worth it right now?" is a question with a
+   * different answer while you are saving for an age than while you are
+   * sitting on a surplus you cannot spend.
+   *
+   * Lives on the tower rather than in UiState because it changes what the
+   * simulation does, and anything that changes the sim has to be part of the
+   * run that a seed reproduces.
+   */
+  enabled: boolean;
+  /**
    * Combos currently active on this tower, deduplicated and sorted.
    *
    * Cached rather than recomputed per use because it is an O(towers²) sweep
@@ -356,7 +368,8 @@ export type Intent =
   | { type: 'sellTower'; towerId: number }
   | { type: 'advanceAge' }
   | { type: 'choosePerk'; key: PerkKey }
-  | { type: 'castAbility'; key: AbilityKey; x: number; y: number };
+  | { type: 'castAbility'; key: AbilityKey; x: number; y: number }
+  | { type: 'toggleTower'; towerId: number };
 
 // --- Run state --------------------------------------------------------------
 
@@ -456,6 +469,7 @@ export type SimEvent =
   | { type: 'perkChosen'; key: PerkKey }
   | { type: 'purchaseDenied'; at: Vec2 }
   | { type: 'diamondsMinted'; at: Vec2; amount: number; goldSpent: number }
+  | { type: 'towerToggled'; at: Vec2; on: boolean }
   | { type: 'abilityCast'; key: AbilityKey; at: Vec2; radius: number }
   | { type: 'abilityTick'; key: AbilityKey; at: Vec2; radius: number }
   | { type: 'abilityDenied'; key: AbilityKey }

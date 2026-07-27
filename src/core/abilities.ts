@@ -237,6 +237,10 @@ export function exchangerOutput(state: GameState, tower: Tower): number {
 export function mintDiamonds(state: GameState): number {
   let minted = 0;
   for (const tower of state.towers) {
+    // Switched off means it does nothing and costs nothing — that is the
+    // point of the switch. Checked here rather than in exchangerOutput so the
+    // panel can still show what it WOULD produce while it is idle.
+    if (!tower.enabled) continue;
     const want = exchangerOutput(state, tower);
     if (want <= 0) continue;
 

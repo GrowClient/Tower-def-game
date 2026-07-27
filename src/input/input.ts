@@ -37,6 +37,7 @@ export interface InputActions {
   advanceAge(): void;
   choosePerk(key: PerkKey): void;
   castAbility(key: AbilityKey, x: number, y: number): void;
+  toggleTower(towerId: number): void;
   toggleFullscreen(): void;
   toggleMute(): void;
 }
@@ -246,6 +247,10 @@ function handleTap(
     }
     if (r.target && hitTest(r.target, x, y)) {
       actions.cycleTargetMode(selected.id);
+      return;
+    }
+    if (r.toggle && hitTest(r.toggle, x, y)) {
+      actions.toggleTower(selected.id);
       return;
     }
     if (hitTest(r.sell, x, y)) {
