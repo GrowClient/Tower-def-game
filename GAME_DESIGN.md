@@ -189,12 +189,13 @@ like it did nothing.
 
 | Role | Stone Age | Middle Age | Tech Age |
 |---|---|---|---|
-| Single target | Thrower (90g) — sling on a timber frame | **Archer Tower** (250g) — crenellated turret, the bolt runs *through* a line | **Gun Turret** (675g) — plated barrel, pierces up to 8 |
-| On the path | Spike Pit (75g) | **Oil Cauldron** (220g) — stacking burn that bypasses armor | **Tesla Coil** (600g) — chains to 4 nearby enemies |
-| Slower | Cold Mud (120g) | **Frost Tower** (310g) — faster, bursts on impact | **Cryo Field** (775g) — fastest, widest burst |
-| Heavy | Boulder (195g) | **Cannon** (510g) — wheeled gunpowder cannon, ignores armor | **Singularity** (1250g) — enormous damage and splash |
-| Economy | **Campfire** (120g) | **Gold Mine** (400g) | **Factory** (1100g) |
-| Special | — | — | **Sniper** (1625g) |
+| Single target | Thrower (95g) — sling on a timber frame | **Archer Tower** (1,150g) — crenellated turret, the bolt runs *through* a line | **Gun Turret** (11,000g) — plated barrel, pierces 2 |
+| On the path | Spike Pit (80g) | **Oil Cauldron** (1,000g) — stacking burn that bypasses armor | **Tesla Coil** (10,000g) — chains to nearby enemies |
+| Slower | Cold Mud (130g) | **Frost Tower** (1,300g) — faster, bursts on impact | **Cryo Field** (12,500g) — fastest, widest burst |
+| Heavy | Boulder (340g) | **Cannon** (2,100g) — wheeled gunpowder cannon, ignores armor | **Singularity** (18,000g) — enormous damage and splash |
+| Economy | **Campfire** (420g) | **Gold Mine** (5,200g) | **Factory** (38,000g) |
+| Special | — | — | **Sniper** (24,000g) |
+| Utility | **Exchanger** (260g) — in every age | ← | ← |
 
 ### Economy buildings
 
@@ -219,10 +220,17 @@ actually finished makes a mine a bet rather than a metronome.
 
 ### Sniper
 
-Covers the **entire board**. No range ring, nothing out of reach. Expensive and
-slow-firing to pay for that — its damage per gold is deliberately the worst in
-the Tech Age, because reach on a winding map is worth more than raw output. One
-Sniper answers the corner your board never covered.
+Covers the **entire board**. No range ring, nothing out of reach, and it is the
+hardest **single-target** hitter in the game.
+
+It used to pay for that reach with the worst damage per gold in its age, and
+that was the wrong trade: the most expensive tower in the game landed a smaller
+hit than the Singularity, so nobody bought a second one. It now hits harder per
+second on one target than anything else the Tech Age sells — with **no pierce
+and no splash**, so it is still the wrong answer to a crowd and the Gun Turret
+keeps the column. What a Sniper is for is the one thing that has to die: the
+boss, the plated leader, the runner coming from the corner your board never
+covered.
 
 Within an age each tower has 3 upgrade levels. On an economy building those
 upgrades raise output instead of damage.
@@ -316,6 +324,13 @@ It also gives advancing a second concrete reward — not just better tools, but
 room for more of them — and because a capped board must concentrate, it is
 exactly the board veterancy pays out on. The two mechanics push the same way.
 
+**Hitting the cap has to say so, legibly.** A full board greys out every build
+button except the traps — which are exempt — and prints *"TOWER LIMIT REACHED —
+sell one, upgrade, advance an age, or lay traps"* on its own panel ABOVE the
+build bar. It used to be squeezed into the sliver of bar above the buttons,
+where it was both clipped and overlapping them: the one message a stuck player
+most needs to read was the least readable thing on screen.
+
 ### Veterancy — why fewer towers beat more towers
 
 **Towers get better at their job the longer they do it.** They earn service XP
@@ -381,17 +396,18 @@ this game that is taken while a wave is already going wrong.**
 
 They are paid for in **diamonds**, and diamonds are never earned — they are
 MINTED, by an **Exchanger** burning gold every wave at a rate that **rises with
-the age**: 450g in the Stone Age, 3,000g in the Middle Age, 12,000g in the
+the age**: 450g in the Stone Age, 3,000g in the Middle Age, 7,000g in the
 Tech Age.
 
 A flat price was wrong at both ends. A Stone Age board earns a few hundred gold
 a wave, so a flat 6,000 meant the ability system simply did not exist for the
 first fifteen waves of a run; a Tech Age economy prints tens of thousands a
 wave, so the same 6,000 was pocket change. **Ability costs rise with the age
-too** — Stone Rain 2◆, Arrow Rain 4◆, Orbital Lance 7◆ — so a later cast costs
-more of both currencies. The two curves together keep a cast at roughly the
-same SHARE of your income in every age (about ten waves of one economy
-building), while the absolute gold escalates from 900 to 84,000. That is
+too**, and far more steeply at the top than the bottom — Stone Rain 3◆, Arrow
+Rain 7◆, **Orbital Lance 30◆** — so a later cast costs much more of both
+currencies. The two curves together keep a cast at roughly the same SHARE of
+your income in every age (fifteen to twenty-five waves of one economy
+building), while the absolute gold escalates from 1,350 to 210,000. That is
 the whole design. A diamond is a tower you did not build, so "how much of my
 economy do I convert into saved answers?" is a real question with no correct
 answer. Income that simply accumulated would make abilities a reward for
@@ -405,7 +421,7 @@ Stone Age; what it actually costs you is the gold it burns every wave.
 building draining six thousand gold a wave while they are saving for an age —
 so you turn it off, and turn it back on when you are rich. A switched-off
 Exchanger is drawn cold with a red cross over it and its panel reads *"idle —
-saving you 6,000g each wave"*, because the two ways to lose value here are
+saving you 7,000g each wave"*, because the two ways to lose value here are
 forgetting it is on and forgetting it is off, and both have to be visible from
 the board.
 
@@ -416,11 +432,20 @@ rate that can absorb any amount of it.
 
 Two abilities per age — one that kills, one that changes the terms:
 
-| Age | Damage | Utility |
-|---|---|---|
-| Stone | **Stone Rain** — boulders pound an area | **Tar Pit** — a stretch of road stays sticky |
-| Middle | **Arrow Rain** — a dense, fast-ticking volley | **War Horn** — every tower reloads 65% faster |
-| Tech | **Orbital Lance** — one enormous instant hit | **Null Field** — enemies inside take 3.2× damage |
+| Age | Cost | Damage | Cost | Utility |
+|---|---|---|---|---|
+| Stone | 3◆ | **Stone Rain** — boulders pound an area | 3◆ | **Tar Pit** — a stretch of road stays sticky for 19s |
+| Middle | 7◆ | **Arrow Rain** — a dense, fast-ticking volley | 6◆ | **War Horn** — every tower reloads 2.7× faster for 22s |
+| Tech | 30◆ | **Orbital Lance** — one enormous instant hit | 22◆ | **Null Field** — enemies inside take 5.5× damage for 22s |
+
+**Potency tracks price.** Every cost above rose, because a cheap ability is a
+button you mash rather than a decision you make — and every magnitude rose with
+it, so a cast is now rare AND decisive rather than frequent and mild. The rise
+is deliberately far steeper in the Tech Age than the Stone Age: late gold
+arrives in the tens of thousands per wave, so a 7◆ Lance there was pocket
+change, while early gold arrives in the tens, and pricing the Stone Age the
+same way measured out as simply deleting abilities from the first fifteen waves
+of every run.
 
 Rules that keep them honest:
 
@@ -457,9 +482,11 @@ Three fixes:
   your real board.
 - **A trap BANKS while unused** and dumps the whole store into its next
   trigger, up to 3.2×. A quiet stretch of road is a saved-up hit instead of
-  wasted gold, and the trigger is an event rather than a metronome — the charge
-  ring fills visibly around the trap, and a full one sounds different from a
-  routine one.
+  wasted gold, and the trigger is an event rather than a metronome — a small
+  **charge bar** fills above the trap, and a full one sounds different from a
+  routine one. The bar was a ring, and a ring was the wrong shape: traps can
+  only sit on the path, so they come in ROWS, and a row of rings reads as a
+  chain of touching hoops with the traps lost inside it.
 
 ### Why crowding is taxed
 

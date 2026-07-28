@@ -360,18 +360,32 @@ function drawBuildBar(
   // and guess. Sell something, upgrade, advance — and TRAPS, which the cap
   // does not apply to at all and which the banner used to fail to mention
   // while their buttons sat greyed out beside it.
+  //
+  // It sits ABOVE the slab on its own backing pill, not inside it. Squeezed
+  // into the 16px of bar above the buttons it was both clipped by the slab's
+  // top seam and overlapping the button tops — the one message the player most
+  // needs to read was the least readable thing on screen.
   if (atCapacity(state)) {
+    const line = isMaxAge(state)
+      ? 'TOWER LIMIT REACHED — sell one, upgrade what you have, or lay traps'
+      : 'TOWER LIMIT REACHED — sell one, upgrade, advance an age, or lay traps';
+    ctx.save();
+    ctx.font = font(19);
+    const pw = ctx.measureText(line).width + 44;
+    const ph = 34;
+    const px = (WORLD.width - pw) / 2;
+    const py = y - ph - 10;
+    ctx.fillStyle = 'rgba(24, 14, 10, 0.88)';
+    roundRect(ctx, px, py, pw, ph, ph / 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(244, 102, 79, 0.75)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#F4664F';
-    ctx.font = font(15);
-    ctx.fillText(
-      isMaxAge(state)
-        ? 'TOWER LIMIT REACHED — sell one, upgrade what you have, or lay traps'
-        : 'TOWER LIMIT REACHED — sell one, upgrade, advance an age, or lay traps',
-      WORLD.width / 2,
-      y + 15,
-    );
-    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#FF8B72';
+    ctx.fillText(line, WORLD.width / 2, py + ph / 2 + 1);
+    ctx.restore();
   }
 
   for (const b of buildButtons(state.age)) {

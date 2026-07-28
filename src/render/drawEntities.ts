@@ -104,32 +104,38 @@ function drawTower(
   // bought, rank is what the tower earned.
   drawRankChevrons(ctx, tower, s);
 
-  // A trap's bank, as a ring that fills around it.
+  // A trap's bank, as a small bar that fills above it.
   //
   // Without this the charge mechanic is invisible arithmetic: the trap simply
   // hits for a different amount each time and the player has no way to know
   // why, let alone to plan around it. With it, an armed trap is a thing you
   // can see waiting — which was most of what "traps feel unsatisfying" meant.
+  //
+  // It was a ring, and a ring is the wrong shape here: a trap can only sit on
+  // the path, so traps come in ROWS, and a row of rings is a row of touching
+  // hoops that reads as its own pattern and hides the traps inside it. A short
+  // bar occupies a sliver of the tile, stacks cleanly along a mined road, and
+  // says the same thing.
   if (def.onPath && tower.charge > 0) {
     const frac = Math.min(1, tower.charge / TRAPS.maxCharge);
+    const bw = s * 1.15;
+    const bh = s * 0.19;
+    const bx = tower.pos.x - bw / 2;
+    const by = tower.pos.y - s * 1.02;
     ctx.save();
-    // Tucked in against the trap rather than ringing the whole cell. At 1.12
-    // the arc was wider than the tile it sat on, so a mined stretch of road
-    // read as a row of big yellow hoops with the traps lost inside them. The
-    // gauge only has to be legible, not loud — it is ambient information, not
-    // an alert.
-    ctx.beginPath();
-    ctx.arc(tower.pos.x, tower.pos.y, s * 0.74, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
-    ctx.strokeStyle = frac >= 1 ? '#FFD24A' : 'rgba(255, 210, 74, 0.5)';
-    ctx.lineWidth = s * 0.1;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-    // Fully banked gets a brighter arc rather than a second ring — the extra
-    // ring was most of the visual weight and none of the information.
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = frac >= 1 ? '#FFD24A' : 'rgba(255, 210, 74, 0.62)';
+    ctx.fillRect(bx, by, bw * frac, bh);
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.65)';
+    ctx.lineWidth = Math.max(1, s * 0.05);
+    ctx.strokeRect(bx, by, bw, bh);
+    // Fully banked gets a thin glow along the bar rather than a second shape —
+    // "ready" should be readable at a glance without adding board clutter.
     if (frac >= 1) {
-      ctx.globalAlpha = 0.45;
-      ctx.lineWidth = s * 0.2;
-      ctx.stroke();
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = '#FFF0B8';
+      ctx.fillRect(bx, by, bw, bh * 0.4);
     }
     ctx.restore();
   }

@@ -837,10 +837,16 @@ export const TOWERS = {
     tags: ['heavy'],
   },
   /**
-   * Covers the ENTIRE board — no range ring, nothing out of reach. Expensive
-   * and slow-firing to pay for that: its damage per gold is deliberately the
-   * worst in the Tech Age, because reach on a winding map is worth more than
-   * raw output. One Sniper answers the corner your board never covered.
+   * Covers the ENTIRE board — no range ring, nothing out of reach.
+   *
+   * It used to pay for that reach with the worst damage per gold in the age,
+   * and that was the wrong trade: the dearest tower in the game landed a
+   * smaller hit than the Singularity and nobody bought it twice. It is now the
+   * hardest SINGLE-TARGET hitter in the Tech Age — no pierce, no splash, so it
+   * is still the wrong answer to a crowd, and the Gun Turret keeps the column.
+   * What a Sniper is for is the one thing that has to die: the boss, the
+   * plated leader, the runner about to reach the gate from the corner your
+   * board never covered.
    */
   sniper: {
     ...PLAIN,
@@ -848,11 +854,11 @@ export const TOWERS = {
     age: 2,
     cost: 24000,
     range: 0,
-    damage: 3400,
-    fireRate: 0.6,
+    damage: 9800,
+    fireRate: 0.72,
     projectileSpeed: 2200,
     splash: 0,
-    armorPierce: 40,
+    armorPierce: 60,
     slowFactor: 1,
     onPath: false,
     unlimitedRange: true,
@@ -944,7 +950,7 @@ export const DIAMONDS = {
    * It is also still the late game's only unbounded gold sink: at 12,000 a
    * diamond, a Tech Age surplus can be poured into ability power at any rate.
    */
-  goldPerDiamond: [450, 3000, 12000] as readonly number[],
+  goldPerDiamond: [450, 3000, 7000] as readonly number[],
   /** You start with a couple, so the ability menu is not an empty room the
    *  first time curiosity opens it. */
   starting: 2,
@@ -1023,6 +1029,18 @@ const ABILITY_PLAIN = {
  * building's worth of gold to charge, so one that could be no-sold by the
  * plating rule would be a trap — and "the thing I saved for cannot touch the
  * thing that is killing me" is the worst sentence a game can make a player say.
+ *
+ * POTENCY TRACKS PRICE. Every cost here rose, because a cheap ability is a
+ * button you mash rather than a decision you make — and each ability's
+ * magnitude rose with it, so the change is rare-and-decisive rather than a
+ * flat nerf.
+ *
+ * The rise is far steeper in the Tech Age than the Stone Age, and that is
+ * deliberate rather than uniform. Late gold arrives in the tens of thousands
+ * per wave, so a 7-diamond Lance was pocket change there; early gold arrives
+ * in the tens, so pricing the Stone Age the same way simply deleted abilities
+ * from the first fifteen waves. Measured: a uniform rise cost the scripted
+ * probe eight median waves and left it stuck in the Stone Age.
  */
 export const ABILITIES: AbilityDef[] = [
   {
@@ -1031,12 +1049,12 @@ export const ABILITIES: AbilityDef[] = [
     label: 'Stone Rain',
     age: 0,
     kind: 'barrage',
-    cost: 2,
+    cost: 3,
     cooldown: 20,
-    radius: 165,
-    duration: 5.0,
+    radius: 175,
+    duration: 5.5,
     tickInterval: 0.34,
-    damage: 140,
+    damage: 210,
     armorPierce: 25,
     detail: 'Boulders pound a wide area for five seconds. Cuts armor.',
   },
@@ -1046,12 +1064,12 @@ export const ABILITIES: AbilityDef[] = [
     label: 'Tar Pit',
     age: 0,
     kind: 'slowField',
-    cost: 2,
+    cost: 3,
     cooldown: 18,
-    radius: 190,
-    duration: 14,
-    slowFactor: 0.38,
-    detail: 'The road stays sticky for 14s. Everything crossing crawls.',
+    radius: 205,
+    duration: 19,
+    slowFactor: 0.36,
+    detail: 'The road stays sticky for 19s. Everything crossing crawls.',
   },
   {
     ...ABILITY_PLAIN,
@@ -1059,12 +1077,12 @@ export const ABILITIES: AbilityDef[] = [
     label: 'Arrow Rain',
     age: 1,
     kind: 'barrage',
-    cost: 4,
+    cost: 7,
     cooldown: 22,
-    radius: 205,
-    duration: 5.5,
+    radius: 215,
+    duration: 6.0,
     tickInterval: 0.18,
-    damage: 420,
+    damage: 735,
     armorPierce: 60,
     detail: 'A brutal volley over a wide area. Deletes packed waves.',
   },
@@ -1074,12 +1092,12 @@ export const ABILITIES: AbilityDef[] = [
     label: 'War Horn',
     age: 1,
     kind: 'towerHaste',
-    cost: 3,
+    cost: 6,
     cooldown: 30,
     radius: 0,
-    duration: 16,
-    fireRateMul: 2.2,
-    detail: 'EVERY tower reloads 2.2x faster for 16 seconds.',
+    duration: 22,
+    fireRateMul: 2.7,
+    detail: 'EVERY tower reloads 2.7x faster for 22 seconds.',
   },
   {
     ...ABILITY_PLAIN,
@@ -1087,11 +1105,11 @@ export const ABILITIES: AbilityDef[] = [
     label: 'Orbital Lance',
     age: 2,
     kind: 'strike',
-    cost: 7,
+    cost: 30,
     cooldown: 26,
-    radius: 150,
+    radius: 190,
     duration: 0,
-    damage: 260000,
+    damage: 1100000,
     armorPierce: 9999,
     detail: 'One column of light. Deletes almost anything it lands on.',
   },
@@ -1101,12 +1119,12 @@ export const ABILITIES: AbilityDef[] = [
     label: 'Null Field',
     age: 2,
     kind: 'vulnField',
-    cost: 5,
+    cost: 22,
     cooldown: 24,
-    radius: 215,
-    duration: 15,
-    vulnerableMul: 3.2,
-    detail: 'Enemies inside take 3.2x damage for 15s. Use it on a boss.',
+    radius: 240,
+    duration: 22,
+    vulnerableMul: 5.5,
+    detail: 'Enemies inside take 5.5x damage for 22s. Use it on a boss.',
   },
 ];
 
@@ -1162,8 +1180,8 @@ export const AGES = [
  */
 export const BUILD_ORDER: TowerKind[][] = [
   ['thrower', 'trap', 'slower', 'heavy', 'campfire', 'exchanger'],
-  ['ballista', 'oilFire', 'frost', 'siegeCannon', 'goldMine'],
-  ['railgun', 'teslaCoil', 'cryo', 'singularity', 'sniper', 'factory'],
+  ['ballista', 'oilFire', 'frost', 'siegeCannon', 'goldMine', 'exchanger'],
+  ['railgun', 'teslaCoil', 'cryo', 'singularity', 'sniper', 'factory', 'exchanger'],
 ];
 
 /**
