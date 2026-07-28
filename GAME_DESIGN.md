@@ -932,6 +932,121 @@ the fx layer turns them into visuals.
 - **End-of-run summary**: wave reached, age reached, tower loadout, and what
   killed you (the enemy type that took the last life)
 
+### The title screen, and CONTINUE
+
+The game used to open directly into wave 0 of a fresh run, which made two
+things impossible: leaving and coming back, and knowing what you were looking
+at before you were already playing it.
+
+**CONTINUE is the load-bearing half.** A run reaches wave 40 over half an hour,
+and closing the tab used to end it — so the game was really "however long you
+can sit still in one go". A run is now written to `localStorage` on every wave
+boundary and whenever the player leaves (main menu, or the tab being hidden,
+which is how a phone backgrounds you). The pause menu's button says **"MAIN
+MENU (run is saved)"** rather than anything resembling "quit", because a player
+who reads it as losing their progress will never press it.
+
+Three rules keep the save honest:
+
+- **A run is plain serialisable data.** `GameState` is JSON apart from one
+  `Int32Array`, and an assertion walks the whole object looking for a Map, a
+  Set, a class instance or a closure — the day one appears, saving would
+  silently drop it and a resumed game would come back subtly wrong. The same
+  assertion round-trips a live run and steps both copies 600 times, so the
+  claim being tested is the real one: a resumed run continues into an
+  *identical* future, not merely a similar-looking board.
+- **A finished run is not a saved run.** The save is cleared the moment the run
+  ends, so CONTINUE can never drop you onto your own game-over screen.
+- **The menu holds the clock.** Stepping the sim behind the title screen would
+  mean a player who stopped to read it came back to a wave that had run
+  without them.
+
+### The opening tutorial
+
+Four ideas over the first few waves — build something, watch what the road
+does, mine the road, and build things NEXT to each other. That last one is the
+whole reason it exists: combos are the difference between placing towers and
+designing a defence, and a player who never notices them is playing a strictly
+worse game with no way to find out.
+
+- **It is derived, not driven.** A step's completion is a question asked of the
+  live run — "do you own a tower yet?", "have two of your towers linked?" — so
+  a player who works something out alone is never told about it, and the
+  tutorial cannot get out of step with the board. It holds no progress counter
+  to go stale.
+- **It never blocks.** No modal, no forced clicks, no pause: one card in the
+  top-left corner, which disappears by itself when the thing happens. Tapping
+  it retires the tutorial for good, and that is remembered across visits —
+  teaching a returning player to build a tower again is the game calling them a
+  beginner every time they come back.
+- **One card at a time.** It stops entirely once the wave-7 armor briefing is
+  due, because two teaching cards at once is one too many and the briefing is
+  the more urgent lesson.
+
+---
+
+## Proposed: permanent progression *(NOT IMPLEMENTED — design notes only)*
+
+The ask: upgrades that persist between runs, so a player scales as they
+accumulate them. Nothing below is built. This section exists so the shape of
+the idea is written down before any of it is, because the failure modes here
+are much easier to design around than to patch out later.
+
+### The three traps, first
+
+**Power creep eats the difficulty curve.** If permanent upgrades are pure
+stats, the game has to get harder to compensate, and then a brand-new player
+faces a curve tuned for a maxed-out account. The mitigation is a measurable
+ceiling: every permanent upgrade combined should be worth no more than a few
+waves of median run length, and that is exactly the sort of claim the headless
+driver already answers — run the probe with a maxed meta profile and with none,
+and the gap IS the number being designed.
+
+**Grind beats skill.** If the meta currency comes from playing, the optimal
+strategy is replaying wave 5 forever. It has to come from *beating your own
+best*: reward the waves past your previous record and nothing below it.
+
+**Determinism becomes a lie.** A run's outcome would no longer be a function of
+its seed alone, so `?seed=123` stops reproducing a run unless the meta profile
+is pinned with it. The driver and every assertion must default to an empty
+profile, and the URL needs a way to pin one.
+
+### Prefer options over stats
+
+The best version of this leans on unlocking *choices* rather than adding
+numbers, because a choice makes a new player's game different rather than
+worse:
+
+- **A starting perk.** Pick one perk you have seen before, held from wave 1.
+  Turns the meta into "what run am I building today".
+- **Wider drafts.** Draft 4 perks instead of 3, or one re-roll per run. More
+  agency, almost no raw power.
+- **Loadout slots.** Choose which economy building or which anti-armor answer
+  is available in the Stone Age. Changes the opening rather than inflating it.
+
+### Stat upgrades, if they earn their place
+
+Ordered roughly by how much they distort the existing balance — the first are
+safe, the last would need real measurement:
+
+| Upgrade | Effect | Notes |
+|---|---|---|
+| Warm purse | +50/100/150 starting gold | Felt immediately, fades by wave 10 |
+| Deeper reserves | +2/4/6 starting lives | Extends the tail without touching power |
+| Veteran cadre | New towers start at 25%/50% of the first rank | Rides the veterancy system rather than adding one |
+| Trade routes | Diamonds cost 5%/10% less gold | Unlocks the ability layer earlier |
+| Foundation | Advance costs 5%/10% less | Aims at the biggest wall in the run |
+| **Extra slot** | **+1 tower cap** | **Strongest possible upgrade — the cap is the game's core constraint. Cap it at +1, maybe +2.** |
+
+### Tower mastery, as the variety engine
+
+Per-tower lifetime kill counts unlocking small permanent bonuses *for that
+tower* (10k Thrower kills → Throwers cost 10% less) is the one idea here that
+pushes players toward towers they would otherwise never build. Its risk is the
+mirror image: it also rewards spamming one tower to farm its counter. Any
+version of this needs the reward keyed to something spam does not maximise —
+waves survived while owning one, say, rather than raw kills.
+
 ---
 
 ## Build order

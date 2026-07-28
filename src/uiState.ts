@@ -19,7 +19,15 @@ import { SIM, type AbilityKey, type TowerKind } from './config/balance';
 export const PAUSE_TABS = ['game', 'combos', 'enemies', 'towers', 'abilities'] as const;
 export type PauseTab = (typeof PAUSE_TABS)[number];
 
+/**
+ * Which screen owns the frame. The menu is session state, not simulation: a
+ * replay of a seed must not care that the player stopped at the title screen,
+ * and the sim has no concept of "not currently being played".
+ */
+export type Screen = 'menu' | 'playing';
+
 export interface UiState {
+  screen: Screen;
   paused: boolean;
   /** Index into SIM.speeds. */
   speedIndex: number;
@@ -79,12 +87,21 @@ export interface UiState {
    * cursor when they were reading the tooltip.
    */
   armedAbility: AbilityKey | null;
+  /**
+   * The opening tutorial has been retired for good.
+   *
+   * Only a flag, never a step index: which step is showing is DERIVED from the
+   * run (see tutorial.ts), so there is no counter here to drift out of sync
+   * with what the player has actually done.
+   */
+  tutorialDone: boolean;
   /** Smoothed frames-per-second, for the debug corner. */
   fps: number;
 }
 
 export function newUiState(): UiState {
   return {
+    screen: 'menu',
     paused: false,
     speedIndex: 0,
     pointer: null,
@@ -100,6 +117,7 @@ export function newUiState(): UiState {
     placing: false,
     confirmingRestart: false,
     armedAbility: null,
+    tutorialDone: false,
     fps: 0,
   };
 }

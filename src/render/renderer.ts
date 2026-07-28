@@ -34,7 +34,10 @@ import {
   drawPauseMenu,
   drawPerkDraft,
   drawRotateHint,
+  drawTutorial,
 } from './screens';
+import { drawMainMenu } from './menu';
+import { currentTutorialStep } from '../tutorial';
 import { drawTerrain } from './terrain';
 import { applyWorldTransform, type Viewport } from './viewport';
 
@@ -45,6 +48,7 @@ export function render(
   ui: UiState,
   bestWave: number,
   fx: FxState,
+  menu: { canContinue: boolean; continueLabel: string },
 ): void {
   // Letterbox bars, drawn in raw screen space.
   ctx.setTransform(vp.dpr, 0, 0, vp.dpr, 0, 0);
@@ -57,6 +61,13 @@ export function render(
   }
 
   applyWorldTransform(ctx, vp);
+
+  // The menu is a place, not an overlay: nothing of the board is drawn behind
+  // it, so a title screen can never show a half-simulated run through itself.
+  if (ui.screen === 'menu') {
+    drawMainMenu(ctx, menu.canContinue, menu.continueLabel, bestWave);
+    return;
+  }
 
   // The whole board re-skins with the age: terrain.ts is keyed on this, so
   // advancing re-bakes the ground, track and props for the new biome.
@@ -111,6 +122,14 @@ export function render(
     ui.showCombos ||
     ui.confirmingRestart;
   if (!overlayUp) drawAbilityTray(ctx, state, ui, biome);
+
+  // Under every modal but over the board: the card teaches the board, and one
+  // floating on top of a pause menu would be teaching a screen it does not
+  // describe.
+  if (!overlayUp) {
+    const step = currentTutorialStep(state, ui);
+    if (step) drawTutorial(ctx, step, biome);
+  }
 
   // Above every other overlay: it is a modal question, and the answer has to
   // be the only thing on screen that can be clicked.

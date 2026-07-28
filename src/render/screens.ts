@@ -28,6 +28,7 @@ import { comboColor } from './drawMap';
 import { COLORS, biomeFor, font, type Biome } from './palette';
 import { roundRect, towerGlyph, type Rect } from './hud';
 import type { Viewport } from './viewport';
+import type { TutorialStep } from '../tutorial';
 
 /**
  * Perk draft cards. Exported so input hit-tests exactly what was drawn — the
@@ -278,18 +279,18 @@ export const PAUSE_TAB_RECTS: { id: PauseTab; label: string; rect: Rect }[] = PA
   },
 );
 
-export type PauseAction = 'resume' | 'restart' | 'mute' | 'speed' | 'fullscreen';
+export type PauseAction = 'resume' | 'restart' | 'mute' | 'speed' | 'fullscreen' | 'menu';
 
 const MENU_BTN_W = 420;
 const MENU_BTN_H = 62;
 
 export const PAUSE_BUTTONS: { id: PauseAction; rect: Rect }[] = (
-  ['resume', 'speed', 'mute', 'fullscreen', 'restart'] as PauseAction[]
+  ['resume', 'speed', 'mute', 'fullscreen', 'menu', 'restart'] as PauseAction[]
 ).map((id, i) => ({
   id,
   rect: {
     x: (WORLD.width - MENU_BTN_W) / 2,
-    y: 250 + i * (MENU_BTN_H + 14),
+    y: 226 + i * (MENU_BTN_H + 12),
     w: MENU_BTN_W,
     h: MENU_BTN_H,
   },
@@ -361,6 +362,12 @@ function drawPauseButtons(ctx: CanvasRenderingContext2D, ui: UiState, biome: Bio
         break;
       case 'fullscreen':
         label = ui.fullscreen ? 'EXIT FULLSCREEN' : 'FULLSCREEN';
+        break;
+      case 'menu':
+        // Deliberately not phrased as quitting. The run is saved on the way
+        // out and CONTINUE brings it back exactly as it was, so a player who
+        // reads this as "lose my progress" would never press it.
+        label = 'MAIN MENU (run is saved)';
         break;
     }
     const primary = b.id === 'resume';
@@ -619,6 +626,51 @@ function drawTowerGuide(ctx: CanvasRenderingContext2D, state: GameState, biome: 
  * End-of-run summary: how far you got, and — the part that actually teaches —
  * what killed you and what you'd built when it did.
  */
+/**
+ * The tutorial card.
+ *
+ * Top-LEFT, deliberately. The placement banner owns the top centre and the
+ * ability tray owns the right edge, and the one thing this card must never do
+ * is cover the build bar it is telling you to press.
+ *
+ * Non-modal on purpose: it does not pause, does not dim the board, and does
+ * not demand a click. It disappears by itself the moment the player does the
+ * thing (see tutorial.ts — every step's completion is a question asked of the
+ * live run, not a counter), and tapping it retires the whole tutorial.
+ */
+export const TUTORIAL_CARD: Rect = { x: 24, y: WORLD.hudTop + 14, w: 470, h: 108 };
+
+export function drawTutorial(
+  ctx: CanvasRenderingContext2D,
+  step: TutorialStep,
+  biome: Biome,
+): void {
+  const r = TUTORIAL_CARD;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(18, 14, 9, 0.93)';
+  roundRect(ctx, r.x, r.y, r.w, r.h, 12);
+  ctx.fill();
+  ctx.strokeStyle = biome.accent;
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = biome.accent;
+  ctx.font = font(20);
+  ctx.fillText(step.title, r.x + 20, r.y + 32);
+
+  ctx.fillStyle = COLORS.text;
+  ctx.font = font(15);
+  wrapText(ctx, step.body, r.x + 20, r.y + 58, r.w - 40, 20);
+
+  ctx.fillStyle = '#6E6555';
+  ctx.font = font(13);
+  ctx.fillText('tap to skip the tutorial', r.x + 20, r.y + r.h - 12);
+  ctx.restore();
+  ctx.textAlign = 'left';
+}
+
 export function drawGameOverOverlay(
   ctx: CanvasRenderingContext2D,
   state: GameState,
@@ -664,7 +716,11 @@ export function drawGameOverOverlay(
   ctx.fillStyle = COLORS.textDim;
   // Sit above the build bar, not on top of it — the bar is still drawn under
   // this overlay and the two collide at the bottom of the world rect.
-  ctx.fillText('tap ↻ or press R for a new run', cx, WORLD.height - WORLD.hudBottom - 28);
+  ctx.fillText(
+    'tap ↻ or press R for a new run  ·  ESC for the main menu',
+    cx,
+    WORLD.height - WORLD.hudBottom - 28,
+  );
   ctx.textAlign = 'left';
 }
 

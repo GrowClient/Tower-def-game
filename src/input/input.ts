@@ -20,12 +20,15 @@ import {
   hitTest,
   towerPanelRects,
 } from '../render/hud';
+import { MENU_BUTTONS } from '../render/menu';
+import { currentTutorialStep } from '../tutorial';
 import {
   ARMOR_BRIEFING_CLOSE,
   PAUSE_BUTTONS,
   PAUSE_TAB_RECTS,
   PERK_CARDS,
   RESTART_CONFIRM,
+  TUTORIAL_CARD,
   armorBriefingVisible,
 } from '../render/screens';
 import { visibleAbilityCards } from '../render/abilityMenu';
@@ -47,6 +50,11 @@ export interface InputActions {
   toggleTower(towerId: number): void;
   toggleFullscreen(): void;
   toggleMute(): void;
+  /** Leave the run for the title screen. Saves on the way out. */
+  openMenu(): void;
+  /** Title screen actions. */
+  startNewRun(): void;
+  continueRun(): void;
 }
 
 export function attachInput(
@@ -168,6 +176,10 @@ export function attachInput(
 
   window.addEventListener('keydown', (e) => {
     if (e.repeat) return;
+    // The title screen has no keyboard verbs of its own, and every shortcut
+    // below acts on a run. Pausing, restarting or arming a build tool from the
+    // menu would all quietly change a game the player is not looking at.
+    if (ui.screen === 'menu') return;
     switch (e.key) {
       case ' ':
       case 'p':
@@ -187,6 +199,12 @@ export function attachInput(
         ui.confirmingRestart = true;
         break;
       case 'Escape':
+        // From a finished run, Escape is the way back to the title screen —
+        // there is nothing left to put down.
+        if (getState().phase !== 'playing') {
+          actions.openMenu();
+          break;
+        }
         armBuild(ui, null);
         selectTower(ui, null);
         ui.showCombos = false;
@@ -237,7 +255,11 @@ export function attachInput(
  */
 function modalUp(ui: UiState, state: GameState): boolean {
   return (
-    ui.confirmingRestart || state.perkChoices !== null || ui.paused || ui.showCombos
+    ui.screen === 'menu' ||
+    ui.confirmingRestart ||
+    state.perkChoices !== null ||
+    ui.paused ||
+    ui.showCombos
   );
 }
 
@@ -263,6 +285,25 @@ function handleTap(
   x: number,
   y: number,
 ): void {
+  // The title screen owns every tap while it is up. First, before anything
+  // else is even considered: nothing behind it is on screen, so nothing behind
+  // it may be reachable.
+  if (ui.screen === 'menu') {
+    for (const b of MENU_BUTTONS) {
+      if (!hitTest(b.rect, x, y)) continue;
+      if (b.id === 'new') actions.startNewRun();
+      else if (b.id === 'continue') actions.continueRun();
+      else {
+        // HOW TO PLAY opens the combos sheet rather than a wall of text: the
+        // combos are the part of this game a player will not work out alone.
+        ui.showCombos = true;
+        ui.screen = 'playing';
+      }
+      return;
+    }
+    return;
+  }
+
   // The restart confirmation outranks everything, including the perk draft:
   // it is a question the player just asked for, and nothing behind it should
   // be reachable while it is up.
@@ -301,6 +342,7 @@ function handleTap(
       for (const b of PAUSE_BUTTONS) {
         if (!hitTest(b.rect, x, y)) continue;
         if (b.id === 'resume') actions.togglePause();
+        else if (b.id === 'menu') actions.openMenu();
         else if (b.id === 'restart') ui.confirmingRestart = true;
         else if (b.id === 'mute') actions.toggleMute();
         else if (b.id === 'speed') actions.cycleSpeed();
@@ -315,6 +357,13 @@ function handleTap(
   // swallow a tap meant for the board underneath.
   if (ui.showCombos) {
     ui.showCombos = false;
+    return;
+  }
+
+  // Tapping the tutorial card retires the tutorial. Before the HUD and the
+  // board, so the tap that dismisses it cannot also place a tower under it.
+  if (!ui.tutorialDone && currentTutorialStep(state, ui) !== null && hitTest(TUTORIAL_CARD, x, y)) {
+    ui.tutorialDone = true;
     return;
   }
 

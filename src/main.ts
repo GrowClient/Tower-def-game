@@ -12,7 +12,7 @@
  * dt.
  */
 
-import { SIM } from './config/balance';
+import { AGES, SIM } from './config/balance';
 import { drainEvents } from './core/events';
 import { queueIntent } from './core/intents';
 import { step } from './core/sim';
@@ -21,10 +21,20 @@ import type { GameState } from './core/types';
 import { isMuted, playEvents, setMuted, unlockAudio } from './audio/sfx';
 import { consumeEvents, newFx, trackEnemies, updateFx } from './fx/effects';
 import { attachInput } from './input/input';
-import { loadBestWave, saveBestWave } from './platform/storage';
+import {
+  clearSavedRun,
+  hasSavedRun,
+  loadBestWave,
+  loadRun,
+  loadTutorialDone,
+  saveBestWave,
+  saveRun,
+  saveTutorialDone,
+} from './platform/storage';
 import { accentFor } from './render/palette';
 import { render } from './render/renderer';
 import { resizeCanvas, type Viewport } from './render/viewport';
+import { tutorialComplete } from './tutorial';
 import { cycleSpeed, newUiState, speedMultiplier } from './uiState';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement | null;
@@ -49,6 +59,28 @@ let bestWave = loadBestWave();
 /** So the run's score is only banked once, on the step it ends. */
 let scoreBanked = false;
 
+// The tutorial is retired for good once it has been learned or skipped, and
+// that has to outlive the tab: a returning player being taught to build a
+// tower again is the game calling them a beginner every visit.
+ui.tutorialDone = loadTutorialDone();
+let tutorialPersisted = ui.tutorialDone;
+
+/**
+ * Saving is cheap but not free — the whole run is serialised — so it happens on
+ * EVENTS rather than per frame: whenever a wave boundary is crossed, and
+ * whenever the player leaves (menu, pause, or the tab going away). A wave is
+ * the natural unit of progress here, and losing at most one of them to a
+ * browser crash is a fair trade against stringifying the board sixty times a
+ * second.
+ */
+let savedAtWave = -1;
+
+function persistRun(): void {
+  if (ui.screen !== 'playing') return;
+  saveRun(state);
+  savedAtWave = state.wave.number;
+}
+
 window.addEventListener('resize', () => {
   viewport = resizeCanvas(canvas);
 });
@@ -61,6 +93,11 @@ function restart(): void {
   // while tuning. An unpinned run gets a fresh map each time.
   if (pinnedSeed === null) seedCounter = (seedCounter + 0x9e3779b1) >>> 0;
   state = newRun(seedCounter);
+  // The old run is gone the instant a new one starts; leaving it stored means
+  // CONTINUE would resurrect a game the player deliberately abandoned.
+  clearSavedRun();
+  savedAtWave = -1;
+  ui.screen = 'playing';
   ui.paused = false;
   ui.buildKind = null;
   ui.selectedTowerId = null;
@@ -100,8 +137,48 @@ attachInput(
       setMuted(!isMuted());
       ui.muted = isMuted();
     },
+    openMenu: () => {
+      // Save FIRST, then leave. The whole promise of the button's label is
+      // that the run survives the trip.
+      persistRun();
+      ui.screen = 'menu';
+      ui.paused = false;
+      ui.buildKind = null;
+      ui.selectedTowerId = null;
+      ui.armedAbility = null;
+      ui.showCombos = false;
+      ui.confirmingRestart = false;
+    },
+    startNewRun: restart,
+    continueRun: () => {
+      const saved = loadRun();
+      // Nothing to resume: fall back to a new run rather than leaving the
+      // player on a title screen where a button they pressed did nothing.
+      if (saved === null) {
+        restart();
+        return;
+      }
+      state = saved;
+      seedCounter = saved.seed;
+      savedAtWave = saved.wave.number;
+      ui.screen = 'playing';
+      ui.paused = false;
+      // A resumed run must not inherit the previous session's smoke, shake or
+      // slow motion — fx is wall-clock state about a board that is now gone.
+      fx = newFx();
+      scoreBanked = false;
+      ui.armorBriefingDismissed = false;
+    },
   },
 );
+
+// Leaving the page is the one moment a save cannot be deferred. `pagehide`
+// fires on mobile backgrounding where `beforeunload` does not, and
+// `visibilitychange` catches a tab switch that never comes back.
+window.addEventListener('pagehide', persistRun);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') persistRun();
+});
 
 // Browsers refuse to start audio outside a user gesture, so the context is
 // created on the first touch of the canvas rather than at load. Registered in
@@ -165,6 +242,21 @@ if (import.meta.env.DEV) {
   };
 }
 
+/**
+ * What the title screen needs to know about the stored run. Read fresh each
+ * frame rather than cached, because the save is written and cleared from
+ * several places and a stale CONTINUE button is a button that lies.
+ */
+function menuInfo(): { canContinue: boolean; continueLabel: string } {
+  if (!hasSavedRun()) return { canContinue: false, continueLabel: 'no run in progress' };
+  const saved = loadRun();
+  if (saved === null) return { canContinue: false, continueLabel: 'no run in progress' };
+  return {
+    canContinue: true,
+    continueLabel: `wave ${saved.wave.number} · ${saved.towers.length} towers · ${AGES[saved.age]?.name ?? ''}`,
+  };
+}
+
 let lastMs = performance.now();
 /** Leftover real time not yet consumed by a whole sim step. */
 let accumulator = 0;
@@ -175,7 +267,10 @@ function frame(nowMs: number): void {
 
   ui.fps += ((frameSec > 0 ? 1 / frameSec : 0) - ui.fps) * 0.1;
 
-  if (!ui.paused && state.phase === 'playing') {
+  // The menu holds the clock still. Not merely "don't draw the board": if the
+  // sim kept stepping behind the title screen, a player who stopped to read it
+  // would come back to a wave that had run without them.
+  if (!ui.paused && ui.screen === 'playing' && state.phase === 'playing') {
     // fx.timeScale is how boss-kill slow motion works: it feeds FEWER whole
     // steps into the accumulator. SIM.dt is never touched, so the simulation
     // cannot tell that anything dramatic happened — a run replays identically
@@ -194,7 +289,27 @@ function frame(nowMs: number): void {
 
   if (state.phase === 'gameover' && !scoreBanked) {
     bestWave = saveBestWave(state.wave.number);
+    // A finished run is not resumable. Clearing it here rather than waiting
+    // for the next save means CONTINUE cannot offer a game that is already
+    // over, even if the player closes the tab on the summary screen.
+    clearSavedRun();
     scoreBanked = true;
+  }
+
+  // One save per wave boundary — see persistRun.
+  if (ui.screen === 'playing' && state.phase === 'playing' && state.wave.number !== savedAtWave) {
+    persistRun();
+  }
+
+  // Retire the tutorial once every step's goal has been met, so it never
+  // reappears on the next run for someone who has clearly learned it. Written
+  // out when the FLAG turns true rather than at either place that sets it, so
+  // skipping by tapping the card and finishing it by playing both persist
+  // through the same line.
+  if (!ui.tutorialDone && tutorialComplete(state)) ui.tutorialDone = true;
+  if (ui.tutorialDone && !tutorialPersisted) {
+    saveTutorialDone();
+    tutorialPersisted = true;
   }
 
   // The event queue must be drained every frame or it grows without bound.
@@ -208,7 +323,7 @@ function frame(nowMs: number): void {
   trackEnemies(fx, state.enemies);
   updateFx(fx, frameSec, new Set(state.enemies.map((e) => e.id)));
 
-  render(ctx!, viewport, state, ui, bestWave, fx);
+  render(ctx!, viewport, state, ui, bestWave, fx, menuInfo());
   requestAnimationFrame(frame);
 }
 
