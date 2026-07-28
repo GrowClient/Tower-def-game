@@ -8,7 +8,7 @@
  * Render rule: reads game state, never mutates it.
  */
 
-import { COMBOS, TOWERS, type ComboKey } from '../config/balance';
+import { COMBOS, TOWERS, WORLD, type ComboKey } from '../config/balance';
 import { comboPartners, previewCombos } from '../core/combos';
 import { cellOrigin, cellCenter, inBounds } from '../core/grid';
 import { placementError } from '../core/towers';
@@ -260,6 +260,136 @@ function labelMidpoint(
   ctx.textAlign = 'left';
   ctx.globalAlpha = 1;
 }
+
+/**
+ * The placement banner: what you are holding, whether it can go here, what it
+ * would pair with, and — loudly — how to commit it.
+ *
+ * This is CHROME, pinned to the top of the board and drawn outside the shake
+ * transform, and it exists because of two things a phone does that a desk
+ * does not.
+ *
+ * A finger covers the cell it is touching. Every piece of placement feedback
+ * lived on that cell — the ghost, the RELEASE TO BUILD caption, and the combo
+ * link labels radiating from it — so on mobile the player was making the
+ * decision with their hand over the answer. The combo system was effectively
+ * invisible there: it had been built, named and coloured for a mouse cursor,
+ * which is one pixel wide and casts no shadow.
+ *
+ * And nothing said what commits the purchase. Drag-to-place builds on RELEASE,
+ * which is not guessable — a player who drags to a cell, sees the ghost sitting
+ * there, and lifts off expecting a second confirming tap has no way to learn
+ * the rule except by accident. "Why isn't it placing?" is the report that comes
+ * back from that, and it comes back from someone who did nothing wrong.
+ */
+export function drawPlacementBanner(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  ui: UiState,
+): void {
+  const kind = ui.buildKind;
+  if (kind === null) return;
+
+  const def = TOWERS[kind]!;
+  const cell = ui.ghostCell;
+  const err = cell === null ? 'noCell' : placementError(state, kind, cell.cx, cell.cy);
+  const ok = err === null;
+
+  // Combo names for the cell being considered — the whole reason this banner
+  // is worth the screen space, since these are what the finger was covering.
+  let keys: ComboKey[] = [];
+  if (ok && cell !== null) {
+    const center = cellCenter(state.layout, cell.cx, cell.cy);
+    const seen = new Set<ComboKey>();
+    for (const { keys: ks } of previewCombos(state, kind, center)) {
+      for (const k of ks) seen.add(k);
+    }
+    keys = [...seen];
+  }
+
+  const status = ok
+    ? ui.placing
+      ? 'RELEASE TO BUILD'
+      : 'DRAG ONTO A CELL — RELEASE TO BUILD'
+    : PLACEMENT_REASONS[err] ?? 'CANNOT BUILD HERE';
+  const statusColor = ok ? COLORS.buildOk : COLORS.buildBad;
+
+  // Measure everything first: the panel is sized to its contents so a short
+  // message does not sit in a wide empty box.
+  const NAME_SIZE = 19;
+  const STATUS_SIZE = 17;
+  const CHIP_SIZE = 14;
+  const PAD = 18;
+  const GAP = 14;
+
+  ctx.save();
+  ctx.font = font(NAME_SIZE);
+  const nameW = ctx.measureText(def.label).width;
+  ctx.font = font(STATUS_SIZE);
+  const statusW = ctx.measureText(status).width;
+  ctx.font = font(CHIP_SIZE);
+  const chips = keys.map((k) => ({
+    key: k,
+    text: COMBOS.find((c) => c.key === k)?.label ?? k,
+    w: ctx.measureText(COMBOS.find((c) => c.key === k)?.label ?? k).width + 18,
+  }));
+  const chipsW = chips.reduce((a, c) => a + c.w + 8, 0);
+
+  const h = 44;
+  const w = PAD * 2 + nameW + GAP + statusW + (chips.length > 0 ? GAP + chipsW : 0);
+  const x = (WORLD.width - w) / 2;
+  const y = WORLD.hudTop + 12;
+
+  ctx.fillStyle = 'rgba(18, 13, 9, 0.9)';
+  roundRect(ctx, x, y, w, h, 10);
+  ctx.fill();
+  ctx.strokeStyle = hexToRgba(statusColor, 0.7);
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  let cx = x + PAD;
+
+  ctx.font = font(NAME_SIZE);
+  ctx.fillStyle = COLORS.text;
+  ctx.fillText(def.label, cx, y + h / 2);
+  cx += nameW + GAP;
+
+  ctx.font = font(STATUS_SIZE);
+  ctx.fillStyle = statusColor;
+  ctx.fillText(status, cx, y + h / 2);
+  cx += statusW + GAP;
+
+  // Chips carry the SAME colour as the link line for that combo, so the two
+  // readings of the same fact are recognisably one fact.
+  ctx.font = font(CHIP_SIZE);
+  for (const chip of chips) {
+    const col = comboColor(chip.key);
+    ctx.fillStyle = hexToRgba(col, 0.2);
+    roundRect(ctx, cx, y + 11, chip.w, h - 22, (h - 22) / 2);
+    ctx.fill();
+    ctx.strokeStyle = hexToRgba(col, 0.85);
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = col;
+    ctx.textAlign = 'center';
+    ctx.fillText(chip.text, cx + chip.w / 2, y + h / 2 + 1);
+    ctx.textAlign = 'left';
+    cx += chip.w + 8;
+  }
+
+  ctx.restore();
+}
+
+const PLACEMENT_REASONS: Record<string, string> = {
+  noCell: 'DRAG ONTO THE BOARD',
+  outOfBounds: 'OFF THE BOARD',
+  occupied: 'CELL TAKEN',
+  wrongTerrain: 'TRAPS GO ON THE ROAD — TOWERS GO BESIDE IT',
+  atCapacity: 'TOWER LIMIT REACHED',
+  tooPoor: 'NOT ENOUGH GOLD',
+};
 
 /** One colour per combo, so a link is identifiable before you read its label. */
 export function comboColor(key: ComboKey): string {

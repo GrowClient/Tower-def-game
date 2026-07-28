@@ -258,8 +258,8 @@ and Cryo Field are both `ice`.
 
 | Combo | Tags | Effect |
 |---|---|---|
-| **Thermal Shock** | ice + fire | +22% damage, +30% burn |
-| **Shatter** | ice + heavy | +20% damage |
+| **Thermal Shock** | ice + fire | +30% damage, +10% burn |
+| **Shatter** | ice + heavy | +30% damage |
 | **Spotter** | precision + rapid | +12% fire rate |
 | **Foundry** | economy + heavy | +10% fire rate, +20% gold |
 
@@ -287,7 +287,13 @@ Three properties keep this a mechanic rather than a hidden spreadsheet:
   said otherwise.
 - **It is taught, not discovered.** The board draws named links while a tower is
   selected, the placement ghost previews what a tower *would* gain before you
-  pay for it, and a combos sheet lists all of them.
+  pay for it, the placement banner names them in words while you drag, and a
+  combos sheet lists all of them.
+- **The printed number is the real number.** Every entry in the table above is
+  generated from the same multiplier the effect applies, and an assertion
+  compares the two. They drifted once — the codex advertised Thermal Shock as
+  "+50% damage, +60% burn" while it paid +22% and +30% — and a bonus a player
+  cannot verify is indistinguishable from one that is not there.
 
 Each damage-dealing tower also has a **targeting mode** — first, strongest, or
 support. Without the support mode, towers shoot the front of the pack while the
@@ -526,6 +532,28 @@ The build bar always quotes the live price, never the list price.
   an ordinary click is a drag of zero length, so desktop plays exactly as
   before while gaining the same drag-to-aim. A cancelled gesture builds
   nothing, which is what cancelled means.
+- **The drag can start on the build BUTTON.** Press the tower you want, slide
+  onto the cell, lift — the obvious phone gesture, which used to arm the tool
+  and then do nothing at all on release, because a placement only began from a
+  press that landed on the board. The player saw the button light up, saw the
+  ghost follow their thumb, lifted, and got no tower and no explanation.
+- **A placement banner sits at the top of the board**, naming what you are
+  holding, whether it can go where the ghost is, WHY not when it cannot, and
+  the combos it would form — as coloured chips matching the link lines. Two
+  things a phone does that a desk does not made this necessary. A finger covers
+  the cell it is touching, and every piece of placement feedback lived on that
+  cell, so on mobile the combo system was effectively invisible: it had been
+  designed for a mouse cursor, which is one pixel wide and casts no shadow. And
+  nothing on screen said that RELEASE is what commits — a player who lifts off
+  expecting a second confirming tap has no way to learn the rule except by
+  accident, and "why isn't it placing?" is what comes back.
+- **A modal outranks a placement drag.** Getting that wrong locked the game
+  solid: a perk draft covers the middle of the board, so with a build tool
+  still armed every press on a perk card started a placement drag and returned
+  before the tap router ran. The cards could not be clicked, the tower could
+  not be placed because the draft holds the wave, and the draft could not be
+  dismissed because dismissing it means clicking a card. Anything that
+  short-circuits before the tap router has to check for an open modal first.
 - **The only irreversible action asks.** Restart sits in the same cluster as
   pause and speed, which are pressed constantly and without looking, so it was
   one mis-tap from ending a forty-wave run. It now names what is about to be
@@ -541,8 +569,10 @@ The build bar always quotes the live price, never the list price.
 - **A buff is drawn on the units receiving it, not just on its source.** Every
   enemy inside a Warchief's banner wears speed lines. "Why is that pack
   outrunning my slowers" is the question, so the answer has to be attached to
-  the units doing the outrunning — the aura ring on the carrier alone is the
-  second half of the sentence, not the first.
+  the units doing the outrunning. The carrier itself no longer draws its aura
+  RADIUS at all: a dashed circle the size of a tower's range, sliding across
+  the board, three of them overlapping in a late pack, and none of it was the
+  information the player needed. The speed lines say the whole sentence.
 
 ### The pause menu
 

@@ -17,7 +17,13 @@ import { drawEntities } from './drawEntities';
 import { drawBoardEffects, drawScreenFlash } from './drawEffects';
 import { drawAbilityFields, drawAbilityPreview, drawHorn } from './drawAbilities';
 import { drawAbilityTray } from './abilityMenu';
-import { drawComboLinks, drawGrid, drawPlacementGhost, drawSelectionRing } from './drawMap';
+import {
+  drawComboLinks,
+  drawGrid,
+  drawPlacementBanner,
+  drawPlacementGhost,
+  drawSelectionRing,
+} from './drawMap';
 import { drawHud, drawWaveBanner, findSelectedTower } from './hud';
 import { biomeFor, COLORS } from './palette';
 import {
@@ -81,8 +87,16 @@ export function render(
 
   ctx.restore();
 
-  drawWaveBanner(ctx, state);
+  // The two big top-of-board captions share a slot, so only one draws. The
+  // placement banner wins because the player is actively driving it, and the
+  // wave number it hides is already in the stat strip two lines above.
+  if (ui.buildKind === null) drawWaveBanner(ctx, state);
   drawHorn(ctx, state);
+  // Chrome, so it is drawn outside the shake and pinned to the top of the
+  // board — deliberately as far from a thumb on the build bar as the board
+  // gets, because the whole point of it is to be readable while a finger is
+  // covering the cell it describes.
+  drawPlacementBanner(ctx, state, ui);
   // Outside the shake transform with the rest of the chrome, and BEFORE the
   // HUD so the build bar it tells you to use is never covered by it.
   drawArmorBriefing(ctx, state, ui, biome);

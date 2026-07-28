@@ -1326,6 +1326,10 @@ export const VETERANCY = {
  *
  *  - The trigger is ring overlap, which the player can SEE. No invisible
  *    adjacency radius that disagrees with the rings drawn on the board.
+ *  - **The printed number is the real number.** Every `detail` string below
+ *    states the same multiplier the effect applies. They drifted apart once,
+ *    with the codex advertising +50% for a bonus that paid +22%, and a synergy
+ *    the player cannot verify is indistinguishable from one that is not there.
  *  - **A combo counts ONCE per tower**, no matter how many partners supply it.
  *    Ten Frost Towers around one Oil Cauldron is one Thermal Shock, not ten.
  *    Otherwise the answer to combos would be "stack more partners", which is
@@ -1373,23 +1377,23 @@ export const COMBOS: ComboDef[] = [
   {
     key: 'thermalShock',
     label: 'Thermal Shock',
-    detail: 'Ice + fire — chilled armor cracks: +50% damage, +60% burn',
+    detail: 'Ice + fire — chilled armor cracks: +30% damage, +10% burn',
     a: 'ice',
     b: 'fire',
-    effect: { ...NO_EFFECT, damageMul: 1.22, burnMul: 1.3 },
+    effect: { ...NO_EFFECT, damageMul: 1.3, burnMul: 1.1 },
   },
   {
     key: 'shatter',
     label: 'Shatter',
-    detail: 'Ice + heavy — a frozen target breaks: +40% damage',
+    detail: 'Ice + heavy — a frozen target breaks: +30% damage',
     a: 'ice',
     b: 'heavy',
-    effect: { ...NO_EFFECT, damageMul: 1.2 },
+    effect: { ...NO_EFFECT, damageMul: 1.3 },
   },
   {
     key: 'spotter',
     label: 'Spotter',
-    detail: 'Precision + rapid — called shots: +25% fire rate',
+    detail: 'Precision + rapid — called shots: +12% fire rate',
     a: 'precision',
     b: 'rapid',
     effect: { ...NO_EFFECT, fireRateMul: 1.12 },
@@ -1397,7 +1401,7 @@ export const COMBOS: ComboDef[] = [
   {
     key: 'foundry',
     label: 'Foundry',
-    detail: 'Economy + heavy — the works keeps it fed: +20% fire rate, +30% gold',
+    detail: 'Economy + heavy — the works keeps it fed: +10% fire rate, +20% gold',
     a: 'economy',
     b: 'heavy',
     effect: { ...NO_EFFECT, fireRateMul: 1.1, goldMul: 1.2 },

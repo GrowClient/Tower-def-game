@@ -1562,17 +1562,14 @@ function drawTypeMark(
       ctx.lineWidth = r * 0.13;
       ctx.stroke();
 
-      // The aura itself, drawn as a ring on the ground. Unlike the Healer's
-      // invisible ticking this is the actual mechanic: everyone inside is
-      // moving faster, and the ring is how the player knows which units to
-      // blame — and that killing the carrier will fix it.
-      ctx.beginPath();
-      ctx.arc(x, y, e.speedAuraRadius, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(245, 190, 80, 0.34)';
-      ctx.lineWidth = 2.5;
-      ctx.setLineDash([9, 11]);
-      ctx.stroke();
-      ctx.setLineDash([]);
+      // Deliberately NO ring for the aura radius.
+      //
+      // It was a dashed circle on the ground, and a pack with three banners in
+      // it was three overlapping dotted circles sliding across the board — the
+      // radius is not the information the player needs anyway. What matters is
+      // "these units are moving faster and that one is why", and the RALLIED
+      // speed lines on each affected unit say exactly that, on the units
+      // themselves, without drawing anything the size of a tower's range.
       break;
     }
     case 'shielded': {

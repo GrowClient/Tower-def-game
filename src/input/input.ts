@@ -74,7 +74,15 @@ export function attachInput(
     // which is what lets a finger drag around and watch the range ring and the
     // combo links before committing. A plain click is simply a drag of zero
     // length, so a mouse behaves exactly as it always did.
-    if (ui.buildKind !== null && onBoard(p.y) && ui.ghostCell !== null) {
+    //
+    // A modal outranks the drag, and getting that wrong locked the game solid.
+    // A perk draft covers the middle of the board, so with a build tool still
+    // armed every press on a perk card started a placement drag and returned
+    // before `handleTap` ever ran: the cards could not be clicked, the tower
+    // could not be placed because the draft holds the wave, and the draft could
+    // not be dismissed because dismissing it means clicking a card. Nothing on
+    // screen responded and the run was over.
+    if (!modalUp(ui, getState()) && ui.buildKind !== null && onBoard(p.y) && ui.ghostCell !== null) {
       ui.placing = true;
       // Capture, so a drag that wanders off the canvas still tracks and still
       // delivers its pointerup rather than stranding the ghost mid-placement.
@@ -87,7 +95,27 @@ export function attachInput(
       return;
     }
 
+    const armedBefore = ui.buildKind;
     handleTap(ui, getState(), actions, p.x, p.y);
+
+    // Arming a tool from the build bar STARTS a placement gesture too, so a
+    // drag that runs from the button straight onto a cell builds there.
+    //
+    // That is the obvious gesture on a phone — press the tower you want, slide
+    // your thumb to where it goes, lift — and it used to arm the tool and then
+    // do nothing at all on release, because `placing` was only ever set by a
+    // press that landed on the board. The player saw the button light up, saw
+    // the ghost follow their thumb, lifted, and got no tower and no
+    // explanation. `armBuild` clears the ghost, so nothing can be built until
+    // the drag actually reaches a cell.
+    if (ui.buildKind !== null && ui.buildKind !== armedBefore) {
+      ui.placing = true;
+      try {
+        canvas.setPointerCapture(e.pointerId);
+      } catch {
+        // See above: capture is a nicety, the gesture works without it.
+      }
+    }
   });
 
   canvas.addEventListener('pointermove', (e) => {
@@ -102,6 +130,13 @@ export function attachInput(
   canvas.addEventListener('pointerup', (e) => {
     if (ui.placing) {
       ui.placing = false;
+      // A modal that opened mid-drag cancels the build. A wave can clear while
+      // a finger is down, and finishing that drag onto a perk card would both
+      // spend gold the player did not mean to spend and eat the tap they did.
+      if (modalUp(ui, getState())) {
+        if (e.pointerType !== 'mouse') ui.pointer = null;
+        return;
+      }
       const kind = ui.buildKind;
       const cell = ui.ghostCell;
       if (kind !== null && cell !== null) {
@@ -190,6 +225,20 @@ export function attachInput(
         break;
     }
   });
+}
+
+/**
+ * Is a screen up that owns every tap?
+ *
+ * These all cover the board, and `handleTap` already resolves them in priority
+ * order — but only if it is reached at all. Anything that short-circuits before
+ * `handleTap` (the placement drag does) has to consult this first, or it eats
+ * the taps meant for a modal and the game stops responding.
+ */
+function modalUp(ui: UiState, state: GameState): boolean {
+  return (
+    ui.confirmingRestart || state.perkChoices !== null || ui.paused || ui.showCombos
+  );
 }
 
 /** The grid cell a world position falls in, or null if it is off the board. */
