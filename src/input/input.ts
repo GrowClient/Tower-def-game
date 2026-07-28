@@ -292,13 +292,7 @@ function handleTap(
     for (const b of MENU_BUTTONS) {
       if (!hitTest(b.rect, x, y)) continue;
       if (b.id === 'new') actions.startNewRun();
-      else if (b.id === 'continue') actions.continueRun();
-      else {
-        // HOW TO PLAY opens the combos sheet rather than a wall of text: the
-        // combos are the part of this game a player will not work out alone.
-        ui.showCombos = true;
-        ui.screen = 'playing';
-      }
+      else actions.continueRun();
       return;
     }
     return;

@@ -202,6 +202,15 @@ like it did nothing.
 Pure economy. No range, no target, no shots — placed on any buildable cell, it
 pays out **when a wave is cleared**.
 
+**What it pays gets its own line on the button, fitted to the button.** It used
+to be tucked in beside the price, which worked only while both numbers were
+small: by the Tech Age a Factory reads "38000g" and "+8,400g / wave", and the
+second ran clean off the right edge. The Exchanger was worse, since its line is
+a whole sentence. Neither had any width bound, so the overflow got steadily
+worse every time the economy was re-priced upward — which is the argument for
+bounding text by the box that contains it rather than by the numbers that
+happen to be in it today.
+
 Every age has one, and they differ only in scale and skin: a ring of stones
 around a fire, a timbered pit head, a plant with a lit stack. Restricting income
 to the Middle Age made advancing to it a foregone conclusion and left the Stone
@@ -963,14 +972,32 @@ Three rules keep the save honest:
 
 ### The opening tutorial
 
-Four ideas over the first few waves — build something, watch what the road
-does, mine the road, and build things NEXT to each other. That last one is the
-whole reason it exists: combos are the difference between placing towers and
-designing a defence, and a player who never notices them is playing a strictly
-worse game with no way to find out.
+**It runs inside a normal game, and it is not a menu item.** Pressing NEW GAME
+starts an ordinary run that happens to explain itself, and one tap puts the
+explanation away. There is no tutorial mode to leave and nothing is switched
+off while it runs. There was briefly a HOW TO PLAY button on the title screen
+and it was the wrong shape for this game — a reference sheet read cold, before
+you have a board in front of you, teaches nobody anything. Everything it opened
+is still one press of PAUSE away, which is where a player actually wants it:
+mid-run, holding a specific question.
 
+Four ideas, one at a time: build something, watch what the road does, mine the
+road, and finally **make a Shatter** — a Cold Mud next to a Boulder.
+
+- **The last step is a SPECIFIC pairing, not "form any combo".** Combos are the
+  difference between placing towers and designing a defence, and "two towers
+  near each other get a bonus" is an abstraction a new player cannot act on.
+  Two names they can read in the build bar is an instruction. Shatter is the
+  Stone Age's teaching case because both halves are cheap combat towers a
+  player was going to buy anyway (470g the pair); the age's only other combo,
+  Foundry, needs a 420g Campfire beside the Boulder and pairs a *building* with
+  a weapon, which teaches the rule and its exception in the same breath.
+- **Both gestures are named.** "Tap the grass, or hold and drag onto it." Only
+  the drag used to be mentioned, and a player told to drag who then tries a tap
+  and sees it work has learned that the game is inconsistent — while a player
+  who only ever taps never discovers the combo preview at all.
 - **It is derived, not driven.** A step's completion is a question asked of the
-  live run — "do you own a tower yet?", "have two of your towers linked?" — so
+  live run — "do you own a tower yet?", "does any tower carry `shatter`?" — so
   a player who works something out alone is never told about it, and the
   tutorial cannot get out of step with the board. It holds no progress counter
   to go stale.
@@ -981,7 +1008,9 @@ worse game with no way to find out.
   beginner every time they come back.
 - **One card at a time.** It stops entirely once the wave-7 armor briefing is
   due, because two teaching cards at once is one too many and the briefing is
-  the more urgent lesson.
+  the more urgent lesson. A player who has not managed a Shatter by then is
+  simply offered it again next run rather than nagged through a wave that is
+  about to get hard.
 
 ---
 

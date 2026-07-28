@@ -407,37 +407,58 @@ function drawBuildBar(
     towerGlyph(ctx, b.x + 36, b.y + b.h / 2, 19, b.kind, biomeFor(ageIndexOf(b.kind)));
     ctx.restore();
 
+    // Text column: everything right of the glyph, inset from the far edge.
+    const tx = b.x + 60;
+    const tw = b.w - 70;
+    // Economy buildings carry a third line, so their first two ride up to make
+    // room for it. Everything else stays vertically centred as a pair.
+    const payback = def.goldPerWave > 0 || def.diamondsPerWave > 0;
+
     ctx.textAlign = 'left';
     ctx.fillStyle = affordable ? COLORS.text : '#7A705F';
     // Shrink to fit rather than clip: tower names vary a lot in length across
     // ages ("Boulder" vs "Siege Cannon"), and a name cut off mid-word tells
     // the player nothing.
-    fitText(ctx, def.label, b.x + 60, b.y + 34, b.w - 70, 19);
+    fitText(ctx, def.label, tx, b.y + (payback ? 28 : 34), tw, 19);
 
     ctx.fillStyle = affordable ? '#F0C46A' : '#8A6E42';
     ctx.font = font(20);
-    const priceText = `${price}g`;
-    ctx.fillText(priceText, b.x + 60, b.y + 62);
-    // Measured while the price font is still set — measuring afterwards gives
-    // the width of the text in the wrong font and the label lands on top of it.
-    const priceW = ctx.measureText(priceText).width;
+    fitText(ctx, `${price}g`, tx, b.y + (payback ? 54 : 62), tw, 20);
 
     // What an economy building pays back, on the button. Otherwise its price
     // is the only number the player sees and it just looks like a bad tower.
-    if (def.goldPerWave > 0) {
+    //
+    // On its OWN LINE, fitted. It used to be tucked in beside the price, which
+    // worked only while both numbers were small: by the Tech Age a Factory
+    // reads "38000g" and "+8400/wave", and the second ran clean off the right
+    // edge of the button. The Exchanger was worse — its line is a whole
+    // sentence — and neither had any width bound at all, so the overflow got
+    // steadily worse every time the economy was re-priced upward.
+    if (payback) {
+      // Full button width, starting under the GLYPH rather than beside it. The
+      // other two lines have to clear the icon; this one does not, and the
+      // Exchanger's rate is a long enough string that the 98px column beside
+      // the glyph shrank it past legibility before it fitted.
+      const px = b.x + 12;
+      const pw = b.w - 24;
       ctx.font = font(13);
-      ctx.fillStyle = affordable ? '#9AD07A' : '#5F7A4E';
-      ctx.fillText(`+${def.goldPerWave}/wave`, b.x + 60 + priceW + 10, b.y + 62);
-    } else if (def.diamondsPerWave > 0) {
-      // The Exchanger's real cost is not its sticker price, it is the gold it
-      // burns every wave from here on — so the button says that, not just "+1".
-      ctx.font = font(13);
-      ctx.fillStyle = affordable ? '#8FE3FF' : '#4E6E7A';
-      ctx.fillText(
-        `−${(goldPerDiamond(state.age) * def.diamondsPerWave).toLocaleString('en-US')}g → ${def.diamondsPerWave}◆/wave`,
-        b.x + 60 + priceW + 10,
-        b.y + 62,
-      );
+      if (def.goldPerWave > 0) {
+        ctx.fillStyle = affordable ? '#9AD07A' : '#5F7A4E';
+        fitText(ctx, `+${def.goldPerWave.toLocaleString('en-US')}g / wave`, px, b.y + 73, pw, 13);
+      } else {
+        // The Exchanger's real cost is not its sticker price, it is the gold it
+        // burns every wave from here on — so the button says that, not just "+1".
+        ctx.fillStyle = affordable ? '#8FE3FF' : '#4E6E7A';
+        const burn = goldPerDiamond(state.age) * def.diamondsPerWave;
+        fitText(
+          ctx,
+          `−${burn.toLocaleString('en-US')}g → ${def.diamondsPerWave}◆ / wave`,
+          px,
+          b.y + 73,
+          pw,
+          13,
+        );
+      }
     }
   }
 }
@@ -523,19 +544,24 @@ function drawSelectionPanel(
       P.y + 100,
     );
     ctx.fillStyle = tower.enabled ? '#F0C46A' : '#6A6152';
-    ctx.fillText(
+    fitText(
+      ctx,
       tower.enabled
         ? `costs ${burn.toLocaleString('en-US')}g each wave`
         : `saving you ${burn.toLocaleString('en-US')}g each wave`,
       P.x + PANEL_PAD,
       P.y + 122,
+      PANEL_W - PANEL_PAD * 2,
+      15,
     );
     ctx.fillStyle = COLORS.textDim;
-    ctx.font = font(14);
-    ctx.fillText(
-      `${tower.earned}g converted since built`,
+    fitText(
+      ctx,
+      `${tower.earned.toLocaleString('en-US')}g converted since built`,
       P.x + PANEL_PAD,
       P.y + 143,
+      PANEL_W - PANEL_PAD * 2,
+      14,
     );
   } else if (def.goldPerWave > 0) {
     // An economy building has no damage to report. Its numbers are what it
@@ -547,7 +573,16 @@ function drawSelectionPanel(
     ctx.fillText(`+${income}g per wave`, P.x + PANEL_PAD, P.y + 84);
 
     ctx.fillStyle = COLORS.textDim;
-    ctx.fillText(`earned ${tower.earned}g  ·  spent ${tower.invested}g`, P.x + PANEL_PAD, P.y + 106);
+    // Late-game totals run to seven figures; without a bound this line walks
+    // straight off the panel.
+    fitText(
+      ctx,
+      `earned ${tower.earned.toLocaleString('en-US')}g  ·  spent ${tower.invested.toLocaleString('en-US')}g`,
+      P.x + PANEL_PAD,
+      P.y + 106,
+      PANEL_W - PANEL_PAD * 2,
+      15,
+    );
     // Green once it is genuinely ahead of everything sunk into it, amber while
     // it is still paying itself off. This is the whole pitch of the building,
     // and it gets its own line — sharing one ran off the panel edge.

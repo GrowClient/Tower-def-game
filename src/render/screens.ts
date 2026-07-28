@@ -638,7 +638,10 @@ function drawTowerGuide(ctx: CanvasRenderingContext2D, state: GameState, biome: 
  * thing (see tutorial.ts — every step's completion is a question asked of the
  * live run, not a counter), and tapping it retires the whole tutorial.
  */
-export const TUTORIAL_CARD: Rect = { x: 24, y: WORLD.hudTop + 14, w: 470, h: 108 };
+// Sized for the longest step's body at three wrapped lines plus the skip
+// hint. Too small and the two overlap — which is exactly what a card telling
+// you how to play must not do.
+export const TUTORIAL_CARD: Rect = { x: 24, y: WORLD.hudTop + 14, w: 512, h: 146 };
 
 export function drawTutorial(
   ctx: CanvasRenderingContext2D,
@@ -666,7 +669,7 @@ export function drawTutorial(
 
   ctx.fillStyle = '#6E6555';
   ctx.font = font(13);
-  ctx.fillText('tap to skip the tutorial', r.x + 20, r.y + r.h - 12);
+  ctx.fillText('tap this card to skip the tutorial', r.x + 20, r.y + r.h - 14);
   ctx.restore();
   ctx.textAlign = 'left';
 }

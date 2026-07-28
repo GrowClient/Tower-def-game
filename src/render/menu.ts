@@ -22,15 +22,24 @@ import { roundRect, type Rect } from './hud';
 import { drawTowerArt } from './drawEntities';
 import { biomeFor } from './palette';
 
-export type MenuButtonId = 'new' | 'continue' | 'howto';
+export type MenuButtonId = 'new' | 'continue';
 
 const BTN_W = 420;
 const BTN_H = 76;
 const BTN_GAP = 18;
-const FIRST_Y = 430;
+const FIRST_Y = 452;
 
+/**
+ * Two buttons, deliberately. There was a HOW TO PLAY here and it was the wrong
+ * shape for this game: a reference sheet read cold, before you have a board to
+ * look at, teaches nobody anything. The teaching happens inside the run now —
+ * NEW GAME starts an ordinary game that explains itself for the first few
+ * waves and gets out of the way the moment you tap the card. Everything the
+ * button used to open is still one press of PAUSE away, which is where a
+ * player actually wants it: mid-run, with a specific question.
+ */
 export const MENU_BUTTONS: { id: MenuButtonId; rect: Rect }[] = (
-  ['continue', 'new', 'howto'] as MenuButtonId[]
+  ['continue', 'new'] as MenuButtonId[]
 ).map((id, i) => ({
   id,
   rect: {
@@ -93,8 +102,7 @@ export function drawMainMenu(
     ctx.lineWidth = primary ? 3 : 2;
     ctx.stroke();
 
-    const label =
-      b.id === 'new' ? 'NEW GAME' : b.id === 'continue' ? 'CONTINUE' : 'HOW TO PLAY';
+    const label = b.id === 'new' ? 'NEW GAME' : 'CONTINUE';
     ctx.fillStyle = !enabled ? '#5A5346' : COLORS.text;
     ctx.font = font(28);
     // Nudged up when there is a subtitle, so the pair sits centred as a block.
@@ -115,7 +123,7 @@ export function drawMainMenu(
   ctx.fillStyle = '#5A5346';
   ctx.font = font(15);
   ctx.fillText(
-    'turn your phone sideways · headphones recommended',
+    'a new game teaches itself for the first few waves · tap the card to skip',
     WORLD.width / 2,
     WORLD.height - 26,
   );

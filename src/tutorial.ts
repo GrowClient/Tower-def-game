@@ -1,11 +1,26 @@
 /**
- * The opening tutorial.
+ * The opening tutorial, which runs inside a normal game.
  *
- * Four ideas, one at a time, over the first few waves — build something, watch
- * what the road does, mine the road, and build things NEXT to each other. That
- * last one is the whole reason this exists: combos are the difference between
- * placing towers and designing a defence, and a player who never notices them
- * is playing a strictly worse game with no way to find out.
+ * Not a mode and not a menu item: pressing NEW GAME starts an ordinary run
+ * that happens to explain itself, and one tap puts the explanation away. A
+ * separate tutorial is a thing players either skip on principle or finish and
+ * then have to start over from; this is just the first few waves of the game
+ * they already wanted to play.
+ *
+ * Four ideas, one at a time — build something, watch what the road does, mine
+ * the road, and finally build a **Shatter**: a Cold Mud next to a Boulder.
+ * That last step is the whole reason this exists and it is deliberately a
+ * SPECIFIC pairing rather than "make any combo". Combos are the difference
+ * between placing towers and designing a defence, and "two towers near each
+ * other get a bonus" is an abstraction a new player cannot act on. Two names
+ * they can see in the build bar is an instruction. Shatter is also the Stone
+ * Age's natural teaching case: both halves are cheap combat towers a player
+ * was going to buy anyway (470g the pair), where the only other early combo —
+ * Foundry, a Campfire beside a Boulder — costs 760g and pairs a building with
+ * a weapon, which teaches the rule and the exception at the same time.
+ *
+ * The run carries on from there with nothing switched off, because there was
+ * never a tutorial mode to leave.
  *
  * Two rules keep it from becoming the thing people close without reading.
  *
@@ -42,7 +57,11 @@ const STEPS: TutorialStep[] = [
   {
     key: 'build',
     title: 'BUILD A TOWER',
-    body: 'Press one in the bar below, then drag onto the grass and let go.',
+    // Both gestures, because both work and only one of them was ever
+    // mentioned. A player told to "drag and let go" who tries a plain tap and
+    // sees a tower appear has learned the game is inconsistent; a player told
+    // to drag who only ever taps never finds the combo preview at all.
+    body: 'Press one in the bar below, then tap a patch of grass. Or hold and drag onto it — the preview follows your finger.',
     done: (s) => s.towers.length > 0,
     fromWave: 0,
   },
@@ -61,10 +80,13 @@ const STEPS: TutorialStep[] = [
     fromWave: 2,
   },
   {
-    key: 'combo',
-    title: 'BUILD THEM SIDE BY SIDE',
-    body: 'Two towers within about two cells form a named COMBO and both get stronger. Drag one around to see the links before you pay.',
-    done: (s) => s.towers.some((t) => t.combos.length > 0),
+    key: 'shatter',
+    title: 'LAST ONE — MAKE A SHATTER',
+    body: 'Build a Cold Mud and a Boulder within two cells of each other. Towers that overlap form a named COMBO and both get stronger. Shatter is +30% damage.',
+    // Named, not generic. `combos` is rebuilt from every tower pair whenever
+    // the board changes, so this is asking the live run whether the pairing
+    // actually exists — not whether the player pressed the right buttons.
+    done: (s) => s.towers.some((t) => t.combos.includes('shatter')),
     fromWave: 3,
   },
 ];
@@ -75,7 +97,9 @@ const STEPS: TutorialStep[] = [
  * Strictly in order and one at a time: showing the combo hint while the player
  * still has no towers is how a tutorial becomes wallpaper. It also stops
  * entirely once the armor briefing is due, because two teaching cards on
- * screen at once is one too many and the briefing is the more urgent lesson.
+ * screen at once is one too many and the briefing is the more urgent lesson —
+ * a player who has not managed a Shatter by then is simply offered it again
+ * next run rather than nagged through a wave that is about to get hard.
  */
 export function currentTutorialStep(state: GameState, ui: UiState): TutorialStep | null {
   if (ui.tutorialDone) return null;
