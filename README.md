@@ -1,4 +1,4 @@
-# Tower Defense — Prototype
+# Ages of Defense
 
 Endless tower defense. TypeScript + Vite + HTML5 Canvas 2D. No game engine, no
 physics library, no art or audio assets — every visual is flat geometry drawn

@@ -60,9 +60,16 @@ export function drawMainMenu(
 
   // Its own backdrop rather than a scrim over a live board: the menu is a
   // place, not an overlay on top of somewhere else.
+  //
+  // Warm ochre rather than the near-black it started as. The dark version read
+  // as a loading screen — every other surface in this game is sunlit stone and
+  // dirt, and the title screen was the one place that looked like a different
+  // product. Light at the top, deeper at the bottom, so the dark button panels
+  // sit against the strongest part of the wash.
   const grad = ctx.createLinearGradient(0, 0, 0, WORLD.height);
-  grad.addColorStop(0, '#1A1610');
-  grad.addColorStop(1, '#0E0C08');
+  grad.addColorStop(0, '#D9A85B');
+  grad.addColorStop(0.55, '#B07F3F');
+  grad.addColorStop(1, '#7A5528');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, WORLD.width, WORLD.height);
 
@@ -72,20 +79,26 @@ export function drawMainMenu(
   kinds.forEach((kind, i) => {
     const x = WORLD.width / 2 + (i - (kinds.length - 1) / 2) * 130;
     ctx.save();
-    ctx.globalAlpha = 0.5;
+    ctx.globalAlpha = 0.62;
     ctx.translate(x, 300);
     drawTowerArt(ctx, kind, 30, -Math.PI / 2, 0, biomeFor(Math.floor(i / 2)));
     ctx.restore();
   });
 
   ctx.textAlign = 'center';
-  ctx.fillStyle = biome.accent;
+  // Dark ink, not the amber accent. Amber on ochre is amber on amber — the
+  // title has to be the highest-contrast thing on the screen, and against a
+  // light wash that means going darker rather than brighter. The pale line
+  // above it is a bevel, the same carved-stone trick the HUD slabs use.
   ctx.font = font(76);
-  ctx.fillText('TOWER DEFENCE', WORLD.width / 2, 160);
+  ctx.fillStyle = 'rgba(255, 236, 190, 0.45)';
+  ctx.fillText('AGES OF DEFENSE', WORLD.width / 2, 158);
+  ctx.fillStyle = '#3A2711';
+  ctx.fillText('AGES OF DEFENSE', WORLD.width / 2, 161);
 
-  ctx.fillStyle = COLORS.textDim;
+  ctx.fillStyle = '#5C4220';
   ctx.font = font(20);
-  ctx.fillText('Three ages. One road. Hold it.', WORLD.width / 2, 200);
+  ctx.fillText('Three ages. One road. Hold it.', WORLD.width / 2, 201);
 
   for (const b of MENU_BUTTONS) {
     const enabled = b.id !== 'continue' || canContinue;
@@ -116,11 +129,13 @@ export function drawMainMenu(
   }
 
   if (bestWave > 0) {
-    ctx.fillStyle = COLORS.textDim;
+    ctx.fillStyle = '#F6E7C4';
     ctx.font = font(18);
     ctx.fillText(`best run: wave ${bestWave}`, WORLD.width / 2, WORLD.height - 54);
   }
-  ctx.fillStyle = '#5A5346';
+  // Both footer lines sit on the DEEP end of the gradient, so they go light
+  // where the header went dark.
+  ctx.fillStyle = 'rgba(255, 240, 214, 0.62)';
   ctx.font = font(15);
   ctx.fillText(
     'a new game teaches itself for the first few waves · tap the card to skip',
