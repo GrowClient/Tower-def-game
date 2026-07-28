@@ -566,6 +566,18 @@ The build bar always quotes the live price, never the list price.
   a Thrower became indistinguishable the instant a shot left the barrel. A
   projectile crosses most of the board, so it is on screen far longer than the
   muzzle flash and is doing more identity work than the tower it came from.
+- **The enemy guide shows the enemies.** The pause menu's roster was text only,
+  which made it useless for the one job it has: a player who has just been
+  overrun reads it to find out WHAT overran them, and "Zealot — charges once
+  below half HP" cannot be matched to the orange thing on the board without a
+  picture. Each entry now draws its unit with the same `drawEnemy` the board
+  runs — the same rule as the build-bar icons calling `drawTowerArt`, because a
+  hand-drawn copy of a silhouette goes stale the first time the real one
+  changes, and a guide whose pictures no longer match the board is worse than a
+  guide with no pictures. The roster went to two columns to make room: a
+  Warchief's banner stands 2.6 body-lengths above it, so at any radius big
+  enough to recognise, one tall column of thin rows spilled art into its
+  neighbours.
 - **A buff is drawn on the units receiving it, not just on its source.** Every
   enemy inside a Warchief's banner wears speed lines. "Why is that pack
   outrunning my slowers" is the question, so the answer has to be attached to

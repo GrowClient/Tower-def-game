@@ -9,9 +9,9 @@
  * at a glance, because that's the information the player acts on.
  */
 
-import { BOSS_MECHANICS, TOWERS, TRAPS, type TowerKind } from '../config/balance';
+import { BOSS_MECHANICS, ENEMIES, TOWERS, TRAPS, type TowerKind } from '../config/balance';
 
-import type { Enemy, GameState, Projectile, Tower } from '../core/types';
+import type { Enemy, EnemyKind, GameState, Projectile, Tower } from '../core/types';
 import { veteranRank } from '../core/towers';
 import { popScale, type FxState } from '../fx/effects';
 import { COLORS, tierFor, type Biome, type Tier } from './palette';
@@ -171,6 +171,78 @@ function drawRankChevrons(ctx: CanvasRenderingContext2D, tower: Tower, s: number
     ctx.stroke();
   }
   ctx.restore();
+}
+
+/**
+ * One enemy, drawn as a portrait for the reference screens.
+ *
+ * It builds a stand-in Enemy and runs the SAME `drawEnemy` the board runs, for
+ * the same reason the build-bar icons call `drawTowerArt`: a hand-drawn copy of
+ * a silhouette is a copy that goes stale the first time the real one changes,
+ * and a guide whose pictures no longer match the board is worse than a guide
+ * with no pictures at all.
+ *
+ * The stand-in is at full health, facing right, and never a boss — the enemy
+ * screen documents the roster, and a half-dead Ancient mid-repair is a state,
+ * not an identity.
+ */
+export function drawEnemyPortrait(
+  ctx: CanvasRenderingContext2D,
+  kind: EnemyKind,
+  x: number,
+  y: number,
+  radius: number,
+): void {
+  const def = ENEMIES[kind];
+  const stand: Enemy = {
+    id: -1,
+    kind,
+    dist: 0,
+    seg: 0,
+    pos: { x, y },
+    dir: { x: 1, y: 0 },
+    hp: 1,
+    maxHp: 1,
+    baseSpeed: def.speed,
+    radius,
+    armor: def.armor,
+    plated: def.plated,
+    bounty: def.bounty,
+    leak: def.leak,
+    slowFactor: 1,
+    slowTimer: 0,
+    slowImmune: def.slowImmune,
+    burnDps: 0,
+    burnTimer: 0,
+    shield: def.shieldHits,
+    maxShield: def.shieldHits,
+    armorAura: def.armorAura,
+    armorAuraRadius: def.armorAuraRadius,
+    auraArmor: 0,
+    speedAura: def.speedAura,
+    speedAuraRadius: def.speedAuraRadius,
+    // Deliberately 1: the RALLIED speed lines mean "this unit is being buffed
+    // right now", which is a fact about a moment on the board, not about what
+    // the type is.
+    auraSpeed: 1,
+    enrageBelowHp: def.enrageBelowHp,
+    enrageSpeedMul: def.enrageSpeedMul,
+    enraged: false,
+    splitInto: def.splitInto,
+    splitCount: def.splitCount,
+    regenPerSecond: def.regenPerSecond,
+    regenDelay: def.regenDelay,
+    sinceHit: 0,
+    vulnerable: 1,
+    mechanic: null,
+    summonsFired: 0,
+    regenTimer: 0,
+    regenInterval: 0,
+    summonCount: 0,
+    flash: 0,
+    dead: false,
+  };
+  drawEnemy(ctx, stand, { sx: 1, sy: 1 });
 }
 
 /**

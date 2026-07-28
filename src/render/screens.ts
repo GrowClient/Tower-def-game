@@ -21,7 +21,8 @@ import { goldPerDiamond } from '../config/balance';
 import { abilityCooldown } from '../core/abilities';
 import { piercesPlating } from '../core/towers';
 import { drawAbilityIcon } from './abilityMenu';
-import type { GameState } from '../core/types';
+import type { EnemyKind, GameState } from '../core/types';
+import { drawEnemyPortrait } from './drawEntities';
 import { PAUSE_TABS, speedMultiplier, type PauseTab, type UiState } from '../uiState';
 import { comboColor } from './drawMap';
 import { COLORS, biomeFor, font, type Biome } from './palette';
@@ -396,19 +397,34 @@ const ENEMY_ANSWER: Record<string, string> = {
 
 function drawEnemyGuide(ctx: CanvasRenderingContext2D, biome: Biome): void {
   const kinds = Object.keys(ENEMY_ANSWER) as (keyof typeof ENEMIES)[];
-  // Sized so the WHOLE roster fits on one screen. The list has no scroll, so a
-  // row height that leaves the last enemy hanging off the bottom edge simply
-  // hides a unit from the one screen whose job is to explain the units.
-  const gap = 6;
+
+  // TWO columns, because the roster now carries portraits.
+  //
+  // One tall column of thin rows fitted the text but not the units: a Warchief's
+  // banner stands 2.6 body-lengths above it and a Shielded unit wears a ring at
+  // 1.5, so at any radius big enough to recognise, the art spilled into the rows
+  // above and below. Halving the row COUNT buys the vertical room instead of
+  // shrinking the pictures back to unrecognisable. The list still has no scroll,
+  // so everything has to fit on one screen — a unit hidden below the fold is a
+  // unit missing from the screen whose whole job is to explain the units.
+  const cols = 2;
+  const rows = Math.ceil(kinds.length / cols);
+  const gapX = 24;
+  const gapY = 12;
   const top = 196;
-  const rowH = Math.min(74, (WORLD.height - top - 40) / kinds.length - gap);
-  const x = 150;
-  const w = WORLD.width - 300;
+  const marginX = 100;
+  // Bottom edge is the build bar, matching the abilities guide. The pause
+  // scrim dims the bar rather than hiding it, so a card laid over it reads as
+  // a layout that overran rather than a deliberate one.
+  const bottom = WORLD.height - WORLD.hudBottom - 10;
+  const rowH = Math.min(140, (bottom - top) / rows - gapY);
+  const w = (WORLD.width - marginX * 2 - gapX * (cols - 1)) / cols;
 
   ctx.textAlign = 'left';
   kinds.forEach((kind, i) => {
     const def = ENEMIES[kind];
-    const y = top + i * (rowH + gap);
+    const x = marginX + (i % cols) * (w + gapX);
+    const y = top + Math.floor(i / cols) * (rowH + gapY);
 
     ctx.fillStyle = 'rgba(26, 21, 15, 0.92)';
     roundRect(ctx, x, y, w, rowH, 10);
@@ -417,24 +433,45 @@ function drawEnemyGuide(ctx: CanvasRenderingContext2D, biome: Biome): void {
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
+    // The unit itself, drawn by the same code the board uses.
+    //
+    // This screen used to be text only, which made it useless for the one job
+    // it has: a player who has just been overrun by something reads it to find
+    // out WHAT overran them, and "Zealot — charges once below half HP" cannot
+    // be matched to the orange thing on the board without a picture. Silhouette
+    // is what identifies a unit in a crowd, so the silhouette has to be here.
+    //
+    // Radius is bounded by the TALLEST decoration any unit wears (the banner, at
+    // 2.6r above centre) rather than by the body, so no kind can overflow its
+    // card — and the card clips anyway, so a future unit with a taller mark gets
+    // trimmed instead of drawn over its neighbour.
+    const portraitR = Math.min(rowH * 0.18, 22);
+    ctx.save();
+    roundRect(ctx, x, y, w, rowH, 10);
+    ctx.clip();
+    drawEnemyPortrait(ctx, kind as EnemyKind, x + 52, y + rowH / 2 + portraitR * 0.5, portraitR);
+    ctx.restore();
+
+    const textX = x + 104;
+    const textW = w - 104 - 18;
     ctx.fillStyle = biome.accent;
-    ctx.font = font(22);
-    ctx.fillText(def.label, x + 20, y + 32);
+    ctx.font = font(23);
+    ctx.fillText(def.label, textX, y + 30);
 
     ctx.fillStyle = COLORS.textDim;
-    ctx.font = font(14);
+    ctx.font = font(13);
     ctx.fillText(
       `hp ${def.maxHp}   speed ${def.speed}   armor ${def.armor}   bounty ${def.bounty}g` +
         (def.plated ? '   PLATED' : '') +
         (def.shieldHits > 0 ? `   shield ${def.shieldHits}` : '') +
         (def.speedAura > 1 ? `   rallies x${def.speedAura}` : ''),
-      x + 20,
-      y + 56,
+      textX,
+      y + 52,
     );
 
     ctx.fillStyle = COLORS.text;
-    ctx.font = font(16);
-    ctx.fillText(ENEMY_ANSWER[kind] ?? '', x + 330, y + 44);
+    ctx.font = font(15);
+    wrapText(ctx, ENEMY_ANSWER[kind] ?? '', textX, y + 76, textW, 20);
   });
 }
 
