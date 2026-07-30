@@ -38,7 +38,7 @@ import {
   drawVictoryOverlay,
 } from './screens';
 import { drawMainMenu } from './menu';
-import { currentTutorialStep } from '../tutorial';
+import { currentTutorialStep, tutorialSteps } from '../tutorial';
 import { drawTerrain } from './terrain';
 import { applyWorldTransform, type Viewport } from './viewport';
 
@@ -139,7 +139,10 @@ export function render(
   // describe.
   if (!overlayUp) {
     const step = currentTutorialStep(state, ui);
-    if (step) drawTutorial(ctx, step, biome);
+    if (step) {
+      const steps = tutorialSteps();
+      drawTutorial(ctx, step, biome, steps.indexOf(step), steps.length);
+    }
   }
 
   // Above every other overlay: it is a modal question, and the answer has to

@@ -1033,8 +1033,30 @@ you have a board in front of you, teaches nobody anything. Everything it opened
 is still one press of PAUSE away, which is where a player actually wants it:
 mid-run, holding a specific question.
 
-Four ideas, one at a time: build something, watch what the road does, mine the
-road, and finally **make a Shatter** — a Cold Mud next to a Boulder.
+Seven cards, one at a time, covering the four things a player cannot work out
+from the board alone: build something and watch the road, then **buy your
+income**, mine the road, **make a Shatter**, learn that the other combos exist
+and where the list is, and finally what an **Exchanger** does.
+
+Two kinds of card, because there are two kinds of lesson. A **do** step waits
+for the player to actually perform the thing and holds the queue until they do
+— that is what makes it a lesson rather than a caption. A **know** step is a
+fact with no action attached ("enemies follow the road", "there are four
+combos"), so it clears itself when the run moves on. Mixing them was the
+mistake waiting to happen: gating "there are other combos" behind a purchase
+would stall the whole tutorial on a decision the player has no reason to make
+yet, and the economy card clears on EITHER buying a Campfire or the wave moving
+on, because a 420g building this early is a real decision and a suggestion must
+not become a toll gate.
+
+Income is taught early and taught as a bet, because that is what it is: kills
+pay a third of what they used to and almost all late gold comes from buildings,
+so a player who never buys one is playing a version of the game with the
+economy switched off — and they will not discover that from a build bar showing
+them a tower with no damage number. The Exchanger is taught LAST, because it is
+the only system that costs you something every wave forever, and a player who
+buys one at wave 2 without understanding the switch has signed up for a drain
+they cannot see.
 
 - **The last step is a SPECIFIC pairing, not "form any combo".** Combos are the
   difference between placing towers and designing a defence, and "two towers
@@ -1054,15 +1076,27 @@ road, and finally **make a Shatter** — a Cold Mud next to a Boulder.
   tutorial cannot get out of step with the board. It holds no progress counter
   to go stale.
 - **It never blocks.** No modal, no forced clicks, no pause: one card in the
-  top-left corner, which disappears by itself when the thing happens. Tapping
-  it retires the tutorial for good, and that is remembered across visits —
-  teaching a returning player to build a tower again is the game calling them a
-  beginner every time they come back.
-- **One card at a time.** It stops entirely once the wave-7 armor briefing is
-  due, because two teaching cards at once is one too many and the briefing is
-  the more urgent lesson. A player who has not managed a Shatter by then is
-  simply offered it again next run rather than nagged through a wave that is
-  about to get hard.
+  top-left corner, which disappears by itself when the thing happens. Retiring
+  it is remembered across visits — teaching a returning player to build a tower
+  again is the game calling them a beginner every time they come back.
+- **SKIP is a button, and a small one.** Two requirements that pull against
+  each other, and both are real: it has to be OBVIOUS how to skip, because an
+  unlabelled card that silently vanishes when you poke it is not a control but
+  a trick — and it has to not INVITE skipping, because a first-time player who
+  dismisses this is the one player who most needed it. So: a small, plainly
+  labelled, low-contrast button in the card's corner, and the hit target is the
+  BUTTON, not the card. A tap anywhere else on the card is swallowed rather
+  than acted on, since the card sits over the board and a player reading it
+  should not discover they have built a tower underneath. The old behaviour —
+  skip on a tap anywhere — was simultaneously undiscoverable and far too easy
+  to trigger by accident.
+- **One card at a time.** It stands down while the wave-7 armor briefing is up,
+  because two teaching cards at once is one too many and the briefing is the
+  more urgent lesson — but only while it is up. The old rule stopped the
+  tutorial DEAD at wave 7, which was fine at four steps and impossible at
+  seven. There is also a hard backstop: a player still on step two at wave 12
+  is not reading it, and a card that never leaves stops being information and
+  becomes furniture.
 
 ---
 

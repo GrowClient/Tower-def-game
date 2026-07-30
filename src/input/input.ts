@@ -29,6 +29,7 @@ import {
   PERK_CARDS,
   RESTART_CONFIRM,
   TUTORIAL_CARD,
+  TUTORIAL_SKIP,
   armorBriefingVisible,
 } from '../render/screens';
 import { visibleAbilityCards } from '../render/abilityMenu';
@@ -357,11 +358,20 @@ function handleTap(
     return;
   }
 
-  // Tapping the tutorial card retires the tutorial. Before the HUD and the
-  // board, so the tap that dismisses it cannot also place a tower under it.
-  if (!ui.tutorialDone && currentTutorialStep(state, ui) !== null && hitTest(TUTORIAL_CARD, x, y)) {
-    ui.tutorialDone = true;
-    return;
+  // The tutorial card. Its SKIP button retires the tutorial; a tap anywhere
+  // else on the card is swallowed rather than acted on.
+  //
+  // Swallowed deliberately: the card sits over the board, and a player reading
+  // it who taps it should not discover they have built a tower underneath.
+  // Skipping is now the small labelled button only — the old behaviour skipped
+  // on a tap anywhere on the card, which was simultaneously undiscoverable and
+  // far too easy to trigger by accident.
+  if (!ui.tutorialDone && currentTutorialStep(state, ui) !== null) {
+    if (hitTest(TUTORIAL_SKIP, x, y)) {
+      ui.tutorialDone = true;
+      return;
+    }
+    if (hitTest(TUTORIAL_CARD, x, y)) return;
   }
 
   // The briefing's close button. Before the HUD and the board, because the

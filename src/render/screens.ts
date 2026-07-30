@@ -639,15 +639,39 @@ function drawTowerGuide(ctx: CanvasRenderingContext2D, state: GameState, biome: 
  * thing (see tutorial.ts — every step's completion is a question asked of the
  * live run, not a counter), and tapping it retires the whole tutorial.
  */
-// Sized for the longest step's body at three wrapped lines plus the skip
-// hint. Too small and the two overlap — which is exactly what a card telling
-// you how to play must not do.
-export const TUTORIAL_CARD: Rect = { x: 24, y: WORLD.hudTop + 14, w: 512, h: 146 };
+// Sized for the longest step's body at four wrapped lines plus the skip row.
+// Too small and the two overlap — which is exactly what a card telling you how
+// to play must not do.
+export const TUTORIAL_CARD: Rect = { x: 24, y: WORLD.hudTop + 14, w: 512, h: 176 };
+
+/**
+ * SKIP, as a real button rather than "tap the card".
+ *
+ * Two requirements that pull against each other, and both are real. It has to
+ * be OBVIOUS how to skip — an unlabelled card that silently vanishes when you
+ * poke it is not a control, it is a trick — and it has to not INVITE skipping,
+ * because a first-time player who dismisses this is the one player who most
+ * needed it.
+ *
+ * So: a small, plainly-labelled, low-contrast button in the card's bottom
+ * corner. Unmistakable once you look for it, easy to ignore while you are
+ * reading. The hit target is the BUTTON now, not the whole card, which fixes
+ * the other half of the old behaviour — a card that skipped on any tap was
+ * both undiscoverable and far too easy to trigger by accident.
+ */
+export const TUTORIAL_SKIP: Rect = {
+  x: TUTORIAL_CARD.x + TUTORIAL_CARD.w - 92,
+  y: TUTORIAL_CARD.y + TUTORIAL_CARD.h - 34,
+  w: 68,
+  h: 24,
+};
 
 export function drawTutorial(
   ctx: CanvasRenderingContext2D,
   step: TutorialStep,
   biome: Biome,
+  index: number,
+  total: number,
 ): void {
   const r = TUTORIAL_CARD;
 
@@ -668,9 +692,26 @@ export function drawTutorial(
   ctx.font = font(15);
   wrapText(ctx, step.body, r.x + 20, r.y + 58, r.w - 40, 20);
 
+  // How far through, so the card reads as a sequence with an end rather than
+  // an indefinite stream of advice.
   ctx.fillStyle = '#6E6555';
+  ctx.font = font(12);
+  ctx.fillText(`${index + 1} of ${total}`, r.x + 20, r.y + r.h - 17);
+
+  // The skip button: bordered so it is legible as a control, dim so it is not
+  // the thing your eye lands on first.
+  const b = TUTORIAL_SKIP;
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+  roundRect(ctx, b.x, b.y, b.w, b.h, 6);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255, 240, 210, 0.22)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.fillStyle = '#8E8471';
   ctx.font = font(13);
-  ctx.fillText('tap this card to skip the tutorial', r.x + 20, r.y + r.h - 14);
+  ctx.textAlign = 'center';
+  ctx.fillText('SKIP', b.x + b.w / 2, b.y + 17);
+
   ctx.restore();
   ctx.textAlign = 'left';
 }
