@@ -48,7 +48,10 @@ export function render(
   ui: UiState,
   bestWave: number,
   fx: FxState,
-  menu: { canContinue: boolean; continueLabel: string },
+  // `time` is the WALL clock, owned by main.ts. The title screen's scene
+  // animates while no simulation is running at all, so it cannot use sim time
+  // and must not be given a reason to want one.
+  menu: { canContinue: boolean; continueLabel: string; time: number },
 ): void {
   // Letterbox bars, drawn in raw screen space.
   ctx.setTransform(vp.dpr, 0, 0, vp.dpr, 0, 0);
@@ -65,7 +68,14 @@ export function render(
   // The menu is a place, not an overlay: nothing of the board is drawn behind
   // it, so a title screen can never show a half-simulated run through itself.
   if (ui.screen === 'menu') {
-    drawMainMenu(ctx, menu.canContinue, menu.continueLabel, bestWave);
+    drawMainMenu(
+      ctx,
+      menu.canContinue,
+      menu.continueLabel,
+      bestWave,
+      vp.scale * vp.dpr,
+      menu.time,
+    );
     return;
   }
 

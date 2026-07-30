@@ -19,7 +19,7 @@
 import { WORLD } from '../config/balance';
 import { COLORS, font } from './palette';
 import { roundRect, type Rect } from './hud';
-import { drawTowerArt } from './drawEntities';
+import { drawMenuScene } from './menuScene';
 import { biomeFor } from './palette';
 
 export type MenuButtonId = 'new' | 'continue';
@@ -27,7 +27,7 @@ export type MenuButtonId = 'new' | 'continue';
 const BTN_W = 420;
 const BTN_H = 76;
 const BTN_GAP = 18;
-const FIRST_Y = 452;
+const FIRST_Y = 556;
 
 /**
  * Two buttons, deliberately. There was a HOW TO PLAY here and it was the wrong
@@ -55,48 +55,38 @@ export function drawMainMenu(
   canContinue: boolean,
   continueLabel: string,
   bestWave: number,
+  pixelScale: number,
+  time: number,
 ): void {
   const biome = biomeFor(0);
 
-  // Its own backdrop rather than a scrim over a live board: the menu is a
-  // place, not an overlay on top of somewhere else.
-  //
-  // Warm ochre rather than the near-black it started as. The dark version read
-  // as a loading screen — every other surface in this game is sunlit stone and
-  // dirt, and the title screen was the one place that looked like a different
-  // product. Light at the top, deeper at the bottom, so the dark button panels
-  // sit against the strongest part of the wash.
-  const grad = ctx.createLinearGradient(0, 0, 0, WORLD.height);
-  grad.addColorStop(0, '#D9A85B');
-  grad.addColorStop(0.55, '#B07F3F');
-  grad.addColorStop(1, '#7A5528');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, WORLD.width, WORLD.height);
-
-  // A row of the game's own towers, drawn by the same code the board uses, so
-  // the title screen advertises the actual art rather than a logo.
-  const kinds = ['thrower', 'heavy', 'ballista', 'siegeCannon', 'railgun', 'singularity'] as const;
-  kinds.forEach((kind, i) => {
-    const x = WORLD.width / 2 + (i - (kinds.length - 1) / 2) * 130;
-    ctx.save();
-    ctx.globalAlpha = 0.62;
-    ctx.translate(x, 300);
-    drawTowerArt(ctx, kind, 30, -Math.PI / 2, 0, biomeFor(Math.floor(i / 2)));
-    ctx.restore();
-  });
+  // Its own place, not a scrim over a live board. See menuScene.ts — a sunset
+  // landscape with the road running through it and the three ages standing
+  // along it in order, so the title is illustrated rather than only written.
+  drawMenuScene(ctx, pixelScale, time);
 
   ctx.textAlign = 'center';
-  // Dark ink, not the amber accent. Amber on ochre is amber on amber — the
-  // title has to be the highest-contrast thing on the screen, and against a
-  // light wash that means going darker rather than brighter. The pale line
+  // Dark ink, not the amber accent. Amber on a sunlit sky is amber on amber —
+  // the title has to be the highest-contrast thing on the screen, and against
+  // a light wash that means going darker rather than brighter. The pale line
   // above it is a bevel, the same carved-stone trick the HUD slabs use.
+  //
+  // The soft dark pad behind it is doing real work: the scene has clouds, a
+  // sun and hills under this text, and dark-on-light stops being readable the
+  // moment something light-on-light passes beneath it.
+  const pad = ctx.createRadialGradient(WORLD.width / 2, 150, 40, WORLD.width / 2, 150, 560);
+  pad.addColorStop(0, 'rgba(60, 38, 14, 0.42)');
+  pad.addColorStop(1, 'rgba(60, 38, 14, 0)');
+  ctx.fillStyle = pad;
+  ctx.fillRect(0, 0, WORLD.width, 340);
+
   ctx.font = font(76);
-  ctx.fillStyle = 'rgba(255, 236, 190, 0.45)';
+  ctx.fillStyle = 'rgba(255, 240, 200, 0.5)';
   ctx.fillText('AGES OF DEFENSE', WORLD.width / 2, 158);
-  ctx.fillStyle = '#3A2711';
+  ctx.fillStyle = '#33220E';
   ctx.fillText('AGES OF DEFENSE', WORLD.width / 2, 161);
 
-  ctx.fillStyle = '#5C4220';
+  ctx.fillStyle = 'rgba(255, 240, 208, 0.85)';
   ctx.font = font(20);
   ctx.fillText('Three ages. One road. Hold it.', WORLD.width / 2, 201);
 

@@ -247,13 +247,15 @@ if (import.meta.env.DEV) {
  * frame rather than cached, because the save is written and cleared from
  * several places and a stale CONTINUE button is a button that lies.
  */
-function menuInfo(): { canContinue: boolean; continueLabel: string } {
-  if (!hasSavedRun()) return { canContinue: false, continueLabel: 'no run in progress' };
+function menuInfo(nowMs: number): { canContinue: boolean; continueLabel: string; time: number } {
+  const time = nowMs / 1000;
+  if (!hasSavedRun()) return { canContinue: false, continueLabel: 'no run in progress', time };
   const saved = loadRun();
-  if (saved === null) return { canContinue: false, continueLabel: 'no run in progress' };
+  if (saved === null) return { canContinue: false, continueLabel: 'no run in progress', time };
   return {
     canContinue: true,
     continueLabel: `wave ${saved.wave.number} · ${saved.towers.length} towers · ${AGES[saved.age]?.name ?? ''}`,
+    time,
   };
 }
 
@@ -323,7 +325,7 @@ function frame(nowMs: number): void {
   trackEnemies(fx, state.enemies);
   updateFx(fx, frameSec, new Set(state.enemies.map((e) => e.id)));
 
-  render(ctx!, viewport, state, ui, bestWave, fx, menuInfo());
+  render(ctx!, viewport, state, ui, bestWave, fx, menuInfo(nowMs));
   requestAnimationFrame(frame);
 }
 
