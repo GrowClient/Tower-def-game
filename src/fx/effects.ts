@@ -178,6 +178,14 @@ export interface FxState {
    * boss died dramatically.
    */
   timeScale: number;
+  /**
+   * Wall-clock seconds since the fx layer was created.
+   *
+   * Render-only: it drives boss auras and embers, which must keep moving while
+   * the game is paused or a draft holds the wave clock. Deliberately NOT sim
+   * time — nothing derived from this may ever reach the simulation.
+   */
+  clock: number;
   slowmo: number;
 
   pops: Map<number, Pop>;
@@ -195,6 +203,7 @@ export function newFx(): FxState {
     flash: 0,
     flashColor: '#FFFFFF',
     timeScale: 1,
+    clock: 0,
     slowmo: 0,
     pops: new Map(),
   };
@@ -537,6 +546,11 @@ function addShockwave(
  * exist; without it the map grows for the whole run.
  */
 export function updateFx(fx: FxState, dt: number, liveEnemyIds: Set<number>): void {
+  // The render clock, advanced by REAL seconds and never by sim time — see the
+  // field's note. Unscaled by slow motion on purpose: a boss's aura should not
+  // stutter because something dramatic happened next to it.
+  fx.clock += dt;
+
   // Slow motion eases back rather than snapping, so the moment has a tail.
   if (fx.slowmo > 0) {
     fx.slowmo = Math.max(0, fx.slowmo - dt);

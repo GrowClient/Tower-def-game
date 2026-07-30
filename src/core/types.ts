@@ -134,6 +134,18 @@ export interface Enemy {
   shield: number;
   maxShield: number;
 
+  /**
+   * For a boss: which showing this is, counting from 1. Zero for everything
+   * else.
+   *
+   * Already what drives its HP, armor and aura scaling — storing it means the
+   * RENDERER can scale its menace off the same number, so a sixth Warlord
+   * looks like a sixth Warlord instead of looking exactly like the first.
+   * Derived from identity rather than read back off the wave: a boss spawned
+   * anywhere is still whichever appearance it was made as.
+   */
+  appearance: number;
+
   /** Armor granted to nearby enemies, and armor currently received from auras.
    *  `auraArmor` is recomputed from scratch every step, never accumulated. */
   armorAura: number;

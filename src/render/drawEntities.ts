@@ -29,7 +29,12 @@ export function drawEntities(
   for (const e of state.enemies) shadow(ctx, e.pos.x, e.pos.y + e.radius * 0.55, e.radius, 0.35);
 
   for (const t of state.towers) drawTower(ctx, t, state.layout.cellSize, biome, t.id === selectedId);
-  for (const e of state.enemies) drawEnemy(ctx, e, popScale(fx, e.id));
+  // Boss dread pools go UNDER every unit, in their own pass — one drawn on top
+  // of the pack it arrived with would darken its own escort.
+  for (const e of state.enemies) {
+    if (e.mechanic !== null) drawBossAura(ctx, e, fx.clock);
+  }
+  for (const e of state.enemies) drawEnemy(ctx, e, popScale(fx, e.id), fx.clock);
   for (const p of state.projectiles) drawProjectile(ctx, p, biome);
 }
 
@@ -209,6 +214,9 @@ export function drawEnemyPortrait(
     plated: def.plated,
     bounty: def.bounty,
     leak: def.leak,
+    // A portrait is never "the sixth one" — the guide documents the type, and
+    // appearance is a fact about a particular spawn.
+    appearance: 0,
     slowFactor: 1,
     slowTimer: 0,
     slowImmune: def.slowImmune,
@@ -242,7 +250,7 @@ export function drawEnemyPortrait(
     flash: 0,
     dead: false,
   };
-  drawEnemy(ctx, stand, { sx: 1, sy: 1 });
+  drawEnemy(ctx, stand, { sx: 1, sy: 1 }, 0);
 }
 
 /**
@@ -1420,10 +1428,146 @@ const SKINS: Record<string, EnemySkin> = {
   bossRegenerator: { body: '#7AC6D8', bodyDark: '#40808E', trim: '#1E4048' },
 };
 
+/**
+ * The ground a boss is standing on.
+ *
+ * Drawn beneath everything and BEFORE the bodies, because it is the thing that
+ * makes a boss read as an event rather than as a large runner: a pool of
+ * darkness that arrives before the unit does and swells as the run goes on.
+ *
+ * Scaled by `appearance`, which is the same number driving its HP, armor and
+ * aura — so a sixth Warlord announces itself as a sixth Warlord. That was the
+ * gap: bosses got six times harder across a run and looked identical doing it.
+ *
+ * `clock` is WALL time from fx, never sim time. A boss's aura keeps breathing
+ * while the game is paused, and nothing here can reach the simulation.
+ */
+function drawBossAura(ctx: CanvasRenderingContext2D, e: Enemy, clock: number): void {
+  const app = Math.max(1, e.appearance);
+  const menace = Math.min(1, (app - 1) / 5);
+  const { x, y } = e.pos;
+  const pulse = 1 + Math.sin(clock * 1.7 + e.id) * 0.06;
+  const r = e.radius * (2.4 + menace * 1.5) * pulse;
+
+  const g = ctx.createRadialGradient(x, y, e.radius * 0.4, x, y, r);
+  g.addColorStop(0, `rgba(24, 4, 10, ${0.34 + menace * 0.26})`);
+  g.addColorStop(0.55, `rgba(60, 8, 12, ${0.16 + menace * 0.16})`);
+  g.addColorStop(1, 'rgba(60, 8, 12, 0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.ellipse(x, y, r, r * 0.72, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Scorch cracks radiating out, one more per appearance. Cheap, and they turn
+  // a soft blob into something with a direction and an edge.
+  ctx.save();
+  ctx.strokeStyle = `rgba(255, 96, 40, ${0.1 + menace * 0.22})`;
+  ctx.lineWidth = e.radius * 0.1;
+  ctx.lineCap = 'round';
+  const cracks = 5 + app;
+  for (let i = 0; i < cracks; i++) {
+    const ang = (i / cracks) * Math.PI * 2 + clock * 0.12;
+    const inner = e.radius * 1.05;
+    const outer = r * (0.62 + ((i * 37) % 10) / 40);
+    ctx.beginPath();
+    ctx.moveTo(x + Math.cos(ang) * inner, y + Math.sin(ang) * inner * 0.72);
+    ctx.lineTo(x + Math.cos(ang) * outer, y + Math.sin(ang) * outer * 0.72);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/**
+ * The crown, the core and the embers — everything that sits ON a boss.
+ *
+ * Same principle as the aura: every piece of it scales with `appearance`, so
+ * the escalation the numbers already had becomes something the player can see
+ * coming down the road.
+ */
+function drawBossMenace(ctx: CanvasRenderingContext2D, e: Enemy, clock: number): void {
+  const app = Math.max(1, e.appearance);
+  const menace = Math.min(1, (app - 1) / 5);
+  const { x, y } = e.pos;
+  const r = e.radius;
+
+  // A crown of spikes, one more per appearance, turning slowly. Spikes are the
+  // fastest "this is dangerous" silhouette there is, and a rotating ring reads
+  // as alive rather than as a decal.
+  const spikes = 7 + app;
+  const spin = clock * (0.25 + menace * 0.35);
+  ctx.save();
+  ctx.lineJoin = 'miter';
+  for (let i = 0; i < spikes; i++) {
+    const ang = (i / spikes) * Math.PI * 2 + spin;
+    const len = r * (0.42 + menace * 0.3) * (i % 2 === 0 ? 1 : 0.68);
+    const bx = x + Math.cos(ang) * r * 0.94;
+    const by = y + Math.sin(ang) * r * 0.94;
+    const tx = x + Math.cos(ang) * (r * 0.94 + len);
+    const ty = y + Math.sin(ang) * (r * 0.94 + len);
+    const w = 0.22;
+    ctx.beginPath();
+    ctx.moveTo(bx + Math.cos(ang + Math.PI / 2) * r * w, by + Math.sin(ang + Math.PI / 2) * r * w);
+    ctx.lineTo(tx, ty);
+    ctx.lineTo(bx + Math.cos(ang - Math.PI / 2) * r * w, by + Math.sin(ang - Math.PI / 2) * r * w);
+    ctx.closePath();
+    ctx.fillStyle = '#2A0E10';
+    ctx.fill();
+    ctx.strokeStyle = `rgba(255, 120, 60, ${0.35 + menace * 0.45})`;
+    ctx.lineWidth = r * 0.06;
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // A hot core, breathing. Brighter the later the boss.
+  const beat = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(clock * 3.1 + e.id));
+  const core = ctx.createRadialGradient(x, y, 0, x, y, r * 0.8);
+  core.addColorStop(0, `rgba(255, 236, 190, ${(0.35 + menace * 0.4) * beat})`);
+  core.addColorStop(0.5, `rgba(255, 110, 40, ${(0.28 + menace * 0.35) * beat})`);
+  core.addColorStop(1, 'rgba(255, 60, 20, 0)');
+  ctx.fillStyle = core;
+  ctx.beginPath();
+  ctx.arc(x, y, r * 0.8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Embers, rising. Positions come from the boss's own id and the wall clock,
+  // so they are stable per unit without any stored particle state.
+  const embers = 3 + app;
+  ctx.save();
+  for (let i = 0; i < embers; i++) {
+    const seed = e.id * 0.618 + i * 1.37;
+    const t = ((clock * (0.5 + (i % 3) * 0.16) + seed) % 1 + 1) % 1;
+    const ex = x + Math.sin(seed * 9 + clock * 1.3) * r * 0.9;
+    const ey = y - t * r * (2.2 + menace);
+    ctx.globalAlpha = (1 - t) * (0.5 + menace * 0.4);
+    ctx.fillStyle = i % 3 === 0 ? '#FFE7A8' : '#FF8A3C';
+    ctx.beginPath();
+    ctx.arc(ex, ey, r * 0.1 * (1 - t * 0.5), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // How many times this one has come, as pips under the health bar. The rest
+  // of the escalation is felt; this is the part that can be counted.
+  ctx.save();
+  const pipY = y - r - r * 0.5;
+  for (let i = 0; i < app; i++) {
+    const px = x + (i - (app - 1) / 2) * r * 0.36;
+    ctx.beginPath();
+    ctx.arc(px, pipY, r * 0.09, 0, Math.PI * 2);
+    ctx.fillStyle = '#FF7A44';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(30, 8, 4, 0.8)';
+    ctx.lineWidth = r * 0.04;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawEnemy(
   ctx: CanvasRenderingContext2D,
   e: Enemy,
   pop: { sx: number; sy: number },
+  clock: number,
 ): void {
   const { x, y } = e.pos;
   const r = e.radius;
@@ -1440,8 +1584,10 @@ function drawEnemy(
   ctx.translate(-x, -y);
 
   ctx.lineJoin = 'round';
-  ctx.lineWidth = r * 0.2;
-  ctx.strokeStyle = COLORS.enemyEdge;
+  // A boss gets a heavier outline. Line weight is the cheapest way to make one
+  // silhouette dominate a crowd of twenty.
+  ctx.lineWidth = r * (isBoss ? 0.28 : 0.2);
+  ctx.strokeStyle = isBoss ? '#180509' : COLORS.enemyEdge;
 
   // Facing wedge behind the body, so it reads as a snout rather than a spike.
   ctx.beginPath();
@@ -1477,6 +1623,9 @@ function drawEnemy(
   ctx.stroke();
 
   drawTypeMark(ctx, e, x, y, r, a, skin);
+  // After the body and the type mark, so the crown sits over the silhouette
+  // rather than being covered by it.
+  if (isBoss) drawBossMenace(ctx, e, clock);
 
   // Rallied: this unit is inside a Warchief's banner and is moving faster
   // because of it. Marked on every affected unit rather than only on the

@@ -744,6 +744,30 @@ bar:
 - **Wave 20** — immune to slows, and grants an armor aura to nearby enemies
 - **Wave 30** — repairs and re-shields itself, but ONLY while left alone
 
+#### They have to LOOK like they escalate
+
+A boss gets roughly six times harder across a run — HP, armor and aura all
+scale with which showing it is — and for a long time every one of them looked
+identical while doing it. The number driving that scaling, `appearance`, now
+lives on the entity itself, so the renderer can scale menace off exactly the
+same value the danger comes from:
+
+- a **scorched pool** under it, swelling with each showing, with cracks
+  radiating out — it arrives before the unit does, which is what makes a boss
+  read as an event rather than as a large runner
+- a **crown of spikes**, one more per appearance, turning slowly
+- a **hot core** that breathes, brighter the later the boss
+- **embers** rising, positioned from the boss's own id and the wall clock so
+  they are stable per unit with no stored particle state
+- **pips** above the health bar counting the showings — the rest of the
+  escalation is felt, this is the part that can be counted
+
+`appearance` is stored rather than recomputed from the wave for the usual
+reason: a boss spawned anywhere — a summon, a debug spawn, the finale's trio —
+is still whichever appearance it was made as. All of it is drawn on the fx
+layer's WALL clock, so a boss keeps breathing while the game is paused and
+nothing here can reach the simulation.
+
 **The Ancient's repair is suppressed by keeping it under fire.** It used to
 repair on a pure timer, and combined with the shield rule — a shield eats one
 WHOLE hit whatever its size — that was close to unbeatable for reasons that had
@@ -1090,6 +1114,15 @@ they cannot see.
   should not discover they have built a tower underneath. The old behaviour —
   skip on a tap anywhere — was simultaneously undiscoverable and far too easy
   to trigger by accident.
+- **The tutorial is also a permanent page.** The cards retire themselves once
+  you have learned them, which is right — and which also means a player who
+  wants to re-read "what does an Exchanger actually do" has nowhere to go.
+  Answering that with a "replay the tutorial" button would be the wrong shape,
+  because the cards are gated on early waves and replaying them at wave 30
+  would show nothing at all. Instead the same seven lessons live in the pause
+  menu's **BASICS** tab, generated from the SAME step list the cards are built
+  from — one source, so the reference cannot drift from the thing it
+  references.
 - **One card at a time.** It stands down while the wave-7 armor briefing is up,
   because two teaching cards at once is one too many and the briefing is the
   more urgent lesson — but only while it is up. The old rule stopped the

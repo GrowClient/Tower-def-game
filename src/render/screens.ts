@@ -29,7 +29,7 @@ import { comboColor } from './drawMap';
 import { COLORS, biomeFor, font, type Biome } from './palette';
 import { roundRect, towerGlyph, type Rect } from './hud';
 import type { Viewport } from './viewport';
-import type { TutorialStep } from '../tutorial';
+import { tutorialSteps, type TutorialStep } from '../tutorial';
 
 /**
  * Perk draft cards. Exported so input hit-tests exactly what was drawn — the
@@ -325,6 +325,9 @@ export function drawPauseMenu(
   }
 
   switch (ui.pauseTab) {
+    case 'basics':
+      drawBasicsGuide(ctx, biome);
+      break;
     case 'combos':
       drawCombosContent(ctx, 214);
       break;
@@ -480,6 +483,65 @@ function drawEnemyGuide(ctx: CanvasRenderingContext2D, biome: Biome): void {
     ctx.fillStyle = COLORS.text;
     ctx.font = font(15);
     wrapText(ctx, ENEMY_ANSWER[kind] ?? '', textX, y + 76, textW, 20);
+  });
+}
+
+/**
+ * The tutorial, permanently.
+ *
+ * The opening cards retire themselves once you have learned them — which is
+ * right, and which also means a player who wants to re-read "what does an
+ * Exchanger actually do" has nowhere to go. Answering that with a "replay the
+ * tutorial" button would be the wrong shape: the cards are gated on early
+ * waves, so replaying them at wave 30 would show nothing at all.
+ *
+ * So the same seven lessons live here as a page you can open at any moment of
+ * any run, from the SAME step list the cards are built from — one source, so
+ * the reference can never drift from the thing it references.
+ */
+function drawBasicsGuide(ctx: CanvasRenderingContext2D, biome: Biome): void {
+  const steps = tutorialSteps();
+  const gap = 10;
+  // Clear of the tab strip above (it ends at 176) and the build bar below.
+  const top = 206;
+  const bottom = WORLD.height - WORLD.hudBottom - 10;
+  const rowH = Math.min(96, (bottom - top) / steps.length - gap);
+  const x = 150;
+  const w = WORLD.width - 300;
+
+  ctx.textAlign = 'center';
+  ctx.font = font(15);
+  ctx.fillStyle = COLORS.textDim;
+  ctx.fillText(
+    'The opening tutorial, kept here for good — everything a new run explains, in order.',
+    WORLD.width / 2,
+    top - 16,
+  );
+
+  ctx.textAlign = 'left';
+  steps.forEach((step, i) => {
+    const y = top + i * (rowH + gap);
+
+    ctx.fillStyle = 'rgba(26, 21, 15, 0.92)';
+    roundRect(ctx, x, y, w, rowH, 10);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = '#6A6152';
+    ctx.font = font(22);
+    ctx.fillText(String(i + 1), x + 22, y + 34);
+
+    ctx.fillStyle = biome.accent;
+    ctx.font = font(20);
+    ctx.fillText(step.title, x + 58, y + 32);
+
+    ctx.fillStyle = COLORS.text;
+    ctx.font = font(15);
+    // Tight line spacing, because the longest lesson wraps to two lines and
+    // seven rows have to share one unscrolled screen.
+    wrapText(ctx, step.body, x + 58, y + 52, w - 90, 18);
   });
 }
 

@@ -16,7 +16,14 @@ import { SIM, type AbilityKey, type TowerKind } from './config/balance';
  * Pausing is the one moment a player is guaranteed to be reading rather than
  * reacting, so it is where the reference material belongs.
  */
-export const PAUSE_TABS = ['game', 'combos', 'enemies', 'towers', 'abilities'] as const;
+export const PAUSE_TABS = [
+  'game',
+  'basics',
+  'combos',
+  'enemies',
+  'towers',
+  'abilities',
+] as const;
 export type PauseTab = (typeof PAUSE_TABS)[number];
 
 /**

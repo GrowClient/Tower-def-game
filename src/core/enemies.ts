@@ -139,6 +139,8 @@ export function spawnEnemy(
     // meant a late boss could simply be tanked — see BOSS_SCALING.
     leak: def.leak + (mechanic ? BOSS_SCALING.leakPerAppearance * (app - 1) : 0),
 
+    appearance: mechanic ? app : 0,
+
     slowFactor: 1,
     slowTimer: 0,
     slowImmune: def.slowImmune,
