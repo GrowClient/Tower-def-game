@@ -35,6 +35,7 @@ import {
   drawPerkDraft,
   drawRotateHint,
   drawTutorial,
+  drawVictoryOverlay,
 } from './screens';
 import { drawMainMenu } from './menu';
 import { currentTutorialStep } from '../tutorial';
@@ -126,7 +127,7 @@ export function render(
   // Above the HUD, but hidden entirely behind any full-screen overlay. A tray
   // showing through a pause menu is a menu you can see two of at once.
   const overlayUp =
-    state.phase === 'gameover' ||
+    state.phase !== 'playing' ||
     state.perkChoices !== null ||
     ui.paused ||
     ui.showCombos ||
@@ -144,6 +145,7 @@ export function render(
   // Above every other overlay: it is a modal question, and the answer has to
   // be the only thing on screen that can be clicked.
   if (ui.confirmingRestart) drawRestartConfirm(ctx, state, biome);
+  else if (state.phase === 'won') drawVictoryOverlay(ctx, state, biome);
   else if (state.phase === 'gameover') drawGameOverOverlay(ctx, state, biome, bestWave);
   else if (state.perkChoices !== null) drawPerkDraft(ctx, state.perkChoices, biome, state.perks);
   else if (ui.paused) drawPauseMenu(ctx, state, ui, biome);

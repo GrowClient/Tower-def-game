@@ -1810,12 +1810,36 @@ export const WAVES = {
    */
   threatScaleExponent: 0.97,
 
+  /**
+   * The campaign's last wave. Endless ignores this entirely.
+   *
+   * Sixty because it is where the players who reported this actually ran out
+   * of things to buy, and because it lands on a boss wave — the finale is the
+   * sixth of them, and the run ends on the fight rather than on an arbitrary
+   * number a wave after one.
+   */
+  finalWave: 60,
+
   /** Boss every N waves. */
   bossEvery: 10,
   /** A boss wave's normal budget is scaled down — the boss IS the wave. */
   bossWaveBudgetMul: 0.32,
   /** Head start so the boss arrives amid its escort, not alone in front. */
   bossSpawnDelay: 2.5,
+  /** Seconds between each boss of the campaign's final wave. Spaced, because
+   *  three arriving together is one lump of HP rather than three fights. */
+  finaleBossGap: 14,
+
+  /**
+   * The campaign finale's budget climb, paired with SCALING.finaleHpGrowth.
+   *
+   * Deliberately the SAME rate as the HP term. Budget alone buys bodies; HP
+   * alone buys nothing at all (threat cost tracks HP, so the count falls by as
+   * much as toughness rises). The two at matching rates raise total wave HP
+   * while holding the entity count flat, which is a harder finale rather than
+   * a longer one.
+   */
+  finaleBudgetGrowth: 1.15,
 } as const;
 
 /**
@@ -1908,6 +1932,30 @@ export const SCALING = {
    */
   lateHpWave: 30,
   lateHpGrowth: 1.088,
+
+  /**
+   * THE FINALE — campaign only.
+   *
+   * A third exponential, on top of the late one, over the closing stretch of a
+   * campaign. It exists because of a specific playtest result: two players
+   * reached wave 74 without strategising much, and both reported having
+   * nothing left to buy by the sixties. That is not a difficulty curve that is
+   * too gentle, it is a curve that runs out of ROAD — the board finishes
+   * upgrading around wave 55 and everything after that is the same fight with
+   * bigger numbers on both sides.
+   *
+   * So the campaign's last fifteen waves climb steeply enough that a finished
+   * board is not automatically a winning one, and the run ends while that is
+   * still true. Endless is deliberately untouched: it is the game those runs
+   * were played on, and a mode people liked is not something to fix.
+   *
+   * HP, not budget. Established the hard way in an earlier round: a budget
+   * surge buys BODIES — 190 enemies and two-minute waves — while per-unit HP
+   * buys danger at a quarter of the entity count. When a curve has to
+   * out-scale a finished board, scale the unit.
+   */
+  finaleWave: 46,
+  finaleHpGrowth: 1.15,
 
   /** Speed creeps up slowly and caps, or late waves become unreactable. */
   speedLinear: 0.012,

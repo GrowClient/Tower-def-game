@@ -11,6 +11,7 @@ import {
   ENEMIES,
   ABILITIES,
   PERKS,
+  RUN,
   TOWERS,
   WAVES,
   WORLD,
@@ -671,6 +672,62 @@ export function drawTutorial(
   ctx.font = font(13);
   ctx.fillText('tap this card to skip the tutorial', r.x + 20, r.y + r.h - 14);
   ctx.restore();
+  ctx.textAlign = 'left';
+}
+
+/**
+ * The victory screen — the thing this game could not previously say.
+ *
+ * Deliberately built from the same parts as the defeat screen (wave, age,
+ * loadout) rather than being a bare "YOU WIN": a run that took forty minutes
+ * deserves to be shown what it built, and the loadout strip is the closest
+ * thing the game has to a record of how you did it.
+ */
+export function drawVictoryOverlay(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  biome: Biome,
+): void {
+  scrim(ctx, 0.8);
+
+  const cx = WORLD.width / 2;
+  const top = 120;
+
+  ctx.textAlign = 'center';
+  ctx.font = font(70);
+  ctx.fillStyle = 'rgba(255, 240, 190, 0.35)';
+  ctx.fillText('THE ROAD HELD', cx, top - 3);
+  ctx.fillStyle = '#8BE04F';
+  ctx.fillText('THE ROAD HELD', cx, top);
+
+  ctx.font = font(24);
+  ctx.fillStyle = COLORS.text;
+  ctx.fillText(`All ${WAVES.finalWave} waves cleared`, cx, top + 46);
+
+  ctx.font = font(19);
+  ctx.fillStyle = biome.accent;
+  ctx.fillText(
+    `${state.lives} of ${RUN.startingLives} lives left  ·  reached the ${biome.name}`,
+    cx,
+    top + 78,
+  );
+
+  drawLoadout(ctx, state, biome, top + 116);
+
+  ctx.textAlign = 'center';
+  ctx.font = font(19);
+  ctx.fillStyle = COLORS.textDim;
+  ctx.fillText(
+    'Infinite Mode has no last wave — try it from the main menu.',
+    cx,
+    WORLD.height - WORLD.hudBottom - 54,
+  );
+  ctx.fillStyle = '#8BE04F';
+  ctx.fillText(
+    'tap ↻ or press R to play again  ·  ESC for the main menu',
+    cx,
+    WORLD.height - WORLD.hudBottom - 26,
+  );
   ctx.textAlign = 'left';
 }
 

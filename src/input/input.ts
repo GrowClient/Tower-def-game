@@ -12,7 +12,7 @@
 import { WORLD, type AbilityKey, type PerkKey, type TowerKind } from '../config/balance';
 import { worldToCell } from '../core/grid';
 import { inBounds } from '../core/grid';
-import type { GameState } from '../core/types';
+import type { GameState, RunMode } from '../core/types';
 import {
   ADVANCE_BUTTON,
   HUD_BUTTONS,
@@ -52,8 +52,10 @@ export interface InputActions {
   toggleMute(): void;
   /** Leave the run for the title screen. Saves on the way out. */
   openMenu(): void;
-  /** Title screen actions. */
-  startNewRun(): void;
+  /** Title screen actions. A new run needs its MODE — it decides when the run
+   *  ends and how steeply the finale climbs, so it is chosen here and never
+   *  inferred later. */
+  startNewRun(mode: RunMode): void;
   continueRun(): void;
 }
 
@@ -291,7 +293,8 @@ function handleTap(
   if (ui.screen === 'menu') {
     for (const b of MENU_BUTTONS) {
       if (!hitTest(b.rect, x, y)) continue;
-      if (b.id === 'new') actions.startNewRun();
+      if (b.id === 'new') actions.startNewRun('campaign');
+      else if (b.id === 'endless') actions.startNewRun('endless');
       else actions.continueRun();
       return;
     }

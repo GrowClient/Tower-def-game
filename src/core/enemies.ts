@@ -22,7 +22,7 @@ import {
 import { killReward } from './economy';
 import { emit } from './events';
 import { sampleAt } from './path';
-import type { BossMechanic, Enemy, EnemyKind, GameState } from './types';
+import type { BossMechanic, Enemy, EnemyKind, GameState, RunMode } from './types';
 
 // ---------------------------------------------------------------------------
 // Per-wave scaling
@@ -31,7 +31,7 @@ import type { BossMechanic, Enemy, EnemyKind, GameState } from './types';
 // armor need to escalate on their own schedules or every wave feels the same
 // with bigger numbers.
 
-export function hpMultiplier(wave: number): number {
+export function hpMultiplier(wave: number, mode: RunMode = 'endless'): number {
   const w = Math.max(0, wave - 1);
   const poly = 1 + SCALING.hpLinear * w + SCALING.hpQuadratic * w * w;
   // Past the point where the board stops growing, HP climbs on the same
@@ -41,7 +41,14 @@ export function hpMultiplier(wave: number): number {
     SCALING.lateHpGrowth,
     Math.max(0, wave - SCALING.lateHpWave),
   );
-  return poly * late;
+  // A campaign's closing stretch climbs on a third exponential — see
+  // SCALING.finaleWave. Endless never gets it: that mode is the game two
+  // players took to wave 74, and a mode people liked is not one to fix.
+  const finale =
+    mode === 'campaign'
+      ? Math.pow(SCALING.finaleHpGrowth, Math.max(0, wave - SCALING.finaleWave))
+      : 1;
+  return poly * late * finale;
 }
 
 export function speedMultiplier(wave: number): number {
@@ -111,7 +118,7 @@ export function spawnEnemy(
   const bossArmor = mechanic ? BOSS_SCALING.armorPerAppearance * (app - 1) : 0;
   const bossAura = mechanic && def.armorAura > 0 ? BOSS_SCALING.auraPerAppearance * (app - 1) : 0;
 
-  const hp = Math.round(def.maxHp * hpMultiplier(wave) * bossHpMul);
+  const hp = Math.round(def.maxHp * hpMultiplier(wave, state.mode) * bossHpMul);
 
   const start = sampleAt(state.path, startDist, 0);
   const enemy: Enemy = {

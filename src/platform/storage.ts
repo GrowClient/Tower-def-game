@@ -47,8 +47,12 @@ const RUN_KEY = 'td.run';
  * exist. Rather than migrate, an old save is simply dropped: losing one
  * interrupted run is a far smaller cost than resuming into a corrupt one, and
  * a save that half-loads is the worst outcome of the three.
+ *
+ * v2: runs carry a `mode`. A v1 save has none, and a run with no mode would
+ * resume as a campaign that never ends or an endless run that stops at 60 —
+ * exactly the silent half-load this counter exists to prevent.
  */
-const RUN_VERSION = 1;
+const RUN_VERSION = 2;
 
 interface SavedRun {
   v: number;

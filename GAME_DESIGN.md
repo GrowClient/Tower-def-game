@@ -59,15 +59,67 @@ build controls are sized for thumbs.
 
 ---
 
+## Two modes
+
+**NEW GAME is a campaign: sixty waves, then it is over.** **INFINITE MODE is
+the original**, and it is untouched — the wave counter never stops.
+
+The campaign exists because of a specific playtest. Two players reached wave 74
+without strategising much, and both reported having nothing left to buy by the
+sixties. That is not a difficulty curve that is too gentle; it is a curve that
+runs out of ROAD. The board finishes upgrading around wave 55 and everything
+after it is the same fight with bigger numbers on both sides — which is also
+the older complaint, *"at wave 40 I have everything maxed and a million gold
+and nothing to spend it on"*, arriving a second time. A game that cannot end
+cannot answer either one, because the surplus has nowhere to go and the skill
+has nothing to be measured against.
+
+So a campaign ends on wave 60 — a boss wave, so the run finishes on a fight
+rather than on a number — and its last fifteen waves climb steeply enough that
+a finished board is not automatically a winning one. Clearing it is a **win**,
+with its own screen, which is a sentence this game previously could not say.
+
+Infinite Mode is kept exactly as it was, and an assertion holds it there: the
+finale curves are campaign-only and the two modes are numerically identical up
+to wave 46. A mode two people liked enough to play to wave 74 is not something
+to quietly fix.
+
+### The finale, and the arithmetic behind it
+
+Waves 46–60 of a campaign carry a third exponential on **both** the wave budget
+and per-unit HP, at the same rate. Both, deliberately, because of a piece of
+arithmetic this project has now had to rediscover three times:
+
+> Threat cost tracks HP, so a wave's total HP is `budget × hp^0.03`. Raising HP
+> alone lowers the unit count by almost exactly as much as it raises toughness,
+> and the wave gets no harder — measured, an HP-only finale moved wave 58's
+> total HP by 3% while halving its body count. Raising budget alone buys
+> BODIES. **Only the two together** raise total wave HP at a flat entity count.
+
+Measured result: campaign wave 60 carries about as much HP as infinite wave 69,
+at 107 units — the same body count infinite has at wave 60, not seven times it.
+It lands just under the wave-74 ceiling those two players reached, so a
+competent run wins and a sloppy one does not.
+
+**The last wave fields all three bosses**, spaced fourteen seconds apart. This
+is a finale built out of what the game already has rather than out of a new
+enemy: a Summoner, a Warlord and an Ancient at once demand splash for the
+swarms, armor piercing against the Warlord's aura, and sustained concentrated
+damage to stop the Ancient repairing — every lesson the run taught, asked at
+the same time. Each keeps its own mechanic for free, because a boss's behaviour
+is looked up from what it IS rather than from the wave that spawned it.
+
 ## Core loop
 
-Endless single level. Waves escalate forever. The run ends when lives hit 0.
+One level. The run ends when lives hit 0 — or, in a campaign, when wave 60 is
+cleared.
 
 1. Waves of enemies walk the path from entrance to exit.
 2. Enemies that reach the exit cost lives.
 3. Kills grant gold.
 4. Gold buys towers, in-age tower upgrades, and age advancement.
-5. Repeat until dead. Score = wave reached.
+5. Repeat until dead, or until the campaign's sixtieth wave is cleared.
+   Score = wave reached.
 
 Target: a new player's first run reaches roughly **wave 12–15**. The opening
 must not be brutal.

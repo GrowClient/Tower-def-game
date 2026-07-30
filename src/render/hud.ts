@@ -13,6 +13,7 @@
 import {
   AGES,
   BUILD_ORDER,
+  SCALING,
   COMBOS,
   TARGET_MODE_LABELS,
   TOWERS,
@@ -276,7 +277,20 @@ function drawTopStrip(
   slab(ctx, 0, 0, WORLD.width, WORLD.hudTop, 'down', accent);
 
   let x = 26;
-  x = stat(ctx, x, 'WAVE', String(state.wave.number), COLORS.text);
+  // A campaign shows how far there is left to go. That number IS the mode:
+  // "34 / 60" is a run with an end in sight, "34" is one without, and the
+  // difference between the two games is the whole reason both exist.
+  x = stat(
+    ctx,
+    x,
+    'WAVE',
+    state.mode === 'campaign'
+      ? `${state.wave.number}/${WAVES.finalWave}`
+      : String(state.wave.number),
+    state.mode === 'campaign' && state.wave.number >= SCALING.finaleWave
+      ? '#F4664F'
+      : COLORS.text,
+  );
   x = stat(ctx, x, 'GOLD', String(Math.floor(state.gold)), '#F0C46A');
   x = stat(ctx, x, 'DIAMONDS', String(state.diamonds), '#8FE3FF');
   x = stat(ctx, x, 'LIVES', String(state.lives), state.lives <= 5 ? '#F4664F' : COLORS.text);

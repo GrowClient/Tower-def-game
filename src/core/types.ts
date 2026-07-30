@@ -373,10 +373,26 @@ export type Intent =
 
 // --- Run state --------------------------------------------------------------
 
-export type RunPhase = 'playing' | 'gameover';
+export type RunPhase = 'playing' | 'gameover' | 'won';
+
+/**
+ * Which game this run is.
+ *
+ * CAMPAIGN ends — wave 60 is the last one, and the last stretch of it is the
+ * hardest thing in the game. ENDLESS is the original: the wave counter never
+ * stops and the run only ends when you do.
+ *
+ * It lives on GameState rather than in UiState because it changes the
+ * SIMULATION: it decides when the run is over and how hard the finale climbs.
+ * That makes it an input to a run exactly like the seed, so `seed + mode +
+ * inputs` is what reproduces a game, and a saved run carries its own mode with
+ * it rather than inheriting whatever the menu was last set to.
+ */
+export type RunMode = 'campaign' | 'endless';
 
 export interface GameState {
   seed: number;
+  mode: RunMode;
   rng: Rng;
   /** Seconds of simulated time. Advances only in fixed SIM.dt increments. */
   time: number;

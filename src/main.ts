@@ -17,6 +17,7 @@ import { drainEvents } from './core/events';
 import { queueIntent } from './core/intents';
 import { step } from './core/sim';
 import { newRun } from './core/state';
+import type { RunMode } from './core/types';
 import type { GameState } from './core/types';
 import { isMuted, playEvents, setMuted, unlockAudio } from './audio/sfx';
 import { consumeEvents, newFx, trackEnemies, updateFx } from './fx/effects';
@@ -88,11 +89,13 @@ window.addEventListener('orientationchange', () => {
   viewport = resizeCanvas(canvas);
 });
 
-function restart(): void {
+function restart(mode: RunMode = state.mode): void {
   // A pinned seed replays identically on restart, which is what you want
   // while tuning. An unpinned run gets a fresh map each time.
   if (pinnedSeed === null) seedCounter = (seedCounter + 0x9e3779b1) >>> 0;
-  state = newRun(seedCounter);
+  // Defaults to the mode being played, so ↻ and R restart the game you were
+  // in rather than silently dropping an Infinite run back into a campaign.
+  state = newRun(seedCounter, mode);
   // The old run is gone the instant a new one starts; leaving it stored means
   // CONTINUE would resurrect a game the player deliberately abandoned.
   clearSavedRun();
@@ -149,7 +152,7 @@ attachInput(
       ui.showCombos = false;
       ui.confirmingRestart = false;
     },
-    startNewRun: restart,
+    startNewRun: (mode) => restart(mode),
     continueRun: () => {
       const saved = loadRun();
       // Nothing to resume: fall back to a new run rather than leaving the
@@ -289,7 +292,9 @@ function frame(nowMs: number): void {
     if (steps >= SIM.maxStepsPerFrame) accumulator = 0;
   }
 
-  if (state.phase === 'gameover' && !scoreBanked) {
+  // Banked when the run ENDS, whichever way it ended. A campaign cleared is a
+  // wave-60 result and belongs on the same board as a wave-60 death.
+  if (state.phase !== 'playing' && !scoreBanked) {
     bestWave = saveBestWave(state.wave.number);
     // A finished run is not resumable. Clearing it here rather than waiting
     // for the next save means CONTINUE cannot offer a game that is already

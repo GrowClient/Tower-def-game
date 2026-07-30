@@ -12,7 +12,7 @@
  * can be brutal and first impressions decide whether the loop gets a chance.
  */
 
-import { ENEMIES, VETERANCY, WAVES } from '../config/balance';
+import { BOSSES, ENEMIES, SCALING, VETERANCY, WAVES } from '../config/balance';
 import { mintDiamonds } from './abilities';
 import { bossForWave, hpMultiplier } from './enemies';
 import { waveClearReward } from './economy';
@@ -21,7 +21,7 @@ import { spawnEnemy } from './enemies';
 import { emit } from './events';
 import { towerIncome } from './towers';
 import { nextFloat, nextInt } from './rng';
-import type { EnemyKind, GameState, SpawnOrder } from './types';
+import type { EnemyKind, GameState, RunMode, SpawnOrder } from './types';
 
 export function newWaveState(): GameState['wave'] {
   return { number: 0, timer: WAVES.firstWaveDelay, queue: [], active: false };
@@ -56,6 +56,16 @@ export function updateWaves(state: GameState, dt: number): void {
     // converted the moment they arrive rather than always being a wave behind.
     mintDiamonds(state);
     wave.active = false;
+
+    // The campaign ends here — you WON, which is a thing this game could not
+    // previously say. Checked after the payout so the victory screen shows the
+    // gold the last wave earned, and before the next wave is scheduled so
+    // nothing is queued behind an ended run.
+    if (isFinalWave(state, wave.number)) {
+      state.phase = 'won';
+      emit(state, { type: 'waveCleared', number: wave.number, reward });
+      return;
+    }
     // A longer breather before the wave that teaches plating, so the warning
     // has time to be read AND acted on. A lesson the player cannot afford to
     // answer is just a loss with a caption.
@@ -103,6 +113,11 @@ function startWave(state: GameState): void {
 /**
  * Turn a wave number into a concrete, time-stamped spawn list.
  */
+/** Is this the wave a campaign ends on? Endless has no such wave. */
+export function isFinalWave(state: GameState, waveNumber: number): boolean {
+  return state.mode === 'campaign' && waveNumber >= WAVES.finalWave;
+}
+
 function composeWave(state: GameState, waveNumber: number): SpawnOrder[] {
   const boss = bossForWave(waveNumber);
 
@@ -129,7 +144,22 @@ function composeWave(state: GameState, waveNumber: number): SpawnOrder[] {
 
   // The boss enters a beat into its own wave, so it arrives surrounded by its
   // escort rather than walking in alone ahead of everything.
-  if (boss) {
+  //
+  // The FINAL wave brings all three at once, spaced so they arrive as a
+  // procession rather than a single unkillable lump. This is the finale built
+  // out of what the game already has rather than out of a new enemy: a
+  // Summoner, a Warlord and an Ancient together demand splash for the swarms,
+  // armor piercing against the Warlord's aura, and sustained concentrated
+  // damage to stop the Ancient repairing — which is every lesson the run
+  // taught, asked at the same time. Each keeps its own mechanic because
+  // `mechanicFor` reads it off the KIND, so a boss is itself wherever it is
+  // spawned.
+  if (isFinalWave(state, waveNumber)) {
+    BOSSES.forEach((b, i) => {
+      orders.push({ kind: b.kind, at: state.time + WAVES.bossSpawnDelay + i * WAVES.finaleBossGap });
+    });
+    orders.sort((a, b) => a.at - b.at);
+  } else if (boss) {
     orders.push({ kind: boss.kind, at: state.time + WAVES.bossSpawnDelay });
     orders.sort((a, b) => a.at - b.at);
   }
@@ -159,7 +189,7 @@ function scriptedUnits(waveNumber: number): EnemyKind[] {
  * Exported because the headless balance driver reports on it directly; a curve
  * you can't ask questions of is a curve you end up tuning by anecdote.
  */
-export function waveBudget(waveNumber: number): number {
+export function waveBudget(waveNumber: number, mode: RunMode = 'endless'): number {
   const w = waveNumber - 1;
   const poly = WAVES.budgetBase + WAVES.budgetLinear * w + WAVES.budgetQuadratic * w * w;
   const surge = Math.pow(
@@ -172,12 +202,27 @@ export function waveBudget(waveNumber: number): number {
     WAVES.lateSurgeGrowth,
     Math.max(0, waveNumber - WAVES.lateSurgeWave),
   );
-  return poly * Math.pow(WAVES.budgetExpGrowth, w) * surge * late;
+  // THE FINALE, campaign only — and it has to be here, in the BUDGET, not only
+  // in the HP curve. The arithmetic, learned the hard way twice now: threat
+  // cost tracks HP, so a wave's total HP is `budget x hp^0.03` — raising HP
+  // alone lowers the unit count by almost exactly as much as it raises
+  // toughness, and the wave gets no harder. Measured: the HP-only finale moved
+  // wave 58's total HP by 3% while halving its body count.
+  //
+  // Budget AND HP together is the pair that works. The budget sets how much
+  // total HP walks down the road; the matching HP term decides whether that
+  // arrives as 130 tough units or 800 weak ones. Growing them at the same rate
+  // buys a genuinely harder finale at a FLAT entity count.
+  const finale =
+    mode === 'campaign'
+      ? Math.pow(WAVES.finaleBudgetGrowth, Math.max(0, waveNumber - SCALING.finaleWave))
+      : 1;
+  return poly * Math.pow(WAVES.budgetExpGrowth, w) * surge * late * finale;
 }
 
 /** Spend the wave's threat budget on a weighted draw from unlocked types. */
 function drawUnits(state: GameState, waveNumber: number, budgetMul: number): EnemyKind[] {
-  let budget = waveBudget(waveNumber) * budgetMul;
+  let budget = waveBudget(waveNumber, state.mode) * budgetMul;
 
   const pool = WAVES.roster.filter((r) => waveNumber >= r.introWave);
   if (pool.length === 0) return [];
@@ -190,7 +235,7 @@ function drawUnits(state: GameState, waveNumber: number, budgetMul: number): Ene
 
   // A unit is worth what it actually costs the player to kill, so its threat
   // rises with the same curve as its HP. See WAVES.threatScaleExponent.
-  const threatScale = Math.pow(hpMultiplier(waveNumber), WAVES.threatScaleExponent);
+  const threatScale = Math.pow(hpMultiplier(waveNumber, state.mode), WAVES.threatScaleExponent);
 
   const out: EnemyKind[] = [];
   // Guard against a balance edit that leaves every threat at zero.

@@ -12,9 +12,9 @@ import { generateMap } from './mapgen';
 import { buildPath } from './path';
 import { forkRng, makeRng } from './rng';
 import { newWaveState } from './waves';
-import type { GameState } from './types';
+import type { GameState, RunMode } from './types';
 
-export function newRun(seed: number): GameState {
+export function newRun(seed: number, mode: RunMode = 'campaign'): GameState {
   const rng = makeRng(seed);
 
   // Map generation gets its own forked stream so that changing how many rolls
@@ -27,6 +27,7 @@ export function newRun(seed: number): GameState {
 
   return {
     seed,
+    mode,
     rng,
     time: 0,
     phase: 'playing',

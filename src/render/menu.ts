@@ -16,18 +16,18 @@
  * are exported so `input/` hit-tests exactly what was drawn.
  */
 
-import { WORLD } from '../config/balance';
+import { WAVES, WORLD } from '../config/balance';
 import { COLORS, font } from './palette';
 import { roundRect, type Rect } from './hud';
 import { drawMenuScene } from './menuScene';
 import { biomeFor } from './palette';
 
-export type MenuButtonId = 'new' | 'continue';
+export type MenuButtonId = 'new' | 'continue' | 'endless';
 
-const BTN_W = 420;
-const BTN_H = 76;
-const BTN_GAP = 18;
-const FIRST_Y = 556;
+const BTN_W = 440;
+const BTN_H = 72;
+const BTN_GAP = 14;
+const FIRST_Y = 500;
 
 /**
  * Two buttons, deliberately. There was a HOW TO PLAY here and it was the wrong
@@ -38,8 +38,10 @@ const FIRST_Y = 556;
  * button used to open is still one press of PAUSE away, which is where a
  * player actually wants it: mid-run, with a specific question.
  */
+const FINALE_WAVES = WAVES.finalWave;
+
 export const MENU_BUTTONS: { id: MenuButtonId; rect: Rect }[] = (
-  ['continue', 'new'] as MenuButtonId[]
+  ['continue', 'new', 'endless'] as MenuButtonId[]
 ).map((id, i) => ({
   id,
   rect: {
@@ -105,17 +107,25 @@ export function drawMainMenu(
     ctx.lineWidth = primary ? 3 : 2;
     ctx.stroke();
 
-    const label = b.id === 'new' ? 'NEW GAME' : 'CONTINUE';
+    const label =
+      b.id === 'new' ? 'NEW GAME' : b.id === 'continue' ? 'CONTINUE' : 'INFINITE MODE';
+    // Every button carries a subtitle, because the two ways to start are a real
+    // choice and "NEW GAME" beside "INFINITE MODE" does not say which is which.
+    // One ends. One does not. That is the whole distinction and it has to be on
+    // the button rather than discovered on wave 60.
+    const sub =
+      b.id === 'continue'
+        ? continueLabel
+        : b.id === 'new'
+          ? `${FINALE_WAVES} waves, then a final stand`
+          : 'no last wave — see how far you get';
+
     ctx.fillStyle = !enabled ? '#5A5346' : COLORS.text;
-    ctx.font = font(28);
-    // Nudged up when there is a subtitle, so the pair sits centred as a block.
-    const sub = b.id === 'continue' ? continueLabel : null;
-    ctx.fillText(label, b.rect.x + b.rect.w / 2, b.rect.y + (sub ? 36 : 48));
-    if (sub) {
-      ctx.fillStyle = enabled ? biome.accent : '#5A5346';
-      ctx.font = font(16);
-      ctx.fillText(sub, b.rect.x + b.rect.w / 2, b.rect.y + 60);
-    }
+    ctx.font = font(26);
+    ctx.fillText(label, b.rect.x + b.rect.w / 2, b.rect.y + 34);
+    ctx.fillStyle = !enabled ? '#5A5346' : b.id === 'continue' ? biome.accent : '#B9AC93';
+    ctx.font = font(15);
+    ctx.fillText(sub, b.rect.x + b.rect.w / 2, b.rect.y + 56);
   }
 
   if (bestWave > 0) {
