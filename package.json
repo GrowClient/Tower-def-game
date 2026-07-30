@@ -7,6 +7,7 @@
     "dev": "vite --host",
     "build": "tsc --noEmit && vite build",
     "build:pages": "tsc --noEmit && vite build --base=/Tower-def-game/",
+    "build:itch": "tsc --noEmit && vite build --base=./ --outDir dist-itch",
     "preview": "vite preview --host",
     "typecheck": "tsc --noEmit"
   },

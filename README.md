@@ -102,3 +102,26 @@ today. The two files this pass adds — `src/fx/effects.ts` and
 Alongside it: balance tuning against real playtests, in particular whether
 advancing an age at 1000 gold *feels* worth it. A scripted bot can't answer
 that one — see [GAME_DESIGN.md](./GAME_DESIGN.md).
+
+## Publishing
+
+The game is a static site — one HTML file and one JS bundle, no server, no
+assets. Three build targets, and the difference between them is only the base
+path the bundle's asset URLs are written against:
+
+```bash
+npm run build        # dist/       — absolute /assets/..., for a domain root
+npm run build:pages  # dist/       — /Tower-def-game/..., for GitHub Pages
+npm run build:itch   # dist-itch/  — RELATIVE ./assets/..., for itch.io et al
+```
+
+**Use `build:itch` for any portal that serves your game from a subdirectory**,
+which is all of them: itch.io serves from something like
+`html-classic.itch.zone/html/12345678/index.html`, so a bundle built with the
+default absolute `/assets/...` resolves to the domain root, 404s, and shows a
+black screen. Relative paths work from any depth.
+
+To upload: zip the CONTENTS of `dist-itch/` (index.html at the top level of the
+zip, not inside a folder), and on itch tick "This file will be played in the
+browser". Viewport 1280x720, fullscreen button on — the game letterboxes itself
+to 16:9 at any size.

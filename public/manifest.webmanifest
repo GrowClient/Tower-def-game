@@ -1,7 +1,7 @@
 {
-  "name": "Stone Age — Tower Defense",
-  "short_name": "Stone Age TD",
-  "description": "Endless tower defense prototype.",
+  "name": "Ages of Defense",
+  "short_name": "Ages of Defense",
+  "description": "Three ages. One road. Hold it.",
   "display": "fullscreen",
   "orientation": "landscape",
   "background_color": "#05060A",
