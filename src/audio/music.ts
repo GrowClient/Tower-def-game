@@ -36,6 +36,26 @@
 const TRACK_BASE = 'audio/theme';
 
 /**
+ * Bumped whenever the audio files change. **This is not optional.**
+ *
+ * Vite content-hashes the JS bundle, so a new build always fetches new code.
+ * Files in `public/` get no such treatment: they ship at a fixed URL, which
+ * means a browser — or the CDN a web game portal puts in front of it — happily
+ * serves yesterday's `theme.ogg` to someone running today's build.
+ *
+ * That is not hypothetical. A player on a build with the current track was
+ * still hearing the previous one, which had a crossfade baked into its opening,
+ * and reported the game as starting the music "from a random point and then
+ * restarting from the beginning" — an accurate description of a file that had
+ * already been replaced. The code was right and the bytes were stale.
+ *
+ * A query string is the fix rather than `cache: 'reload'`: this still caches
+ * normally between visits, it just cannot serve a DIFFERENT track under the
+ * same name.
+ */
+const TRACK_VERSION = 2;
+
+/**
  * The track's real musical length, in seconds.
  *
  * The decoded length of the master WAV, NOT of the shipped MP3 — the encoder
@@ -51,7 +71,7 @@ const TRACK_SECONDS = 127.44;
  * the same trap that made the first itch build a black screen.
  */
 function trackUrl(ext: string): string {
-  return new URL(`${TRACK_BASE}.${ext}`, document.baseURI).href;
+  return new URL(`${TRACK_BASE}.${ext}?v=${TRACK_VERSION}`, document.baseURI).href;
 }
 
 interface MusicState {

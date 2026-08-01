@@ -35,10 +35,21 @@ whatever the encoder appended. Update it whenever the track is replaced.
 
 ## Replacing it
 
-Drop in a new pair with the same names and update `TRACK_SECONDS`. The game
-works with neither: the player fetches in the background and stays silent if
-they are missing, so a build with no soundtrack is a quiet game rather than a
-broken one.
+Drop in a new pair with the same names, then update **both** constants at the
+top of `music.ts`:
+
+- `TRACK_SECONDS` — the decoded length of the master WAV.
+- `TRACK_VERSION` — **bump it, always.** Files here ship at a fixed URL with no
+  content hash, unlike the JS bundle, so a browser or a portal's CDN will keep
+  serving the previous track to someone running the new build. That has already
+  happened once: a player on a build with the current track was still hearing
+  the old one, and reported the music as starting "from a random point and then
+  restarting from the beginning" — an exact description of the file it had
+  already been replaced by. Nothing in the code was wrong; the bytes were stale.
+
+The game works with neither file: the player fetches in the background and stays
+silent if they are missing, so a build with no soundtrack is a quiet game rather
+than a broken one.
 
 - **Any length**, but it has to **loop on its own** — the end runs straight
   into the start with nothing in between, so it should resolve into its own
