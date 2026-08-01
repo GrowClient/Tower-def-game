@@ -264,21 +264,56 @@ if (import.meta.env.DEV) {
 }
 
 /**
- * What the title screen needs to know about the stored run. Read fresh each
- * frame rather than cached, because the save is written and cleared from
- * several places and a stale CONTINUE button is a button that lies.
+ * What the title screen needs to know about the stored run.
+ *
+ * This used to run every frame, unconditionally, and it was the most expensive
+ * thing in the render path by a wide margin: `loadRun()` reads localStorage
+ * synchronously and `JSON.parse`s the ENTIRE saved GameState — measured at
+ * 33 KB per frame on a late board, so about 2 MB/s of parsing and garbage,
+ * sixty times a second, to build a string that only the title screen ever
+ * draws. It got worse exactly when the game was busiest, because a bigger board
+ * is a bigger save.
+ *
+ * Now it is computed only while the menu is actually up, and at most a few
+ * times a second. The original comment said this had to be read fresh every
+ * frame or CONTINUE would lie — that reasoning still holds and is still
+ * honoured: nothing writes the save while the player is sitting on the title
+ * screen, and the refresh interval is far shorter than a human can act on.
  */
-function menuInfo(nowMs: number): { canContinue: boolean; continueLabel: string; time: number } {
+const MENU_INFO_INTERVAL = 250;
+let menuInfoCache: { canContinue: boolean; continueLabel: string } | null = null;
+let menuInfoAt = -Infinity;
+
+function menuInfo(nowMs: number, onMenu: boolean): {
+  canContinue: boolean;
+  continueLabel: string;
+  time: number;
+} {
   const time = nowMs / 1000;
-  if (!hasSavedRun()) return { canContinue: false, continueLabel: 'no run in progress', time };
-  const saved = loadRun();
-  if (saved === null) return { canContinue: false, continueLabel: 'no run in progress', time };
-  return {
-    canContinue: true,
-    continueLabel: `wave ${saved.wave.number} · ${saved.towers.length} towers · ${AGES[saved.age]?.name ?? ''}`,
-    time,
-  };
+  // Off the menu the answer is drawn by nobody, so it is not worth a single
+  // byte of parsing. Dropped rather than stale-cached, so nothing can render a
+  // CONTINUE button from it by accident.
+  if (!onMenu) {
+    menuInfoCache = null;
+    return { canContinue: false, continueLabel: '', time };
+  }
+  if (menuInfoCache === null || nowMs - menuInfoAt >= MENU_INFO_INTERVAL) {
+    menuInfoAt = nowMs;
+    const saved = hasSavedRun() ? loadRun() : null;
+    menuInfoCache =
+      saved === null
+        ? { canContinue: false, continueLabel: 'no run in progress' }
+        : {
+            canContinue: true,
+            continueLabel: `wave ${saved.wave.number} · ${saved.towers.length} towers · ${AGES[saved.age]?.name ?? ''}`,
+          };
+  }
+  return { ...menuInfoCache, time };
 }
+
+/** Reused every frame: allocating a Set and a throwaway array of a hundred ids
+ *  sixty times a second is pure garbage for a membership test. */
+const liveEnemyIds = new Set<number>();
 
 let lastMs = performance.now();
 /** Leftover real time not yet consumed by a whole sim step. */
@@ -346,14 +381,16 @@ function frame(nowMs: number): void {
   // Effects run on the WALL clock, not sim time, so smoke keeps drifting while
   // the game is paused or a perk draft is holding the wave clock.
   trackEnemies(fx, state.enemies);
-  updateFx(fx, frameSec, new Set(state.enemies.map((e) => e.id)));
+  liveEnemyIds.clear();
+  for (const e of state.enemies) liveEnemyIds.add(e.id);
+  updateFx(fx, frameSec, liveEnemyIds);
 
   // The soundtrack runs on the menu and in a run alike — one track, so there
   // is nothing to switch between. Stopped only when the tab is hidden, which
   // browsers half-do anyway and which is rude not to finish properly.
   setMusicPlaying(document.visibilityState === 'visible');
 
-  render(ctx!, viewport, state, ui, bestWave, fx, menuInfo(nowMs), !musicUnavailable());
+  render(ctx!, viewport, state, ui, bestWave, fx, menuInfo(nowMs, ui.screen === 'menu'), !musicUnavailable());
   requestAnimationFrame(frame);
 }
 

@@ -44,6 +44,7 @@ import type { GameState, Tower } from '../core/types';
 import type { UiState } from '../uiState';
 import { speedMultiplier } from '../uiState';
 import { AGE_NAMES, COLORS, biomeFor, font, type Biome } from './palette';
+import { linearGradient, textWidth } from './cache';
 import { comboColor } from './drawMap';
 import { drawTowerArt } from './drawEntities';
 
@@ -207,14 +208,22 @@ export function towerPanelRects(state: GameState, tower: Tower): TowerPanel {
  * only escape was to place something they did not want and sell it back at a
  * loss.
  *
- * Deliberately over the build bar. That is where the thumb came FROM, so it is
- * the shortest possible retreat, and the bar has nothing to say mid-drag.
+ * A small disc sitting just ABOVE the build bar, not over it. The first version
+ * was a labelled slab across the middle of the bar, which put a cancel button
+ * on top of the six buttons you pick a tower with — it covered the UI it was
+ * supposed to be a retreat from. Directly above the bar is still the shortest
+ * way back for a thumb that came from there, without hiding anything.
+ *
+ * The rect is a little larger than the disc drawn inside it: a circle is a
+ * smaller target than its bounding box, and the few pixels of slop are the
+ * difference between a forgiving button and a fiddly one on a phone.
  */
+const CANCEL_D = 72;
 export const PLACEMENT_CANCEL: Rect = {
-  x: WORLD.width / 2 - 82,
-  y: WORLD.height - WORLD.hudBottom + 14,
-  w: 164,
-  h: 88,
+  x: WORLD.width / 2 - CANCEL_D / 2,
+  y: WORLD.height - WORLD.hudBottom - CANCEL_D - 6,
+  w: CANCEL_D,
+  h: CANCEL_D,
 };
 
 export const ADVANCE_BUTTON: Rect = {
@@ -229,12 +238,141 @@ export function drawHud(
   state: GameState,
   ui: UiState,
   ageIndex: number,
+  pixelScale: number,
 ): void {
   const accent = biomeFor(ageIndex).accent;
   drawTopStrip(ctx, state, ui, ageIndex, accent);
   drawAdvanceButton(ctx, state, accent);
-  drawBuildBar(ctx, state, ui, accent);
+  blitBuildBar(ctx, state, ui, accent, pixelScale);
   drawSelectionPanel(ctx, state, ui, accent);
+}
+
+// ---------------------------------------------------------------------------
+// The build bar, baked
+// ---------------------------------------------------------------------------
+
+/**
+ * The bottom bar is the largest block of chrome on screen and almost all of it
+ * is static: six slabs, six tower glyphs, and up to eighteen lines of text that
+ * only change when the player's gold crosses a price, they arm a different
+ * tower, they hit the cap, or they advance an age.
+ *
+ * It was being redrawn from scratch every frame — about a fifth of the game's
+ * draw calls, and most of its text, re-rasterised sixty times a second to
+ * produce the identical strip of pixels. Same rule as the terrain: anything
+ * static belongs in a bake, not in the loop.
+ *
+ * **The bake is OPAQUE, and that is not an optimisation — it is a correctness
+ * requirement.** Browsers only use subpixel antialiasing on canvases without an
+ * alpha channel, so a transparent-backed bake silently re-renders every label
+ * in the game with grayscale AA. Measured against the live-drawn bar that was
+ * a two-percent pixel difference, entirely on glyph edges: not a crash, not
+ * something anyone would file, just the HUD text quietly getting softer. So the
+ * baked region is exactly the slab — which is fully opaque — and the
+ * tower-limit pill, which floats over the BOARD above it, stays drawn live.
+ */
+const BAR_TOP = WORLD.height - WORLD.hudBottom;
+const BAR_H = WORLD.hudBottom;
+
+interface BarCache {
+  canvas: HTMLCanvasElement;
+  key: string;
+  quality: number;
+}
+
+let barCache: BarCache | null = null;
+
+/**
+ * Everything the baked strip depends on.
+ *
+ * Affordability is folded in per button rather than as raw gold: gold changes
+ * every time an enemy dies, but the BAR only changes on the frames where that
+ * crosses one of six prices. Keying on the answer instead of the input is the
+ * difference between re-baking constantly and re-baking about a dozen times a
+ * wave.
+ */
+function barKey(state: GameState, ui: UiState, accent: string): string {
+  let key = `${state.age}|${ui.buildKind ?? '-'}|${accent}|${isMaxAge(state) ? 1 : 0}|${atCapacity(state) ? 1 : 0}`;
+  for (const b of buildButtons(state.age)) {
+    key += state.gold >= towerCost(b.kind) && !atCapacity(state, b.kind) ? '1' : '0';
+  }
+  return key;
+}
+
+/**
+ * Say why the bar is dead rather than letting the player tap a greyed button
+ * and guess. Sell something, upgrade, advance — and TRAPS, which the cap does
+ * not apply to at all and which the banner used to fail to mention while their
+ * buttons sat greyed out beside it.
+ *
+ * It sits ABOVE the slab on its own backing pill, not inside it. Squeezed into
+ * the 16px of bar above the buttons it was both clipped by the slab's top seam
+ * and overlapping the button tops — the one message the player most needs to
+ * read was the least readable thing on screen.
+ *
+ * Drawn live rather than baked because it floats over the board, so it needs
+ * the alpha the baked strip deliberately does not have. It costs six draw calls
+ * and only appears when the player is actually at the cap.
+ */
+function drawCapacityBanner(ctx: CanvasRenderingContext2D, state: GameState): void {
+  if (!atCapacity(state)) return;
+  const line = isMaxAge(state)
+    ? 'TOWER LIMIT REACHED — sell one, upgrade what you have, or lay traps'
+    : 'TOWER LIMIT REACHED — sell one, upgrade, advance an age, or lay traps';
+  ctx.save();
+  ctx.font = font(19);
+  const pw = textWidth(ctx, line) + 44;
+  const ph = 34;
+  const px = (WORLD.width - pw) / 2;
+  const py = WORLD.height - WORLD.hudBottom - ph - 10;
+  ctx.fillStyle = 'rgba(24, 14, 10, 0.88)';
+  roundRect(ctx, px, py, pw, ph, ph / 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(244, 102, 79, 0.75)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#FF8B72';
+  ctx.fillText(line, WORLD.width / 2, py + ph / 2 + 1);
+  ctx.restore();
+}
+
+function blitBuildBar(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  ui: UiState,
+  accent: string,
+  pixelScale: number,
+): void {
+  const quality = Math.min(2, Math.max(1, pixelScale));
+  const key = barKey(state, ui, accent);
+
+  if (
+    barCache === null ||
+    barCache.key !== key ||
+    Math.abs(barCache.quality - quality) > 0.2
+  ) {
+    const canvas = barCache?.canvas ?? document.createElement('canvas');
+    const w = Math.round(WORLD.width * quality);
+    const h = Math.round(BAR_H * quality);
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+    // alpha: false — see the note above. The slab paints every pixel, so there
+    // is nothing to be transparent, and giving it up would cost text quality.
+    const g = canvas.getContext('2d', { alpha: false })!;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    // World coordinates inside the bake, shifted so the strip starts at its own
+    // top-left. Every existing draw call then works unchanged.
+    g.setTransform(quality, 0, 0, quality, 0, -BAR_TOP * quality);
+    drawBuildBar(g, state, ui, accent);
+    barCache = { canvas, key, quality };
+  }
+
+  ctx.drawImage(barCache.canvas, 0, BAR_TOP, WORLD.width, BAR_H);
+  drawCapacityBanner(ctx, state);
 }
 
 /** The age button: what it costs, or that you're already at the last age. */
@@ -367,7 +505,9 @@ function stat(
   ctx.fillStyle = valueColor;
   ctx.fillText(value, x, 58);
 
-  const w = Math.max(ctx.measureText(value).width, ctx.measureText(label).width * 0.9, 46);
+  // The value is measured live because it is a live number; the label is a
+  // fixed word and has no business being re-shaped sixty times a second.
+  const w = Math.max(ctx.measureText(value).width, textWidth(ctx, label) * 0.9, 46);
   return x + w + 34;
 }
 
@@ -388,38 +528,6 @@ function drawBuildBar(
 ): void {
   const y = WORLD.height - WORLD.hudBottom;
   slab(ctx, 0, y, WORLD.width, WORLD.hudBottom, 'up', accent);
-
-  // Say why the bar is dead rather than letting the player tap a greyed button
-  // and guess. Sell something, upgrade, advance — and TRAPS, which the cap
-  // does not apply to at all and which the banner used to fail to mention
-  // while their buttons sat greyed out beside it.
-  //
-  // It sits ABOVE the slab on its own backing pill, not inside it. Squeezed
-  // into the 16px of bar above the buttons it was both clipped by the slab's
-  // top seam and overlapping the button tops — the one message the player most
-  // needs to read was the least readable thing on screen.
-  if (atCapacity(state)) {
-    const line = isMaxAge(state)
-      ? 'TOWER LIMIT REACHED — sell one, upgrade what you have, or lay traps'
-      : 'TOWER LIMIT REACHED — sell one, upgrade, advance an age, or lay traps';
-    ctx.save();
-    ctx.font = font(19);
-    const pw = ctx.measureText(line).width + 44;
-    const ph = 34;
-    const px = (WORLD.width - pw) / 2;
-    const py = y - ph - 10;
-    ctx.fillStyle = 'rgba(24, 14, 10, 0.88)';
-    roundRect(ctx, px, py, pw, ph, ph / 2);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(244, 102, 79, 0.75)';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#FF8B72';
-    ctx.fillText(line, WORLD.width / 2, py + ph / 2 + 1);
-    ctx.restore();
-  }
 
   for (const b of buildButtons(state.age)) {
     const def = TOWERS[b.kind]!;
@@ -752,7 +860,7 @@ function drawActiveCombos(ctx: CanvasRenderingContext2D, tower: Tower, P: Rect):
     const def = COMBOS.find((c) => c.key === key);
     if (!def) continue;
     ctx.font = font(13);
-    const w = ctx.measureText(def.label).width + 16;
+    const w = textWidth(ctx, def.label) + 16;
     // Wrap rather than run off the panel edge; three combos is common.
     if (x + w > P.x + P.w - PANEL_PAD) {
       x = P.x + PANEL_PAD;
@@ -816,9 +924,11 @@ function slab(
   seam: 'up' | 'down',
   accent: string,
 ): void {
-  const grad = ctx.createLinearGradient(0, y, 0, y + h);
-  grad.addColorStop(0, seam === 'down' ? '#2A241B' : '#1A160F');
-  grad.addColorStop(1, seam === 'down' ? '#191510' : '#2A241B');
+  // The HUD strips never move, so this ramp is the same object every frame.
+  const grad = linearGradient(ctx, `slab${y}${h}${seam}`, 0, y, 0, y + h, [
+    [0, seam === 'down' ? '#2A241B' : '#1A160F'],
+    [1, seam === 'down' ? '#191510' : '#2A241B'],
+  ]);
   ctx.fillStyle = grad;
   ctx.fillRect(x, y, w, h);
 
@@ -865,9 +975,10 @@ function button(
     | 'combos'
     | 'diamond',
 ): void {
-  const grad = ctx.createLinearGradient(0, b.y, 0, b.y + b.h);
-  grad.addColorStop(0, '#453B2C');
-  grad.addColorStop(1, '#2C2519');
+  const grad = linearGradient(ctx, `hudBtn${b.y}${b.h}`, 0, b.y, 0, b.y + b.h, [
+    [0, '#453B2C'],
+    [1, '#2C2519'],
+  ]);
   ctx.fillStyle = grad;
   roundRect(ctx, b.x, b.y, b.w, b.h, 9);
   ctx.fill();
@@ -1033,6 +1144,9 @@ export function towerGlyph(
 }
 
 /** Draw text at the largest size (up to `size`) that fits `maxWidth`. */
+/** Solved font sizes for `fitText`, keyed on the question it answers. */
+const fittedSizes = new Map<string, number>();
+
 function fitText(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -1041,12 +1155,22 @@ function fitText(
   maxWidth: number,
   size: number,
 ): void {
-  let px = size;
-  ctx.font = font(px);
-  while (ctx.measureText(text).width > maxWidth && px > 10) {
-    px -= 1;
+  // The search is the expensive part: every step both re-parses a font
+  // shorthand and re-shapes the string, and it ran every frame for labels that
+  // never change. The ANSWER is cached, not the drawing — so the text is still
+  // drawn fresh, just at a size that was solved once.
+  const key = `${text}|${maxWidth}|${size}`;
+  let px = fittedSizes.get(key);
+  if (px === undefined) {
+    px = size;
     ctx.font = font(px);
+    while (ctx.measureText(text).width > maxWidth && px > 10) {
+      px -= 1;
+      ctx.font = font(px);
+    }
+    fittedSizes.set(key, px);
   }
+  ctx.font = font(px);
   ctx.fillText(text, x, y);
 }
 

@@ -16,6 +16,7 @@ import { towerRange } from '../core/towers';
 import { CellKind, type GameState, type Tower } from '../core/types';
 import type { UiState } from '../uiState';
 import { COLORS, font } from './palette';
+import { textWidth } from './cache';
 import { drawTowerArt } from './drawEntities';
 import { PLACEMENT_CANCEL, roundRect } from './hud';
 import { biomeFor } from './palette';
@@ -42,39 +43,74 @@ export function drawGrid(
   ctx.save();
 
   if (arming === null) {
+    // The idle lattice is the same two hundred rectangles every single frame.
+    // Rebuilding the path meant two hundred `rect()` calls and two hundred
+    // throwaway `cellOrigin` objects sixty times a second, for a shape that
+    // cannot change without the map changing. Built once, stroked thereafter.
     ctx.strokeStyle = COLORS.gridLine;
     ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let cy = 0; cy < map.rows; cy++) {
-      for (let cx = 0; cx < map.cols; cx++) {
-        if (map.cells[cy * map.cols + cx] === CellKind.Path) continue;
-        const o = cellOrigin(layout, cx, cy);
-        ctx.rect(o.x + 0.5, o.y + 0.5, cs - 1, cs - 1);
-      }
-    }
-    ctx.stroke();
+    ctx.stroke(latticePath(state));
     ctx.restore();
     return;
   }
 
   // Build mode: shade every cell this tower type can actually go on.
   // Deliberately COLORS.buildOk rather than the biome accent — see palette.ts.
+  //
+  // Batched into two paths — legal cells and taken ones — rather than a fill
+  // and a stroke per cell. Same pixels, four draw calls instead of four hundred,
+  // and this runs while a finger is mid-drag, which is exactly when the frame
+  // budget matters most.
   const wantsPath = TOWERS[arming]!.onPath;
+  const free = new Path2D();
+  const taken = new Path2D();
   for (let cy = 0; cy < map.rows; cy++) {
     for (let cx = 0; cx < map.cols; cx++) {
       const isPath = map.cells[cy * map.cols + cx] === CellKind.Path;
       if (isPath !== wantsPath) continue;
-
-      const free = state.occupancy[cy * map.cols + cx] === 0;
       const o = cellOrigin(layout, cx, cy);
-      ctx.fillStyle = free ? hexToRgba(COLORS.buildOk, 0.13) : 'rgba(0, 0, 0, 0.3)';
-      ctx.fillRect(o.x + 2, o.y + 2, cs - 4, cs - 4);
-      ctx.strokeStyle = free ? hexToRgba(COLORS.buildOk, 0.35) : 'rgba(0, 0, 0, 0.35)';
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(o.x + 2, o.y + 2, cs - 4, cs - 4);
+      const target = state.occupancy[cy * map.cols + cx] === 0 ? free : taken;
+      target.rect(o.x + 2, o.y + 2, cs - 4, cs - 4);
     }
   }
+  ctx.lineWidth = 1.5;
+  ctx.fillStyle = hexToRgba(COLORS.buildOk, 0.13);
+  ctx.fill(free);
+  ctx.strokeStyle = hexToRgba(COLORS.buildOk, 0.35);
+  ctx.stroke(free);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+  ctx.fill(taken);
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+  ctx.stroke(taken);
   ctx.restore();
+}
+
+/**
+ * The buildable-cell lattice, built once per map.
+ *
+ * Keyed on the map object itself rather than on a signature string: a new run
+ * is a new map object, so the old path becomes garbage on its own and there is
+ * no cache key to get wrong. `cellSize` is checked too because the layout is
+ * the other input, even though it is currently fixed.
+ */
+const lattices = new WeakMap<object, { cs: number; path: Path2D }>();
+
+function latticePath(state: GameState): Path2D {
+  const { layout, map } = state;
+  const cs = layout.cellSize;
+  const hit = lattices.get(map);
+  if (hit !== undefined && hit.cs === cs) return hit.path;
+
+  const path = new Path2D();
+  for (let cy = 0; cy < map.rows; cy++) {
+    for (let cx = 0; cx < map.cols; cx++) {
+      if (map.cells[cy * map.cols + cx] === CellKind.Path) continue;
+      const o = cellOrigin(layout, cx, cy);
+      path.rect(o.x + 0.5, o.y + 0.5, cs - 1, cs - 1);
+    }
+  }
+  lattices.set(map, { cs, path });
+  return path;
 }
 
 /**
@@ -251,7 +287,7 @@ function labelMidpoint(
   ctx.globalAlpha = alpha;
   ctx.font = font(13);
   ctx.textAlign = 'center';
-  const w = ctx.measureText(text).width;
+  const w = textWidth(ctx, text);
   ctx.fillStyle = 'rgba(10, 8, 6, 0.82)';
   roundRect(ctx, mx - w / 2 - 7, my - 11, w + 14, 20, 5);
   ctx.fill();
@@ -325,14 +361,14 @@ export function drawPlacementBanner(
 
   ctx.save();
   ctx.font = font(NAME_SIZE);
-  const nameW = ctx.measureText(def.label).width;
+  const nameW = textWidth(ctx, def.label);
   ctx.font = font(STATUS_SIZE);
   const statusW = ctx.measureText(status).width;
   ctx.font = font(CHIP_SIZE);
   const chips = keys.map((k) => ({
     key: k,
     text: COMBOS.find((c) => c.key === k)?.label ?? k,
-    w: ctx.measureText(COMBOS.find((c) => c.key === k)?.label ?? k).width + 18,
+    w: textWidth(ctx, COMBOS.find((c) => c.key === k)?.label ?? k) + 18,
   }));
   const chipsW = chips.reduce((a, c) => a + c.w + 8, 0);
 
@@ -401,21 +437,25 @@ export function drawCancelTarget(ctx: CanvasRenderingContext2D, ui: UiState): vo
     ui.pointer.y >= r.y &&
     ui.pointer.y <= r.y + r.h;
 
+  const cx = r.x + r.w / 2;
+  const cy = r.y + r.h / 2;
+  const rad = (over ? 32 : 28);
+
   ctx.save();
-  ctx.fillStyle = over ? 'rgba(150, 34, 24, 0.95)' : 'rgba(30, 16, 12, 0.92)';
-  roundRect(ctx, r.x, r.y, r.w, r.h, 12);
+  ctx.beginPath();
+  ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+  ctx.fillStyle = over ? 'rgba(150, 34, 24, 0.96)' : 'rgba(30, 16, 12, 0.9)';
   ctx.fill();
   ctx.strokeStyle = over ? '#FFD9D0' : '#F4664F';
   ctx.lineWidth = over ? 4 : 2.5;
   ctx.stroke();
 
-  // A big X, drawn rather than typed: a glyph at this size renders differently
-  // across platforms and this one has to read instantly at arm's length.
-  const cx = r.x + r.w / 2;
-  const cy = r.y + r.h / 2 - 8;
-  const d = over ? 19 : 16;
+  // The X is drawn rather than typed: a glyph renders differently across
+  // platforms and this one has to read instantly, at arm's length, in the
+  // half-second a player has already decided they do not want the tower.
+  const d = over ? 13 : 11;
   ctx.strokeStyle = over ? '#FFFFFF' : '#F4664F';
-  ctx.lineWidth = over ? 7 : 6;
+  ctx.lineWidth = over ? 6 : 5;
   ctx.lineCap = 'round';
   ctx.beginPath();
   ctx.moveTo(cx - d, cy - d);
@@ -423,12 +463,6 @@ export function drawCancelTarget(ctx: CanvasRenderingContext2D, ui: UiState): vo
   ctx.moveTo(cx + d, cy - d);
   ctx.lineTo(cx - d, cy + d);
   ctx.stroke();
-
-  ctx.fillStyle = over ? '#FFFFFF' : '#C98A80';
-  ctx.font = font(13);
-  ctx.textAlign = 'center';
-  ctx.fillText(over ? 'RELEASE TO CANCEL' : 'DRAG HERE TO CANCEL', cx, r.y + r.h - 12);
-  ctx.textAlign = 'left';
   ctx.restore();
 }
 

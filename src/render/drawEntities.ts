@@ -15,6 +15,7 @@ import type { Enemy, EnemyKind, GameState, Projectile, Tower } from '../core/typ
 import { veteranRank } from '../core/towers';
 import { popScale, type FxState } from '../fx/effects';
 import { COLORS, tierFor, type Biome, type Tier } from './palette';
+import { linearGradient, radialGradient } from './cache';
 
 export function drawEntities(
   ctx: CanvasRenderingContext2D,
@@ -281,9 +282,10 @@ export function drawTowerArt(
   // The top tier gets a halo, drawn under the tower so it reads as the thing
   // glowing rather than as a sticker behind it.
   if (tier.glow) {
-    const halo = ctx.createRadialGradient(0, 0, s * 0.2, 0, 0, s * 1.7);
-    halo.addColorStop(0, tier.glow);
-    halo.addColorStop(1, 'rgba(245, 205, 90, 0)');
+    const halo = radialGradient(ctx, `tierHalo${s}${tier.glow}`, 0, 0, s * 0.2, 0, 0, s * 1.7, [
+      [0, tier.glow],
+      [1, 'rgba(245, 205, 90, 0)'],
+    ]);
     ctx.fillStyle = halo;
     ctx.fillRect(-s * 1.8, -s * 1.8, s * 3.6, s * 3.6);
   }
@@ -593,10 +595,11 @@ function drawCampfire(
 
   // Flame. Static shape — this is baked-in identity, not an animation; the
   // fx layer owns anything that moves.
-  const flame = ctx.createRadialGradient(0, -s * 0.25, s * 0.05, 0, -s * 0.2, s * 0.7);
-  flame.addColorStop(0, 'rgba(255, 240, 170, 0.95)');
-  flame.addColorStop(0.5, 'rgba(240, 150, 50, 0.75)');
-  flame.addColorStop(1, 'rgba(220, 90, 30, 0)');
+  const flame = radialGradient(ctx, `flame${s}`, 0, -s * 0.25, s * 0.05, 0, -s * 0.2, s * 0.7, [
+    [0, 'rgba(255, 240, 170, 0.95)'],
+    [0.5, 'rgba(240, 150, 50, 0.75)'],
+    [1, 'rgba(220, 90, 30, 0)'],
+  ]);
   ctx.fillStyle = flame;
   ctx.fillRect(-s * 0.8, -s * 1.0, s * 1.6, s * 1.4);
 
@@ -816,9 +819,10 @@ function drawGoldMine(ctx: CanvasRenderingContext2D, s: number, tier: Tier): voi
 
   // Gold: a few nuggets catching the light, plus a glow so it reads as
   // valuable at a glance rather than as another brown building.
-  const glow = ctx.createRadialGradient(0, s * 0.02, 0, 0, s * 0.02, s * 0.7);
-  glow.addColorStop(0, 'rgba(245, 200, 70, 0.5)');
-  glow.addColorStop(1, 'rgba(245, 200, 70, 0)');
+  const glow = radialGradient(ctx, `mineGlow${s}`, 0, s * 0.02, 0, 0, s * 0.02, s * 0.7, [
+    [0, 'rgba(245, 200, 70, 0.5)'],
+    [1, 'rgba(245, 200, 70, 0)'],
+  ]);
   ctx.fillStyle = glow;
   ctx.fillRect(-s * 0.7, -s * 0.7, s * 1.4, s * 1.4);
 
@@ -943,10 +947,11 @@ function drawSingularity(ctx: CanvasRenderingContext2D, s: number, tier: Tier): 
   ctx.fill();
   ctx.stroke();
 
-  const grad = ctx.createRadialGradient(0, -s * 0.1, s * 0.05, 0, -s * 0.1, s * 0.55);
-  grad.addColorStop(0, '#0A0C12');
-  grad.addColorStop(0.7, '#2B1B44');
-  grad.addColorStop(1, '#6A4FA8');
+  const grad = radialGradient(ctx, `singularity${s}`, 0, -s * 0.1, s * 0.05, 0, -s * 0.1, s * 0.55, [
+    [0, '#0A0C12'],
+    [0.7, '#2B1B44'],
+    [1, '#6A4FA8'],
+  ]);
   circle(ctx, 0, -s * 0.1, s * 0.5, grad as unknown as string, true);
 
   // The containment ring — the only part of a singularity you can actually
@@ -1042,9 +1047,10 @@ function drawFactory(ctx: CanvasRenderingContext2D, s: number, tier: Tier): void
     ctx.fillRect(-s * 0.7 + i * s * 0.44, -s * 0.14, s * 0.24, s * 0.2);
   }
 
-  const glow = ctx.createRadialGradient(0, s * 0.0, 0, 0, s * 0.0, s * 0.9);
-  glow.addColorStop(0, 'rgba(245, 200, 70, 0.35)');
-  glow.addColorStop(1, 'rgba(245, 200, 70, 0)');
+  const glow = radialGradient(ctx, `factoryGlow${s}`, 0, 0, 0, 0, 0, s * 0.9, [
+    [0, 'rgba(245, 200, 70, 0.35)'],
+    [1, 'rgba(245, 200, 70, 0)'],
+  ]);
   ctx.fillStyle = glow;
   ctx.fillRect(-s * 1.0, -s * 1.0, s * 2.0, s * 2.0);
 }
@@ -1196,9 +1202,10 @@ function drawProjectile(ctx: CanvasRenderingContext2D, p: Projectile, biome: Bio
         ctx.arc(-7 * i, Math.sin(p.id + i) * 1.6, 4.6 - i, 0, Math.PI * 2);
         ctx.fill();
       }
-      const iron = ctx.createRadialGradient(-2.5, -2.5, 1, 0, 0, 8);
-      iron.addColorStop(0, '#6C6A68');
-      iron.addColorStop(1, '#26241F');
+      const iron = radialGradient(ctx, 'projIron', -2.5, -2.5, 1, 0, 0, 8, [
+        [0, '#6C6A68'],
+        [1, '#26241F'],
+      ]);
       ctx.beginPath();
       ctx.arc(0, 0, 8, 0, Math.PI * 2);
       ctx.fillStyle = iron;
@@ -1243,10 +1250,11 @@ function drawProjectile(ctx: CanvasRenderingContext2D, p: Projectile, biome: Bio
       // stretched along the direction of travel. Additive blending is what
       // makes it look emitted rather than painted.
       ctx.globalCompositeOperation = 'lighter';
-      const bloom = ctx.createLinearGradient(-22, 0, 14, 0);
-      bloom.addColorStop(0, 'rgba(80, 220, 255, 0)');
-      bloom.addColorStop(0.55, 'rgba(90, 230, 255, 0.55)');
-      bloom.addColorStop(1, 'rgba(190, 250, 255, 0.9)');
+      const bloom = linearGradient(ctx, 'projBloom', -22, 0, 14, 0, [
+        [0, 'rgba(80, 220, 255, 0)'],
+        [0.55, 'rgba(90, 230, 255, 0.55)'],
+        [1, 'rgba(190, 250, 255, 0.9)'],
+      ]);
       ctx.fillStyle = bloom;
       ctx.fillRect(-22, -3.2, 36, 6.4);
 
@@ -1263,10 +1271,11 @@ function drawProjectile(ctx: CanvasRenderingContext2D, p: Projectile, biome: Bio
       // where the Frost Tower's shard is angular — same job, different age,
       // and the player should be able to tell which tower is covering a lane.
       ctx.globalCompositeOperation = 'lighter';
-      const halo = ctx.createRadialGradient(0, 0, 1, 0, 0, 13);
-      halo.addColorStop(0, 'rgba(210, 250, 255, 0.9)');
-      halo.addColorStop(0.45, 'rgba(120, 200, 240, 0.45)');
-      halo.addColorStop(1, 'rgba(90, 170, 230, 0)');
+      const halo = radialGradient(ctx, 'projCryo', 0, 0, 1, 0, 0, 13, [
+        [0, 'rgba(210, 250, 255, 0.9)'],
+        [0.45, 'rgba(120, 200, 240, 0.45)'],
+        [1, 'rgba(90, 170, 230, 0)'],
+      ]);
       ctx.beginPath();
       ctx.arc(0, 0, 13, 0, Math.PI * 2);
       ctx.fillStyle = halo;
@@ -1306,10 +1315,11 @@ function drawProjectile(ctx: CanvasRenderingContext2D, p: Projectile, biome: Bio
         ctx.stroke();
       }
 
-      const ring = ctx.createRadialGradient(0, 0, 5.5, 0, 0, 11);
-      ring.addColorStop(0, 'rgba(240, 200, 255, 0.95)');
-      ring.addColorStop(0.5, 'rgba(150, 80, 220, 0.55)');
-      ring.addColorStop(1, 'rgba(90, 40, 160, 0)');
+      const ring = radialGradient(ctx, 'projRing', 0, 0, 5.5, 0, 0, 11, [
+        [0, 'rgba(240, 200, 255, 0.95)'],
+        [0.5, 'rgba(150, 80, 220, 0.55)'],
+        [1, 'rgba(90, 40, 160, 0)'],
+      ]);
       ctx.beginPath();
       ctx.arc(0, 0, 11, 0, Math.PI * 2);
       ctx.fillStyle = ring;
@@ -1329,9 +1339,10 @@ function drawProjectile(ctx: CanvasRenderingContext2D, p: Projectile, biome: Bio
       // A hypervelocity lance. It travels fast enough that the streak behind
       // it is most of what you ever see, which is the point.
       ctx.globalCompositeOperation = 'lighter';
-      const streak = ctx.createLinearGradient(-46, 0, 8, 0);
-      streak.addColorStop(0, 'rgba(255, 214, 120, 0)');
-      streak.addColorStop(1, 'rgba(255, 238, 190, 0.85)');
+      const streak = linearGradient(ctx, 'projStreak', -46, 0, 8, 0, [
+        [0, 'rgba(255, 214, 120, 0)'],
+        [1, 'rgba(255, 238, 190, 0.85)'],
+      ]);
       ctx.fillStyle = streak;
       ctx.fillRect(-46, -1.6, 54, 3.2);
 
@@ -1600,27 +1611,44 @@ function drawEnemy(
   ctx.stroke();
 
   // Body: lit from the upper-left to match the terrain's rock shading.
-  const grad = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r);
-  grad.addColorStop(0, skin.body);
-  grad.addColorStop(1, skin.bodyDark);
+  //
+  // Drawn about the origin under a translate rather than at absolute world
+  // coordinates, purely so the gradient can be cached. A gradient's coordinates
+  // resolve in the user space at FILL time, so one built around a moving world
+  // position is a different object every frame — this was the single biggest
+  // per-frame allocation on a crowded board, one gradient per enemy per frame.
+  // In local coordinates it depends only on the radius and the skin, both of
+  // which come from a fixed table. The transform makes it pixel-identical.
+  ctx.save();
+  ctx.translate(x, y);
+  const grad = radialGradient(
+    ctx,
+    `enemy${r}${skin.body}${skin.bodyDark}`,
+    -r * 0.35, -r * 0.4, r * 0.1, 0, 0, r,
+    [
+      [0, skin.body],
+      [1, skin.bodyDark],
+    ],
+  );
   ctx.beginPath();
   if (e.kind === 'armored') {
     // Hard-edged hexagonal plate. Angular vs round is the fastest silhouette
     // difference to read, which is what an armor check needs to be.
     for (let i = 0; i < 6; i++) {
       const ang = (i / 6) * Math.PI * 2 + a;
-      const px = x + Math.cos(ang) * r * 1.1;
-      const py = y + Math.sin(ang) * r * 1.1;
+      const px = Math.cos(ang) * r * 1.1;
+      const py = Math.sin(ang) * r * 1.1;
       if (i === 0) ctx.moveTo(px, py);
       else ctx.lineTo(px, py);
     }
     ctx.closePath();
   } else {
-    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
   }
   ctx.fillStyle = grad;
   ctx.fill();
   ctx.stroke();
+  ctx.restore();
 
   drawTypeMark(ctx, e, x, y, r, a, skin);
   // After the body and the type mark, so the crown sits over the silhouette

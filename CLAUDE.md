@@ -215,6 +215,30 @@ src/
   past 150 and wave length past two minutes without moving the median death
   wave. `hpQuadratic` moved it immediately, at a quarter of the entity count.
   When a curve needs to out-scale a finished board, scale the UNIT.
+- **Nothing in the frame loop may touch `localStorage`.** `menuInfo()` read the
+  saved run and `JSON.parse`d the whole GameState *every frame* — 33 KB per
+  frame on a late board, so ~2 MB/s of parsing and garbage — to build a string
+  only the title screen draws, and it got worse exactly when the board was
+  busiest. Storage is synchronous. Read it on transitions, never per frame.
+- **Cache gradients, and know where their coordinates resolve.** A
+  `CanvasGradient`'s coordinates are interpreted in the user space at FILL time,
+  not at creation. So a cached gradient is only correct if it was built in local
+  coordinates and every fill happens under the same local transform — which is
+  why the enemy body is now drawn under a `translate` instead of at absolute
+  world coordinates. Anything built around a moving world position (a boss aura)
+  cannot be cached and is deliberately left alone. See `render/cache.ts`.
+- **An offscreen bake containing TEXT must be opaque.** Browsers only use
+  subpixel antialiasing on canvases with no alpha channel, so baking the build
+  bar into a transparent canvas silently re-rendered every label in the game
+  with grayscale AA — a 2% pixel difference, entirely on glyph edges, that no
+  one would ever file a bug about. Bake the opaque region only (`{ alpha: false }`)
+  and keep anything that floats over the board drawn live.
+- **Measure per-frame API CALLS, not FPS.** Wall-clock frame time is quantised
+  to vsync and, in a headless container, dominated by software rasterisation —
+  a change that halves the game's own CPU can report the same 16.7ms. Counting
+  `createRadialGradient` / `measureText` / `fillText` / `rect` per frame is
+  hardware-independent and is what actually improved: 47 gradients → 0, 47
+  `measureText` → 7, 196 `rect` → 39, 33.7 KB of JSON → 0.
 - **Comment the non-obvious.** Explain *why* (e.g. why the map generator can't
   self-intersect), not *what* the next line does.
 
@@ -233,6 +257,8 @@ npm run build
 
 - `npm run typecheck` clean
 - Same `?seed=` twice produces an identical map
+- A render optimisation is pixel-diffed against the build before it, not
+  eyeballed — the build bar bake was byte-identical only on the second attempt
 - Resize the window wide and tall — the board stays 16:9 and centred
 - Nothing under `src/core/` imports from `render/`, `fx/`, `input/` or
   `platform/`; no `Math.random`, `Date.now` or `window` inside `core/`
