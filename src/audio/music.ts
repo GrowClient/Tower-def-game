@@ -33,6 +33,7 @@
  * for.
  */
 
+// How the files are made, and what to do when replacing them: tools/soundtrack.md
 const TRACK_BASE = 'audio/theme';
 
 /**
