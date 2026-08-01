@@ -1685,17 +1685,25 @@ export const WAVES = {
    * threat once you have had time to buy the tower that answers it.
    */
   scripted: [
-    [{ kind: 'runner', count: 4 }],
-    [{ kind: 'runner', count: 7 }],
-    [{ kind: 'runner', count: 10 }],
+    // Raised across the board on playtest feedback: the opening was a formality
+    // you could clear with whatever you happened to build. Wave 1 stays small
+    // — first impressions decide whether the loop gets a chance at all — and
+    // the climb from 2 to 6 is steeper than it was, so the player is making
+    // real decisions before the wave-7 armor lesson rather than after it.
+    //
+    // Deliberately here rather than in the budget curve: this table IS the
+    // early game, so a change to it cannot leak into wave 30.
+    [{ kind: 'runner', count: 5 }],
+    [{ kind: 'runner', count: 9 }],
     [{ kind: 'runner', count: 13 }],
-    [{ kind: 'runner', count: 10 }, { kind: 'brute', count: 1 }],
-    [{ kind: 'runner', count: 14 }, { kind: 'brute', count: 2 }],
+    [{ kind: 'runner', count: 17 }],
+    [{ kind: 'runner', count: 13 }, { kind: 'brute', count: 2 }],
+    [{ kind: 'runner', count: 18 }, { kind: 'brute', count: 3 }],
     // Wave 7 is a TEACHING wave: nothing but Armored. A board with no
     // armor-piercing tower will watch every one of its towers stand idle,
     // which is the lesson delivered as an experience rather than a tooltip.
     // The warning is shown during the break before it — see render/screens.ts.
-    [{ kind: 'armored', count: 9 }],
+    [{ kind: 'armored', count: 11 }],
   ] as { kind: EnemyKind; count: number }[][],
 
   /**
@@ -1839,7 +1847,11 @@ export const WAVES = {
    * while holding the entity count flat, which is a harder finale rather than
    * a longer one.
    */
-  finaleBudgetGrowth: 1.15,
+  // 1.15 measured as too steep through the high fifties in playtest — the two
+  // waves before the finale were harder than the finale itself, which inverts
+  // the shape an ending is supposed to have. A small step down, kept on BOTH
+  // curves so the pair stays matched.
+  finaleBudgetGrowth: 1.14,
 } as const;
 
 /**
@@ -1955,7 +1967,7 @@ export const SCALING = {
    * out-scale a finished board, scale the unit.
    */
   finaleWave: 46,
-  finaleHpGrowth: 1.15,
+  finaleHpGrowth: 1.14,
 
   /** Speed creeps up slowly and caps, or late waves become unreactable. */
   speedLinear: 0.012,

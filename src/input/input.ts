@@ -16,6 +16,7 @@ import type { GameState, RunMode } from '../core/types';
 import {
   ADVANCE_BUTTON,
   HUD_BUTTONS,
+  PLACEMENT_CANCEL,
   buildButtons,
   hitTest,
   towerPanelRects,
@@ -145,6 +146,15 @@ export function attachInput(
       // a finger is down, and finishing that drag onto a perk card would both
       // spend gold the player did not mean to spend and eat the tap they did.
       if (modalUp(ui, getState())) {
+        if (e.pointerType !== 'mouse') ui.pointer = null;
+        return;
+      }
+      // Released on the cancel target: throw the whole drag away and put the
+      // tool down. A touchscreen had no way out of a committed drag — a mouse
+      // can flick off the board and let go, a thumb cannot.
+      const up = toWorld(e);
+      if (hitTest(PLACEMENT_CANCEL, up.x, up.y)) {
+        armBuild(ui, null);
         if (e.pointerType !== 'mouse') ui.pointer = null;
         return;
       }
@@ -423,6 +433,10 @@ function handleTap(
     armBuild(ui, b.kind);
     return;
   }
+
+  // The cancel target overlaps the build bar, and only exists during a drag —
+  // so a press that lands on it while nothing is being dragged must fall
+  // through to whatever is underneath rather than being silently eaten.
 
   if (hitTest(ADVANCE_BUTTON, x, y)) {
     actions.advanceAge();

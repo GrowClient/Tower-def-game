@@ -17,7 +17,7 @@ import { CellKind, type GameState, type Tower } from '../core/types';
 import type { UiState } from '../uiState';
 import { COLORS, font } from './palette';
 import { drawTowerArt } from './drawEntities';
-import { roundRect } from './hud';
+import { PLACEMENT_CANCEL, roundRect } from './hud';
 import { biomeFor } from './palette';
 
 /**
@@ -290,6 +290,7 @@ export function drawPlacementBanner(
   const kind = ui.buildKind;
   if (kind === null) return;
 
+
   const def = TOWERS[kind]!;
   const cell = ui.ghostCell;
   const err = cell === null ? 'noCell' : placementError(state, kind, cell.cx, cell.cy);
@@ -379,6 +380,55 @@ export function drawPlacementBanner(
     cx += chip.w + 8;
   }
 
+  ctx.restore();
+}
+
+/**
+ * Drop here to throw the drag away. Lights up when the pointer is over it.
+ *
+ * Drawn AFTER the HUD, not with the rest of the placement chrome. It sits over
+ * the build bar by design — that is where the thumb came from — and the build
+ * bar is painted later than the placement banner, so drawing it any earlier
+ * put it underneath the very thing it overlaps and made it invisible.
+ */
+export function drawCancelTarget(ctx: CanvasRenderingContext2D, ui: UiState): void {
+  if (!ui.placing || ui.buildKind === null) return;
+  const r = PLACEMENT_CANCEL;
+  const over =
+    ui.pointer !== null &&
+    ui.pointer.x >= r.x &&
+    ui.pointer.x <= r.x + r.w &&
+    ui.pointer.y >= r.y &&
+    ui.pointer.y <= r.y + r.h;
+
+  ctx.save();
+  ctx.fillStyle = over ? 'rgba(150, 34, 24, 0.95)' : 'rgba(30, 16, 12, 0.92)';
+  roundRect(ctx, r.x, r.y, r.w, r.h, 12);
+  ctx.fill();
+  ctx.strokeStyle = over ? '#FFD9D0' : '#F4664F';
+  ctx.lineWidth = over ? 4 : 2.5;
+  ctx.stroke();
+
+  // A big X, drawn rather than typed: a glyph at this size renders differently
+  // across platforms and this one has to read instantly at arm's length.
+  const cx = r.x + r.w / 2;
+  const cy = r.y + r.h / 2 - 8;
+  const d = over ? 19 : 16;
+  ctx.strokeStyle = over ? '#FFFFFF' : '#F4664F';
+  ctx.lineWidth = over ? 7 : 6;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(cx - d, cy - d);
+  ctx.lineTo(cx + d, cy + d);
+  ctx.moveTo(cx + d, cy - d);
+  ctx.lineTo(cx - d, cy + d);
+  ctx.stroke();
+
+  ctx.fillStyle = over ? '#FFFFFF' : '#C98A80';
+  ctx.font = font(13);
+  ctx.textAlign = 'center';
+  ctx.fillText(over ? 'RELEASE TO CANCEL' : 'DRAG HERE TO CANCEL', cx, r.y + r.h - 12);
+  ctx.textAlign = 'left';
   ctx.restore();
 }
 

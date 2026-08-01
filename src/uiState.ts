@@ -169,5 +169,11 @@ export function armAbility(ui: UiState, key: AbilityKey | null): void {
   if (ui.armedAbility !== null) {
     ui.buildKind = null;
     ui.selectedTowerId = null;
+    // Picking an ability CLOSES the tray, because the tray covers the right
+    // quarter of the board and the tap that would cast there hit a card
+    // instead. You could hold an Orbital Lance and be unable to aim it at the
+    // corner of the map you were holding it for. Once you have chosen, the
+    // board is what you need; reopen the tray to change your mind.
+    ui.abilityMenuOpen = false;
   }
 }

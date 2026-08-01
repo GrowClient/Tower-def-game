@@ -115,9 +115,18 @@ src/
   produce identical actions. There is no separate touch code path.
 - **Button geometry is exported.** `render/hud.ts` exports the rectangles it
   draws so `input/` hit-tests the exact same geometry. Never duplicate a rect.
-- **No assets.** All art is geometry drawn in code, and all SOUND is
-  synthesised in `audio/sfx.ts` from oscillators and noise. Do not add image or
-  audio files, and do not reference any.
+- **No assets, with ONE exception.** All art is geometry drawn in code, and all
+  SFX are synthesised in `audio/sfx.ts` from oscillators and noise. Do not add
+  image files, ever. The single exception is the **soundtrack**: `public/audio/`
+  holds a composed theme, because synthesised music has a ceiling — oscillators
+  can be pleasant, they cannot be memorable, and a theme is most of what
+  atmosphere means. The rule still binds everywhere else, and it is what keeps
+  the bundle at ~50 KB.
+- **Music never blocks the game.** `audio/music.ts` fetches in the background
+  and stays silent if the file is missing or undecodable. A build with no
+  soundtrack is a quiet game, not a broken one — and it loops by decoding to a
+  raw buffer rather than with an `<audio loop>` tag, because MP3 encoder
+  padding puts an audible gap at the seam.
 - **Audio is a SimEvent consumer, exactly like fx.** The sim must never know
   sound exists. Sounds are throttled per type and capped per frame, because a
   busy wave emits dozens of events and playing them all is both deafening and a

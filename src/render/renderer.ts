@@ -20,6 +20,7 @@ import { drawAbilityTray } from './abilityMenu';
 import {
   drawComboLinks,
   drawGrid,
+  drawCancelTarget,
   drawPlacementBanner,
   drawPlacementGhost,
   drawSelectionRing,
@@ -123,6 +124,9 @@ export function render(
   // HUD so the build bar it tells you to use is never covered by it.
   drawArmorBriefing(ctx, state, ui, biome);
   drawHud(ctx, state, ui, ageIndex);
+  // After the HUD: the cancel target deliberately overlaps the build bar, so
+  // it has to be painted later than the bar it covers.
+  drawCancelTarget(ctx, ui);
 
   // Above the HUD, but hidden entirely behind any full-screen overlay. A tray
   // showing through a pause menu is a menu you can see two of at once.

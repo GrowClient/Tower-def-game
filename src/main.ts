@@ -20,6 +20,7 @@ import { newRun } from './core/state';
 import type { RunMode } from './core/types';
 import type { GameState } from './core/types';
 import { isMuted, playEvents, setMuted, unlockAudio } from './audio/sfx';
+import { setMusicPlaying } from './audio/music';
 import { consumeEvents, newFx, trackEnemies, updateFx } from './fx/effects';
 import { attachInput } from './input/input';
 import {
@@ -329,6 +330,11 @@ function frame(nowMs: number): void {
   // the game is paused or a perk draft is holding the wave clock.
   trackEnemies(fx, state.enemies);
   updateFx(fx, frameSec, new Set(state.enemies.map((e) => e.id)));
+
+  // The soundtrack runs on the menu and in a run alike — one track, so there
+  // is nothing to switch between. Stopped only when the tab is hidden, which
+  // browsers half-do anyway and which is rude not to finish properly.
+  setMusicPlaying(document.visibilityState === 'visible');
 
   render(ctx!, viewport, state, ui, bestWave, fx, menuInfo(nowMs));
   requestAnimationFrame(frame);

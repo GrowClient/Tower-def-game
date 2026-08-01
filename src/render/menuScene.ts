@@ -29,6 +29,7 @@ import { WORLD } from '../config/balance';
 import { makeRng, nextFloat, nextInt, nextRange, type Rng } from '../core/rng';
 import { biomeFor } from './palette';
 import { drawTowerArt } from './drawEntities';
+import { roundRect } from './hud';
 
 /** Fixed, so the title screen is the same place every time you come back. */
 const SCENE_SEED = 0x5cede0;
@@ -244,14 +245,24 @@ function paintAgeLabels(ctx: CanvasRenderingContext2D): void {
   ];
   ctx.save();
   ctx.textAlign = 'center';
-  ctx.font = '600 17px "IBM Plex Mono", ui-monospace, monospace';
+  ctx.font = '700 21px "IBM Plex Mono", ui-monospace, monospace';
+  const y = 262;
   for (const [text, x] of labels) {
-    const y = 262;
-    // A dark shadow under a light face, because the label crosses both a pale
-    // hill and a dark one and either colour alone vanishes over half its run.
-    ctx.fillStyle = 'rgba(24, 14, 4, 0.55)';
-    ctx.fillText(text, x, y + 2);
-    ctx.fillStyle = 'rgba(255, 240, 202, 0.86)';
+    // Each label gets its own dark plate.
+    //
+    // Shadowed text alone was not enough and could not be: these sit on hills
+    // that run from near-white at the sun to deep brown at the edges, so ANY
+    // single text colour is invisible over part of its own width. A plate
+    // makes the background a constant, which is the only thing that makes a
+    // label on a painted scene reliably readable.
+    const w = ctx.measureText(text).width + 30;
+    ctx.fillStyle = 'rgba(28, 16, 5, 0.62)';
+    roundRect(ctx, x - w / 2, y - 20, w, 29, 14);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 232, 180, 0.28)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = '#FFEFCD';
     ctx.fillText(text, x, y);
   }
   ctx.restore();

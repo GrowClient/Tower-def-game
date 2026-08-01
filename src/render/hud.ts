@@ -198,6 +198,25 @@ export function towerPanelRects(state: GameState, tower: Tower): TowerPanel {
  * visible rather than buried in a menu: it is the most important decision in
  * the game and the player has to be able to see the price they're saving for.
  */
+/**
+ * Drop-here-to-cancel, shown only while a placement drag is in flight.
+ *
+ * A drag had no cancel on a touchscreen. On a mouse you can flick the pointer
+ * off the board and let go; a thumb that has already committed to a drag has
+ * nowhere to go, and releasing anywhere legal builds the tower. The player's
+ * only escape was to place something they did not want and sell it back at a
+ * loss.
+ *
+ * Deliberately over the build bar. That is where the thumb came FROM, so it is
+ * the shortest possible retreat, and the bar has nothing to say mid-drag.
+ */
+export const PLACEMENT_CANCEL: Rect = {
+  x: WORLD.width / 2 - 82,
+  y: WORLD.height - WORLD.hudBottom + 14,
+  w: 164,
+  h: 88,
+};
+
 export const ADVANCE_BUTTON: Rect = {
   x: 24,
   y: WORLD.height - WORLD.hudBottom - 74,

@@ -19,6 +19,7 @@
  */
 
 import type { AbilityKey, SimEvent, TowerKind } from '../core/types';
+import { initMusic, setMusicMuted } from './music';
 
 /**
  * One voice per weapon, not one per rough category.
@@ -152,6 +153,9 @@ export function isMuted(): boolean {
 }
 
 export function setMuted(value: boolean): void {
+  // One button silences the whole game — a mute that leaves the soundtrack
+  // playing is a mute that did not work.
+  setMusicMuted(value);
   muted = value;
   if (master && ctx) {
     master.gain.setTargetAtTime(muted ? 0 : 0.9, ctx.currentTime, 0.01);
@@ -177,6 +181,11 @@ export function unlockAudio(): void {
     master.gain.value = muted ? 0 : 0.9;
     master.connect(ctx.destination);
     noiseBuffer = makeNoiseBuffer(ctx);
+    // The music layer shares this context rather than making its own: browsers
+    // cap how many an origin may create, and one unlock gesture should unlock
+    // everything the player can hear.
+    initMusic(ctx);
+    setMusicMuted(muted);
   }
   if (ctx.state === 'suspended') void ctx.resume();
 }
