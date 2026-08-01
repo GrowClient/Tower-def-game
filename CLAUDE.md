@@ -95,6 +95,10 @@ src/
 │   └── input.ts          Pointer Events -> world coords -> intents
 └── platform/
     └── storage.ts        localStorage high score (never touched by core)
+
+tools/                    scripts that produce things FROM the game. Nothing
+                          here ships and nothing in src/ imports it.
+└── export-tower-art.js   re-runs the tower draw code at print resolution
 ```
 
 ---
@@ -115,6 +119,12 @@ src/
   produce identical actions. There is no separate touch code path.
 - **Button geometry is exported.** `render/hud.ts` exports the rectangles it
   draws so `input/` hit-tests the exact same geometry. Never duplicate a rect.
+- **Store art is EXPORTED, never screenshotted.** Because every tower is
+  geometry, `tools/export-tower-art.js` re-runs the same draw functions at any
+  resolution — a 2048px cover asset is redrawn sharp, not an upscale of a
+  1600x900 screenshot. It composes plinth-then-art exactly as `drawTower` does,
+  which is why `drawPlinth` is exported: anything that renders a tower outside
+  the board and skips the plinth is drawing a tower no player has seen.
 - **No assets, with ONE exception.** All art is geometry drawn in code, and all
   SFX are synthesised in `audio/sfx.ts` from oscillators and noise. Do not add
   image files, ever. The single exception is the **soundtrack**: `public/audio/`

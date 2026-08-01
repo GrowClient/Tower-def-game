@@ -425,7 +425,12 @@ function matLit(tier: Tier, fallback: string): string {
 }
 
 /** Stacked stone base every above-ground tower sits on. */
-function drawPlinth(ctx: CanvasRenderingContext2D, s: number, biome: Biome): void {
+/**
+ * Exported so the art-export tool can compose a tower exactly as the board
+ * does — plinth, then art. Anything that renders a tower outside `drawTower`
+ * and skips this is drawing a tower the player has never seen.
+ */
+export function drawPlinth(ctx: CanvasRenderingContext2D, s: number, biome: Biome): void {
   ctx.beginPath();
   ctx.ellipse(0, s * 0.5, s * 1.02, s * 0.5, 0, 0, Math.PI * 2);
   ctx.fillStyle = biome.rock;
