@@ -203,8 +203,8 @@ export const ENEMIES = {
   runner: {
     ...NO_SPECIALS,
     label: 'Runner',
-    maxHp: 46,
-    speed: 108,
+    maxHp: 58,
+    speed: 114,
     radius: 14,
     armor: 0,
     bounty: 21,
@@ -215,7 +215,7 @@ export const ENEMIES = {
   brute: {
     ...NO_SPECIALS,
     label: 'Brute',
-    maxHp: 280,
+    maxHp: 355,
     speed: 46,
     radius: 22,
     armor: 2,
@@ -228,8 +228,8 @@ export const ENEMIES = {
   swarm: {
     ...NO_SPECIALS,
     label: 'Swarm',
-    maxHp: 22,
-    speed: 88,
+    maxHp: 28,
+    speed: 92,
     radius: 9,
     armor: 0,
     bounty: 9,
@@ -242,7 +242,7 @@ export const ENEMIES = {
     ...NO_SPECIALS,
     label: 'Armored',
     plated: true,
-    maxHp: 190,
+    maxHp: 240,
     speed: 62,
     radius: 18,
     armor: 11,
@@ -255,7 +255,7 @@ export const ENEMIES = {
   shielded: {
     ...NO_SPECIALS,
     label: 'Shielded',
-    maxHp: 120,
+    maxHp: 155,
     speed: 70,
     radius: 17,
     armor: 1,
@@ -277,7 +277,7 @@ export const ENEMIES = {
   warchief: {
     ...NO_SPECIALS,
     label: 'Warchief',
-    maxHp: 210,
+    maxHp: 265,
     speed: 60,
     radius: 17,
     armor: 2,
@@ -297,7 +297,7 @@ export const ENEMIES = {
   zealot: {
     ...NO_SPECIALS,
     label: 'Zealot',
-    maxHp: 260,
+    maxHp: 330,
     speed: 58,
     radius: 17,
     armor: 3,
@@ -317,7 +317,7 @@ export const ENEMIES = {
   splitter: {
     ...NO_SPECIALS,
     label: 'Splitter',
-    maxHp: 420,
+    maxHp: 530,
     speed: 66,
     radius: 20,
     armor: 4,
@@ -335,7 +335,7 @@ export const ENEMIES = {
   juggernaut: {
     ...NO_SPECIALS,
     label: 'Juggernaut',
-    maxHp: 1400,
+    maxHp: 1750,
     speed: 34,
     radius: 26,
     armor: 14,
@@ -356,7 +356,7 @@ export const ENEMIES = {
   bossSummoner: {
     ...NO_SPECIALS,
     label: 'Hive Mother',
-    maxHp: 1700,
+    maxHp: 1950,
     speed: 38,
     radius: 34,
     armor: 4,
@@ -367,7 +367,7 @@ export const ENEMIES = {
   bossWarlord: {
     ...NO_SPECIALS,
     label: 'Warlord',
-    maxHp: 4200,
+    maxHp: 4800,
     speed: 42,
     radius: 36,
     armor: 8,
@@ -381,7 +381,7 @@ export const ENEMIES = {
   bossRegenerator: {
     ...NO_SPECIALS,
     label: 'Ancient',
-    maxHp: 4200,
+    maxHp: 4800,
     speed: 34,
     radius: 38,
     armor: 6,
@@ -1714,25 +1714,27 @@ export const WAVES = {
    * threat once you have had time to buy the tower that answers it.
    */
   scripted: [
-    // Raised across the board on playtest feedback: the opening was a formality
-    // you could clear with whatever you happened to build. Wave 1 stays small
-    // — first impressions decide whether the loop gets a chance at all — and
-    // the climb from 2 to 6 is steeper than it was, so the player is making
-    // real decisions before the wave-7 armor lesson rather than after it.
+    // Raised twice now on playtest feedback, the second time because the
+    // opening was still being cleared with whatever the player happened to
+    // build. Wave 1 stays the smallest wave in the game — first impressions
+    // decide whether the loop gets a chance at all — but everything after it
+    // climbs hard, and the first Brute now lands on wave 4 rather than 5, so
+    // "my Throwers are not enough" is a lesson the opening teaches instead of
+    // something the player discovers at wave 12.
     //
     // Deliberately here rather than in the budget curve: this table IS the
     // early game, so a change to it cannot leak into wave 30.
-    [{ kind: 'runner', count: 5 }],
-    [{ kind: 'runner', count: 9 }],
-    [{ kind: 'runner', count: 13 }],
+    [{ kind: 'runner', count: 7 }],
+    [{ kind: 'runner', count: 12 }],
     [{ kind: 'runner', count: 17 }],
-    [{ kind: 'runner', count: 13 }, { kind: 'brute', count: 2 }],
-    [{ kind: 'runner', count: 18 }, { kind: 'brute', count: 3 }],
+    [{ kind: 'runner', count: 20 }, { kind: 'brute', count: 1 }],
+    [{ kind: 'runner', count: 19 }, { kind: 'brute', count: 3 }],
+    [{ kind: 'runner', count: 24 }, { kind: 'brute', count: 5 }],
     // Wave 7 is a TEACHING wave: nothing but Armored. A board with no
     // armor-piercing tower will watch every one of its towers stand idle,
     // which is the lesson delivered as an experience rather than a tooltip.
     // The warning is shown during the break before it — see render/screens.ts.
-    [{ kind: 'armored', count: 11 }],
+    [{ kind: 'armored', count: 14 }],
   ] as { kind: EnemyKind; count: number }[][],
 
   /**
@@ -1746,13 +1748,18 @@ export const WAVES = {
    * eventually out-scaled by a full board and the run stops being able to end.
    */
   // These are chosen so the FIRST generated wave lands just above the last
-  // scripted one (wave 6 is 14 runners + 2 brutes = 26 threat, so wave 7 is
-  // ~30). Getting this wrong is not a subtle difficulty tweak: an unmatched
-  // handoff put wave 7 at 64 threat, and every run died there regardless of
-  // how the rest of the curve was tuned.
-  budgetBase: 6,
-  budgetLinear: 1.8,
-  budgetQuadratic: 0.15,
+  // scripted one. Getting this wrong is not a subtle difficulty tweak: an
+  // unmatched handoff put wave 7 at 64 threat once, and every run died there
+  // regardless of how the rest of the curve was tuned.
+  //
+  // The scripted table now ends far heavier than it used to — wave 7 is 14
+  // Armored, 56 threat — so the base and linear terms were raised to match.
+  // Before that they were left behind by the opening and wave 8 was a
+  // BREATHER after wave 7, which is exactly the wrong shape: the generated
+  // curve has to pick up where the hand-authored one left off, not below it.
+  budgetBase: 14,
+  budgetLinear: 2.6,
+  budgetQuadratic: 0.17,
   budgetExpGrowth: 1.025,
 
   /**
@@ -1938,8 +1945,15 @@ export const BOSS_SCALING = {
  * so speed and armor can escalate on their own schedules.
  */
 export const SCALING = {
-  /** hp x= 1 + linear*(w-1) + quad*(w-1)^2 */
-  hpLinear: 0.085,
+  /**
+   * hp x= 1 + linear*(w-1) + quad*(w-1)^2
+   *
+   * Raised with the base HP lift on every enemy. The two do different jobs:
+   * base HP makes wave 1 harder, this makes the climb out of the opening
+   * steeper. Neither changes unit counts, so the game gets tougher without
+   * getting slower — the trap this file documents in `maxSpawnWindow`.
+   */
+  hpLinear: 0.095,
   /**
    * Raised from 0.012. This is the lever that actually ends a late run.
    *

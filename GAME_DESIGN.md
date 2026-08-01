@@ -850,7 +850,7 @@ it.
 
 Threat cost per unit **scales with the wave**, on the same curve as HP.
 
-It used to be flat — a Brute cost 6 threat whether it had 280 HP or 6000 —
+It used to be flat — a Brute cost 6 threat whether it had 355 HP or 6000 —
 which quietly made the budget curve a unit-COUNT curve. An exponential budget
 then meant an exponential number of bodies: wave 40 spawned around 600 units.
 Waves got longer and more tedious rather than harder, every extra body was
@@ -999,7 +999,7 @@ a harder one.
 ### Pacing is a separate problem from difficulty
 
 Threat cost per unit doesn't scale with the wave — a Brute costs 6 threat
-whether it has 280 HP or 4000 — so the budget curve is really a *unit count*
+whether it has 355 HP or 4000 — so the budget curve is really a *unit count*
 curve, and an exponential unit count on a fixed spawn interval is an
 exponentially longer wave. Measured, wave 25 took **163 seconds** to trickle
 out: not hard, just slow.
