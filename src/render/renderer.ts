@@ -54,6 +54,10 @@ export function render(
   // animates while no simulation is running at all, so it cannot use sim time
   // and must not be given a reason to want one.
   menu: { canContinue: boolean; continueLabel: string; time: number },
+  // Whether a soundtrack is coming at all. The volume sliders draw dead without
+  // one, because a control that visibly does nothing reads as broken — but NOT
+  // merely while the track is still downloading. See musicUnavailable().
+  musicAvailable: boolean,
 ): void {
   // Letterbox bars, drawn in raw screen space.
   ctx.setTransform(vp.dpr, 0, 0, vp.dpr, 0, 0);
@@ -77,6 +81,8 @@ export function render(
       bestWave,
       vp.scale * vp.dpr,
       menu.time,
+      ui.musicVolume,
+      musicAvailable,
     );
     return;
   }
@@ -155,7 +161,7 @@ export function render(
   else if (state.phase === 'won') drawVictoryOverlay(ctx, state, biome);
   else if (state.phase === 'gameover') drawGameOverOverlay(ctx, state, biome, bestWave);
   else if (state.perkChoices !== null) drawPerkDraft(ctx, state.perkChoices, biome, state.perks);
-  else if (ui.paused) drawPauseMenu(ctx, state, ui, biome);
+  else if (ui.paused) drawPauseMenu(ctx, state, ui, biome, musicAvailable);
   else if (ui.showCombos) drawCombosCodex(ctx, biome);
 
   // Over the overlays too: a flash is the screen, not a layer in it.

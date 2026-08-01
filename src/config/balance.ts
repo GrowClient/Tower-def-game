@@ -95,7 +95,13 @@ export const RUN = {
    * bar keeps the toll frightening while leaving room to survive one mistake
    * and rebuild.
    */
-  startingLives: 30,
+  // Twenty, not thirty. Thirty meant the early game could be misplayed for ten
+  // waves and still recovered from, so the opening never had to be answered —
+  // which is the same complaint as "the first levels are too easy", arriving
+  // through the life bar instead of through the wave table. Rally now restores
+  // four rather than two, so the perk that buys lives back is worth taking
+  // against the smaller pool.
+  startingLives: 20,
   startingGold: 300,
 } as const;
 
@@ -1438,13 +1444,13 @@ export type PerkKey =
   | 'damage'
   | 'fireRate'
   | 'range'
-  | 'splash'
+  | 'trapDamage'
   | 'bounty'
   | 'interest'
   | 'slow'
   | 'lives'
   | 'refund'
-  | 'burn';
+  | 'abilityDiscount';
 
 /**
  * Every perk belongs to a side of one question: do you want to kill things
@@ -1483,20 +1489,42 @@ export const PERKS: PerkDef[] = [
   { key: 'damage', label: 'Sharpened', detail: '+7% tower damage', category: 'power', maxStacks: 5 },
   { key: 'fireRate', label: 'Quickened', detail: '+6% fire rate', category: 'power', maxStacks: 5 },
   { key: 'range', label: 'Farsight', detail: '+5% tower range', category: 'power', maxStacks: 4 },
-  { key: 'splash', label: 'Wider Blast', detail: '+9% splash radius', category: 'power', maxStacks: 4 },
-  { key: 'burn', label: 'Accelerant', detail: '+10% burn damage', category: 'power', maxStacks: 4 },
+  // The one perk with no practical ceiling. A campaign offers twelve drafts in
+  // sixty waves, so a cap of 20 is really "you may always take this again" —
+  // which is the point: it is the only way to build a run AROUND traps, and
+  // traps are the one family that never competes for a capped tower slot.
+  {
+    key: 'trapDamage',
+    label: 'Sharpened Stakes',
+    detail: '+5% trap damage',
+    category: 'power',
+    maxStacks: 20,
+  },
 
   // --- Economy -------------------------------------------------------------
   { key: 'bounty', label: 'Scavenger', detail: '+6% gold from kills', category: 'economy', maxStacks: 4 },
   { key: 'interest', label: 'Reserves', detail: '+8% from economy buildings', category: 'economy', maxStacks: 4 },
   { key: 'refund', label: 'Salvage', detail: 'Sell towers for 75%, not 60%', category: 'economy', maxStacks: 1 },
+  // Once only, and flat rather than proportional — which makes it an EARLY
+  // perk by design. A diamond off a 3-diamond Stone Rain is a third of the
+  // price; a diamond off a 30-diamond Orbital Lance is a rounding error. Taking
+  // it at wave 5 buys a whole extra casting cadence for the Stone Age; taking
+  // it at wave 50 buys almost nothing, and that is a real decision rather than
+  // a strictly-correct one.
+  {
+    key: 'abilityDiscount',
+    label: 'Cut Stones',
+    detail: 'Abilities cost 1 diamond less',
+    category: 'economy',
+    maxStacks: 1,
+  },
 
   // --- Utility -------------------------------------------------------------
   // Duration, not strength. Slow strength is fixed everywhere on purpose, so a
   // perk that deepened it would reintroduce exactly the pinned-wave problem
   // the slower rework exists to remove.
   { key: 'slow', label: 'Lingering Chill', detail: 'Slows last 10% longer', category: 'utility', maxStacks: 4 },
-  { key: 'lives', label: 'Rally', detail: 'Restore 2 lives', category: 'utility', maxStacks: 4 },
+  { key: 'lives', label: 'Rally', detail: 'Restore 4 lives', category: 'utility', maxStacks: 4 },
 ];
 
 export const PERK_RULES = {
@@ -1508,13 +1536,14 @@ export const PERK_RULES = {
   damagePerStack: 0.07,
   fireRatePerStack: 0.06,
   rangePerStack: 0.05,
-  splashPerStack: 0.09,
   bountyPerStack: 0.06,
   interestPerStack: 0.08,
   slowDurationPerStack: 0.1,
-  livesPerStack: 2,
+  livesPerStack: 4,
   refundBoost: 0.75,
-  burnPerStack: 0.1,
+  trapDamagePerStack: 0.05,
+  /** Flat, and never below one — an ability that costs nothing is not a choice. */
+  abilityDiscountPerStack: 1,
 } as const;
 
 /**

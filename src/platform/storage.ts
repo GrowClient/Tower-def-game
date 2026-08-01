@@ -166,3 +166,34 @@ export function saveTutorialDone(): void {
     // Storage unavailable — the tutorial will simply offer itself again.
   }
 }
+
+// ---------------------------------------------------------------------------
+// Music volume
+// ---------------------------------------------------------------------------
+
+const MUSIC_VOLUME_KEY = 'td.musicVolume';
+
+/**
+ * Persisted, because a volume setting is a statement about the player's room
+ * rather than about the run. Someone who turned the music down once did not
+ * mean "for this session"; making them do it again every launch is the setting
+ * not working.
+ */
+export function loadMusicVolume(fallback: number): number {
+  try {
+    const raw = window.localStorage.getItem(MUSIC_VOLUME_KEY);
+    if (raw === null) return fallback;
+    const n = Number.parseFloat(raw);
+    return Number.isFinite(n) && n >= 0 && n <= 1 ? n : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export function saveMusicVolume(volume: number): void {
+  try {
+    window.localStorage.setItem(MUSIC_VOLUME_KEY, volume.toFixed(3));
+  } catch {
+    // Storage unavailable — the slider still works, it just won't be remembered.
+  }
+}

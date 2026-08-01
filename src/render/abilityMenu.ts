@@ -22,7 +22,7 @@ import {
   type AbilityDef,
   type AbilityKey,
 } from '../config/balance';
-import { abilityCooldown, abilityError } from '../core/abilities';
+import { abilityCooldown, abilityError, abilityPrice } from '../core/abilities';
 import type { GameState } from '../core/types';
 import type { UiState } from '../uiState';
 import { COLORS, font, type Biome } from './palette';
@@ -164,7 +164,10 @@ function drawCard(
       ? 'LOCKED'
       : err === 'cooling'
         ? `${cooling.toFixed(0)}s`
-        : `${def.cost}`;
+        : // The PRICE, not the list cost: the Cut Stones perk discounts what
+          // castAbility actually charges, and a tray that keeps showing the
+          // base number is a tray that lies about affordability.
+          `${abilityPrice(state, key)}`;
   ctx.fillStyle =
     err === 'tooPoor' ? '#F4664F' : err === null ? '#8FE3FF' : COLORS.textDim;
   ctx.fillText(label, rect.x + rect.w - 12, rect.y + 26);

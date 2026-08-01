@@ -1,41 +1,48 @@
 # Soundtrack
 
-`theme.ogg` + `theme.mp3` — the same 90-second loop in two formats. Chrome and
+`theme.ogg` + `theme.mp3` — the same 2:07 track in two formats. Chrome and
 Firefox take the OGG, Safari the MP3; `src/audio/music.ts` tries them in that
 order, so one pair of files covers every browser without sniffing user agents.
 
-## How this loop was made
+## The file is not edited.
 
-The source was 2:07 and written to loop at its own end, so cutting it at 1:30
-would have clicked every time round. Instead the four seconds AFTER the cut are
-faded down over the first four seconds of the track:
+Two attempts to improve the loop point were made and both were rejected by the
+person who wrote the music, which settled the question:
 
-- the file **ends** on the audio at 1:30
-- the file **begins** with the audio that followed 1:30, fading into the real
-  opening
+1. **A crossfade baked into the file.** The track was cut at 1:30 and the four
+   seconds after the cut were faded down over the opening bars, so the file
+   genuinely continued into itself. It looped perfectly and it permanently
+   muddied the intro — the part every player hears first and most often.
+2. **A crossfade scheduled at playback.** The file stayed intact, but the ending
+   was still ramped away under the returning intro. Softer, and still an edit to
+   an ending the composer had written to land.
 
-So the seam is the one point in the track where the music genuinely continues
-into itself. Rebuild it with:
+So: the track is transcoded and nothing else. It plays whole, from the first
+sample to the last, and then again. It was written as a loop; the composer's
+seam is the right one.
 
 ```
-ffmpeg -i source.mp3 -filter_complex "
-  [0:a]atrim=0:90,asetpts=PTS-STARTPTS,afade=t=in:st=0:d=4[body];
-  [0:a]atrim=90:94,asetpts=PTS-STARTPTS,afade=t=out:st=0:d=4[tail];
-  [body][tail]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[out]
-" -map "[out]" -ar 44100 theme.wav
+ffmpeg -i source.mp3 -ar 44100 -ac 2 theme.wav
+ffmpeg -i theme.wav -c:a libvorbis  -q:a 3    theme.ogg
+ffmpeg -i theme.wav -c:a libmp3lame -b:a 112k theme.mp3
 ```
 
-`TRACK_SECONDS` in `music.ts` must match the length — MP3 decodes ~40ms longer
-than it should because encoders pad the file, and `loopEnd` is clamped to the
-real musical length so that padding is never played at the seam.
+The single exception is `loopEnd`, and it is not an edit: MP3 encoders PAD a
+file, so the shipped MP3 decodes ~40ms longer than the recording and a naive
+loop replays silence that was never played. `TRACK_SECONDS` in `music.ts` is the
+decoded length of the **WAV**, so both formats loop on the music rather than on
+whatever the encoder appended. Update it whenever the track is replaced.
 
 ## Replacing it
 
-Drop in a new pair with the same names. The game works with neither: the player
-fetches in the background and stays silent if they are missing, so a build with
-no soundtrack is a quiet game rather than a broken one.
+Drop in a new pair with the same names and update `TRACK_SECONDS`. The game
+works with neither: the player fetches in the background and stays silent if
+they are missing, so a build with no soundtrack is a quiet game rather than a
+broken one.
 
-- **60–120 seconds**, ending where the loop restarts. No fade out.
+- **Any length**, but it has to **loop on its own** — the end runs straight
+  into the start with nothing in between, so it should resolve into its own
+  opening rather than fading out.
 - **Around −14 LUFS.** The current track measures −14.8, which is right: combat
   SFX play on top, and music that fights the game is music players mute.
 - **96–128 kbps.** Higher only makes the download bigger.

@@ -20,7 +20,7 @@ import { newRun } from './core/state';
 import type { RunMode } from './core/types';
 import type { GameState } from './core/types';
 import { isMuted, playEvents, setMuted, unlockAudio } from './audio/sfx';
-import { musicLoaded, musicVolume, setMusicPlaying } from './audio/music';
+import { musicUnavailable, musicLoaded, musicVolume, setMusicPlaying, setMusicVolume } from './audio/music';
 import { consumeEvents, newFx, trackEnemies, updateFx } from './fx/effects';
 import { attachInput } from './input/input';
 import {
@@ -28,8 +28,10 @@ import {
   hasSavedRun,
   loadBestWave,
   loadRun,
+  loadMusicVolume,
   loadTutorialDone,
   saveBestWave,
+  saveMusicVolume,
   saveRun,
   saveTutorialDone,
 } from './platform/storage';
@@ -66,6 +68,11 @@ let scoreBanked = false;
 // tower again is the game calling them a beginner every visit.
 ui.tutorialDone = loadTutorialDone();
 let tutorialPersisted = ui.tutorialDone;
+
+// Restored before anything can be heard. The music layer is the owner of the
+// value; UiState only mirrors it so `render/` never has to import `audio/`.
+ui.musicVolume = loadMusicVolume(musicVolume());
+setMusicVolume(ui.musicVolume);
 
 /**
  * Saving is cheap but not free — the whole run is serialised — so it happens on
@@ -140,6 +147,15 @@ attachInput(
     toggleMute: () => {
       setMuted(!isMuted());
       ui.muted = isMuted();
+    },
+    setMusicVolume: (volume) => {
+      ui.musicVolume = volume;
+      setMusicVolume(volume);
+      // Written on every drag frame, which sounds wasteful and is not: a drag
+      // is a handful of frames long and localStorage writes are synchronous but
+      // tiny. The alternative — persisting on release — loses the setting when
+      // a phone kills the tab mid-gesture.
+      saveMusicVolume(volume);
     },
     openMenu: () => {
       // Save FIRST, then leave. The whole promise of the button's label is
@@ -337,7 +353,7 @@ function frame(nowMs: number): void {
   // browsers half-do anyway and which is rude not to finish properly.
   setMusicPlaying(document.visibilityState === 'visible');
 
-  render(ctx!, viewport, state, ui, bestWave, fx, menuInfo(nowMs));
+  render(ctx!, viewport, state, ui, bestWave, fx, menuInfo(nowMs), !musicUnavailable());
   requestAnimationFrame(frame);
 }
 

@@ -19,7 +19,8 @@ import {
   type TowerKind,
 } from '../config/balance';
 import { goldPerDiamond } from '../config/balance';
-import { abilityCooldown } from '../core/abilities';
+import { abilityCooldown, abilityPrice } from '../core/abilities';
+import { PAUSE_VOLUME_SLIDER, drawVolumeSlider } from './volume';
 import { piercesPlating } from '../core/towers';
 import { drawAbilityIcon } from './abilityMenu';
 import type { EnemyKind, GameState } from '../core/types';
@@ -302,6 +303,7 @@ export function drawPauseMenu(
   state: GameState,
   ui: UiState,
   biome: Biome,
+  musicAvailable: boolean,
 ): void {
   scrim(ctx, 0.9);
 
@@ -342,13 +344,18 @@ export function drawPauseMenu(
       break;
     case 'game':
     default:
-      drawPauseButtons(ctx, ui, biome);
+      drawPauseButtons(ctx, ui, biome, musicAvailable);
       break;
   }
   ctx.textAlign = 'left';
 }
 
-function drawPauseButtons(ctx: CanvasRenderingContext2D, ui: UiState, biome: Biome): void {
+function drawPauseButtons(
+  ctx: CanvasRenderingContext2D,
+  ui: UiState,
+  biome: Biome,
+  musicAvailable: boolean,
+): void {
   for (const b of PAUSE_BUTTONS) {
     let label: string;
     switch (b.id) {
@@ -387,6 +394,11 @@ function drawPauseButtons(ctx: CanvasRenderingContext2D, ui: UiState, biome: Bio
     ctx.textAlign = 'center';
     ctx.fillText(label, b.rect.x + b.rect.w / 2, b.rect.y + 40);
   }
+
+  // Below SOUND: ON/OFF rather than beside it, and a slider rather than a
+  // seventh button: the two controls answer different questions, and turning
+  // the theme down should never cost the player their hit feedback.
+  drawVolumeSlider(ctx, PAUSE_VOLUME_SLIDER, ui.musicVolume, biome, musicAvailable);
 }
 
 /**
@@ -600,7 +612,7 @@ function drawAbilityGuide(
     ctx.fillText(
       locked
         ? `unlocked in the ${AGE_LABELS[def.age] ?? 'next age'}`
-        : `${def.cost} diamonds  ·  ${def.cooldown}s cooldown` +
+        : `${abilityPrice(state, def.key)} diamonds  ·  ${def.cooldown}s cooldown` +
           (def.duration > 0 ? `  ·  ${def.duration}s` : '  ·  instant') +
           (abilityCooldown(state, def.key) > 0
             ? `  ·  READY IN ${abilityCooldown(state, def.key).toFixed(0)}s`

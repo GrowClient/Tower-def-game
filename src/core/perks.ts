@@ -105,16 +105,28 @@ export function rangeMul(state: GameState): number {
   return 1 + perkStacks(state, 'range') * PERK_RULES.rangePerStack;
 }
 
-export function splashMul(state: GameState): number {
-  return 1 + perkStacks(state, 'splash') * PERK_RULES.splashPerStack;
-}
-
 export function bountyMul(state: GameState): number {
   return 1 + perkStacks(state, 'bounty') * PERK_RULES.bountyPerStack;
 }
 
-export function burnMul(state: GameState): number {
-  return 1 + perkStacks(state, 'burn') * PERK_RULES.burnPerStack;
+/**
+ * Traps hit harder. The one damage perk that names a family rather than the
+ * whole board, and the only one worth stacking indefinitely — traps are exempt
+ * from the tower cap, so a run can genuinely be built around them.
+ */
+export function trapDamageMul(state: GameState): number {
+  return 1 + perkStacks(state, 'trapDamage') * PERK_RULES.trapDamagePerStack;
+}
+
+/**
+ * Diamonds off an ability's price, floored so a cast is never free.
+ *
+ * Subtracted from the COST rather than multiplied into it, which is what makes
+ * it an early-game perk: one diamond is a third of a Stone Rain and a
+ * thirtieth of an Orbital Lance.
+ */
+export function abilityCost(state: GameState, base: number): number {
+  return Math.max(1, base - perkStacks(state, 'abilityDiscount') * PERK_RULES.abilityDiscountPerStack);
 }
 
 /** Economy buildings pay more. The economy-side counterpart to Sharpened. */

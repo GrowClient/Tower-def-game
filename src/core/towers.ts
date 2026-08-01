@@ -19,14 +19,13 @@ import {
 } from '../config/balance';
 import { comboEffect, refreshCombos } from './combos';
 import {
-  burnMul,
   damageMul,
   fireRateMul,
   interestMul,
   rangeMul,
   refundRate,
   slowDurationMul,
-  splashMul,
+  trapDamageMul,
 } from './perks';
 import { cellCenter, cellIndex, inBounds, kindAt } from './grid';
 import { applyBurn, applySlow, damageEnemy } from './enemies';
@@ -97,6 +96,10 @@ export function towerDamage(state: GameState, tower: Tower): number {
     def.damage *
     (UPGRADES.damageMul[tower.level - 1] ?? 1) *
     damageMul(state) *
+    // Traps get their own multiplier on top of the board-wide one — see the
+    // Sharpened Stakes perk. Applied HERE rather than at the trap's trigger so
+    // it reaches the number the panel shows as well as the damage it deals.
+    (def.onPath ? trapDamageMul(state) : 1) *
     comboEffect(tower).damageMul *
     veteranMul(tower)
   );
@@ -550,7 +553,7 @@ function updateTrap(state: GameState, tower: Tower, dt: number): void {
     if (dx * dx + dy * dy > reachSq) continue;
     damageEnemy(state, e, damage, def.armorPierce, tower.id);
     if (def.burnDps > 0) {
-      applyBurn(e, def.burnDps * burnMul(state) * combo.burnMul, def.burnSeconds);
+      applyBurn(e, def.burnDps * combo.burnMul, def.burnSeconds);
     }
     if (def.slowFactor < 1) {
       applySlow(e, towerSlowFactor(tower), towerSlowSeconds(state, tower));
@@ -638,11 +641,11 @@ function updateShooter(state: GameState, tower: Tower): void {
   spawnProjectile(state, tower, target, {
     look: PROJECTILE_LOOK[tower.kind],
     damage: towerDamage(state, tower),
-    splash: def.splash * splashMul(state),
+    splash: def.splash,
     armorPierce: def.armorPierce,
     speed: def.projectileSpeed,
     pierce: def.pierce,
-    burnDps: def.burnDps * burnMul(state) * combo.burnMul,
+    burnDps: def.burnDps * combo.burnMul,
     burnSeconds: def.burnSeconds,
     slowFactor: towerSlowFactor(tower),
     slowSeconds: towerSlowSeconds(state, tower),

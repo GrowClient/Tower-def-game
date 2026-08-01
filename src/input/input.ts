@@ -20,8 +20,14 @@ import {
   buildButtons,
   hitTest,
   towerPanelRects,
+  type Rect,
 } from '../render/hud';
 import { MENU_BUTTONS } from '../render/menu';
+import {
+  MENU_VOLUME_SLIDER,
+  PAUSE_VOLUME_SLIDER,
+  volumeFromX,
+} from '../render/volume';
 import { currentTutorialStep } from '../tutorial';
 import {
   ARMOR_BRIEFING_CLOSE,
@@ -52,6 +58,8 @@ export interface InputActions {
   toggleTower(towerId: number): void;
   toggleFullscreen(): void;
   toggleMute(): void;
+  /** Soundtrack level only, 0..1. Deliberately not the same control as mute. */
+  setMusicVolume(volume: number): void;
   /** Leave the run for the title screen. Saves on the way out. */
   openMenu(): void;
   /** Title screen actions. A new run needs its MODE — it decides when the run
@@ -107,6 +115,22 @@ export function attachInput(
       return;
     }
 
+    // The volume slider is handled here rather than in `handleTap`, because it
+    // is the one control in the game that is DRAGGED: it needs the pointer
+    // capture, and a slider you can only click one position of is a slider
+    // nobody can set precisely on a phone.
+    const slider = activeVolumeSlider(ui, getState());
+    if (slider !== null && hitTest(slider, p.x, p.y)) {
+      ui.draggingVolume = true;
+      actions.setMusicVolume(volumeFromX(slider, p.x));
+      try {
+        canvas.setPointerCapture(e.pointerId);
+      } catch {
+        // Capture is a nicety; without it the drag stops at the canvas edge.
+      }
+      return;
+    }
+
     const armedBefore = ui.buildKind;
     handleTap(ui, getState(), actions, p.x, p.y);
 
@@ -133,6 +157,13 @@ export function attachInput(
   canvas.addEventListener('pointermove', (e) => {
     const p = toWorld(e);
     ui.pointer = p;
+    if (ui.draggingVolume) {
+      const slider = activeVolumeSlider(ui, getState());
+      // Tracked from the slider's own geometry, not from where the finger is,
+      // so dragging off the end pins to 0 or 100 instead of losing the grab.
+      if (slider !== null) actions.setMusicVolume(volumeFromX(slider, p.x));
+      return;
+    }
     // The ghost follows a hovering mouse AND a dragging finger, from the same
     // line — that is the whole of "one input path" for this feature.
     const cell = cellUnder(getState(), p.x, p.y);
@@ -140,6 +171,11 @@ export function attachInput(
   });
 
   canvas.addEventListener('pointerup', (e) => {
+    if (ui.draggingVolume) {
+      ui.draggingVolume = false;
+      if (e.pointerType !== 'mouse') ui.pointer = null;
+      return;
+    }
     if (ui.placing) {
       ui.placing = false;
       // A modal that opened mid-drag cancels the build. A wave can clear while
@@ -178,6 +214,7 @@ export function attachInput(
     // A cancelled gesture must not build anything — that is what cancelled
     // means. The armed tool survives so the player can simply try again.
     ui.placing = false;
+    ui.draggingVolume = false;
     ui.pointer = null;
   });
   canvas.addEventListener('pointerleave', () => {
@@ -274,6 +311,22 @@ function modalUp(ui: UiState, state: GameState): boolean {
     ui.paused ||
     ui.showCombos
   );
+}
+
+/**
+ * The volume slider currently on screen, or null.
+ *
+ * Mirrors renderer.ts's overlay priority exactly. Getting this wrong would give
+ * the player an invisible slider to drag: the pause menu is NOT drawn while a
+ * perk draft or a restart confirmation is up, and a rect that is hit-tested but
+ * not painted is the same bug as a button drawn where it cannot be clicked,
+ * pointing the other way.
+ */
+function activeVolumeSlider(ui: UiState, state: GameState): Rect | null {
+  if (ui.screen === 'menu') return MENU_VOLUME_SLIDER;
+  if (ui.confirmingRestart || state.perkChoices !== null || state.phase !== 'playing') return null;
+  if (ui.paused && ui.pauseTab === 'game') return PAUSE_VOLUME_SLIDER;
+  return null;
 }
 
 /** The grid cell a world position falls in, or null if it is off the board. */

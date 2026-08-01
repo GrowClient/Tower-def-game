@@ -30,6 +30,7 @@ import { applySlow, damageEnemy } from './enemies';
 import { emit } from './events';
 import { towerOutputScale } from './towers';
 import type { GameState, Tower } from './types';
+import { abilityCost } from './perks';
 
 export function abilityDef(key: AbilityKey): AbilityDef | undefined {
   return ABILITIES.find((a) => a.key === key);
@@ -54,8 +55,20 @@ export function abilityError(state: GameState, key: AbilityKey): AbilityError {
   if (!def) return 'unknown';
   if (def.age > state.age) return 'lockedAge';
   if (abilityCooldown(state, key) > 0) return 'cooling';
-  if (state.diamonds < def.cost) return 'tooPoor';
+  if (state.diamonds < abilityPrice(state, key)) return 'tooPoor';
   return null;
+}
+
+/**
+ * What a cast actually costs right now — the table price less any discount.
+ *
+ * Exported because the tray and the pause guide both print a price, and a menu
+ * showing 3 while the sim charges 2 is the kind of drift that makes a player
+ * distrust every other number on screen.
+ */
+export function abilityPrice(state: GameState, key: AbilityKey): number {
+  const def = abilityDef(key);
+  return def ? abilityCost(state, def.cost) : 0;
 }
 
 /**
@@ -74,7 +87,7 @@ export function castAbility(
     return false;
   }
 
-  state.diamonds -= def.cost;
+  state.diamonds -= abilityPrice(state, key);
   state.abilityCooldowns[key] = def.cooldown;
   emit(state, { type: 'abilityCast', key, at: { x, y }, radius: def.radius });
 

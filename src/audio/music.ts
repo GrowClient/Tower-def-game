@@ -15,11 +15,18 @@
  * not an error and not a delay — the game shipped without music and must keep
  * working without it.
  *
- * **It must loop without a seam.** Not an `<audio loop>` tag: MP3 encoders pad
- * the start and end of a file, so a tag-looped MP3 has an audible gap every
- * time round. Decoding to a raw buffer and looping an `AudioBufferSourceNode`
- * is sample-accurate, and it also lets a track skip its intro on repeat via
- * `loopStart`.
+ * **The track is played exactly as it was composed.** Two attempts to improve
+ * the loop point were both rejected by the person who wrote the music, and both
+ * for the same reason: they were edits. A crossfade baked into the file muddied
+ * the intro on every playthrough, and a crossfade scheduled at playback still
+ * faded an ending the composer had written to land. The track is a loop already
+ * — it is played whole, from the first sample to the last, and then again.
+ *
+ * The one thing still done to it is `loopEnd`, and that is not an edit: MP3
+ * encoders PAD a file, so a tag-looped MP3 replays 40ms of silence that was
+ * never in the recording. Clamping to the real musical length plays what was
+ * uploaded and nothing else. This is also why it is not an `<audio loop>` tag —
+ * that has no way to say "loop the music, not the padding".
  *
  * **It cannot start itself.** Browsers refuse audio until a user gesture, so
  * nothing here runs until the first tap — the same unlock the SFX layer waits
@@ -31,13 +38,12 @@ const TRACK_BASE = 'audio/theme';
 /**
  * The track's real musical length, in seconds.
  *
- * Needed because MP3 is not sample-exact: the encoder pads the file, and the
- * shipped MP3 decodes to 90.04s against the OGG's exact 90.00s. Looping the
- * whole decoded buffer would replay 40ms of padding at every seam — a tick, on
- * a loop that was deliberately crossfaded to have none. Clamping `loopEnd` to
- * the known length throws the padding away whatever the decoder did with it.
+ * The decoded length of the master WAV, NOT of the shipped MP3 — the encoder
+ * pads that to ~127.48s. Looping on `buffer.duration` would therefore put a
+ * 40ms silence at the loop point in Safari and not in Chrome, which is the
+ * worst kind of bug: one that only exists on the browser you did not test.
  */
-const TRACK_SECONDS = 90;
+const TRACK_SECONDS = 127.44;
 
 /**
  * Relative, not absolute. The game is served from a subdirectory on every web
@@ -55,6 +61,8 @@ interface MusicState {
   source: AudioBufferSourceNode | null;
   /** Set once the fetch has been attempted, so it is never attempted twice. */
   requested: boolean;
+  /** Every format was tried and none of them worked. */
+  failed: boolean;
   wanted: boolean;
   muted: boolean;
   volume: number;
@@ -66,6 +74,7 @@ const music: MusicState = {
   buffer: null,
   source: null,
   requested: false,
+  failed: false,
   wanted: false,
   muted: false,
   volume: 0.55,
@@ -106,6 +115,7 @@ async function loadTrack(): Promise<void> {
       // shipped in and a perfectly good fallback.
     }
   }
+  music.failed = true;
 }
 
 function start(): void {
@@ -114,6 +124,8 @@ function start(): void {
 
   const source = ctx.createBufferSource();
   source.buffer = buffer;
+  // Sample-accurate, and the whole track: it was written to loop at its own end,
+  // so the composer's seam is the right one and nothing here should soften it.
   source.loop = true;
   source.loopStart = 0;
   source.loopEnd = Math.min(buffer.duration, TRACK_SECONDS);
@@ -168,4 +180,18 @@ export function musicVolume(): number {
 /** True once a track has actually decoded — used to keep the UI honest. */
 export function musicLoaded(): boolean {
   return music.buffer !== null;
+}
+
+/**
+ * A track was looked for and is definitively not coming.
+ *
+ * Deliberately NOT `!musicLoaded()`. Nothing is even fetched until the first
+ * user gesture unlocks audio, so "not loaded yet" is the state every player is
+ * in while they are looking at the title screen — greying the volume slider on
+ * that would show a dead control to everyone, on the one screen where it is
+ * most visible. Only an exhausted, failed load means the slider has nothing to
+ * do.
+ */
+export function musicUnavailable(): boolean {
+  return music.failed;
 }

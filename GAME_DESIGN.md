@@ -4,8 +4,13 @@ The design reference for this prototype. If code and this document disagree,
 this document is the intent — fix the code or update this on purpose.
 
 **Phase 1 goal: prove the core loop is fun.** No monetization, no backend, no
-accounts, no native mobile build. There are no image or audio files in this
-project and none should be added.
+accounts, no native mobile build. There are no image files in this project and
+none should be added. There is exactly **one** audio file — the composed
+soundtrack in `public/audio/` — and the reason is in CLAUDE.md: synthesised
+music has a ceiling, and a theme is most of what atmosphere means. Every sound
+effect is still synthesised from oscillators and noise. The track is played
+whole and unedited, and its volume has its own slider on the title screen and
+in the pause menu, separate from the mute button that silences the game.
 
 ---
 
@@ -223,7 +228,30 @@ across ten drafts is the reward.
 
 "Punch Through" (+1 pierced enemy) was deleted: it did nothing at all for the
 towers that do not already pierce, so on most boards it was a blank card
-wasting one of your three options.
+wasting one of your three options. **Kindling** (+burn damage) and **Wider
+Blast** (+splash radius) went the same way and for the same reason — each was
+live on a handful of towers and dead on the rest, so whether it was worth
+anything depended on a board you had already built rather than on a choice you
+were making.
+
+The two that replaced them are both bets you can plan around:
+
+- **Sharpened Stakes** — +5% trap damage, up to **20 stacks**. The only perk in
+  the game that stacks that deep, and deliberately: it is the one card that can
+  become a strategy rather than a tilt. Traps are cheap, they sit on the road
+  where nothing else can, and a run that keeps taking this ends up playing a
+  genuinely different board. Fully stacked it doubles a trap and nothing else —
+  the rule lives in `towerDamage` against `def.onPath`, so a Thrower never sees
+  a point of it.
+- **Cut Stones** — abilities cost 1 diamond less, once. Small on its face and
+  large in practice, because diamonds are minted from gold at 450g apiece in the
+  Stone Age and 7,000g in the Tech Age: a diamond off an Orbital Lance is 7,000
+  gold off every cast for the rest of the run. Floored at one diamond, because
+  an ability that costs nothing stops being a choice.
+
+Both prices are read through `abilityPrice()`, which the tray, the codex and
+`castAbility` all share — a discount visible on a card but not charged at the
+till is a bug this game has shipped once already.
 
 The draft holds wave progression while it is open — a player must never be
 punished for reading their options.
@@ -852,9 +880,15 @@ Four changes, in the order they mattered:
 3. **Bosses escalate on leak, not just on HP.** A boss took 8 lives whether it
    was the first or the fifth, so a board that could not kill one could simply
    tank it. The toll now grows 4 per appearance; the wave-50 boss takes 24 of
-   your 30 lives, and from the fifth onward "let it through" stops being a
-   strategy. The life pool went 20 → 30 to keep that frightening rather than
-   binary.
+   your 20 lives, and from the fifth onward "let it through" is not a strategy,
+   it is the end of the run.
+
+   The life pool went 20 → 30 to make that frightening rather than binary, and
+   has since gone back to **20**. Thirty meant the opening ten waves could be
+   misplayed and still recovered from, so they never had to be answered — the
+   "early game is too easy" complaint arriving through the life bar instead of
+   through the wave table. Rally restores **4** rather than 2 against the
+   smaller pool, so the perk that buys lives back still earns a draft slot.
 4. **Per-unit HP, not a bigger budget.** This is the one that actually worked,
    and it took three failed attempts to find. Every push on `lateSurgeGrowth`
    drove peak concurrent enemies past 150 and wave length past two minutes

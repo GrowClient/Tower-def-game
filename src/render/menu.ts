@@ -21,6 +21,7 @@ import { COLORS, font } from './palette';
 import { roundRect, type Rect } from './hud';
 import { drawMenuScene } from './menuScene';
 import { biomeFor } from './palette';
+import { MENU_VOLUME_SLIDER, drawVolumeSlider } from './volume';
 
 export type MenuButtonId = 'new' | 'continue' | 'endless';
 
@@ -59,6 +60,8 @@ export function drawMainMenu(
   bestWave: number,
   pixelScale: number,
   time: number,
+  musicVolume: number,
+  musicAvailable: boolean,
 ): void {
   const biome = biomeFor(0);
 
@@ -127,6 +130,21 @@ export function drawMainMenu(
     ctx.font = font(15);
     ctx.fillText(sub, b.rect.x + b.rect.w / 2, b.rect.y + 56);
   }
+
+  // On its own dark plate: the slider sits over the sunlit road, and a thin
+  // groove drawn straight onto that has nothing to be seen against.
+  ctx.fillStyle = 'rgba(26, 21, 15, 0.72)';
+  roundRect(
+    ctx,
+    MENU_VOLUME_SLIDER.x,
+    MENU_VOLUME_SLIDER.y - 2,
+    MENU_VOLUME_SLIDER.w,
+    MENU_VOLUME_SLIDER.h,
+    12,
+  );
+  ctx.fill();
+  drawVolumeSlider(ctx, MENU_VOLUME_SLIDER, musicVolume, biome, musicAvailable);
+  ctx.textAlign = 'center';
 
   if (bestWave > 0) {
     ctx.fillStyle = '#F6E7C4';

@@ -50,6 +50,17 @@ export interface UiState {
   fullscreen: boolean;
   /** Sound off. Mirrors the audio layer so the HUD can draw the right icon. */
   muted: boolean;
+  /**
+   * Soundtrack level, 0..1. Separate from `muted`, which kills everything.
+   *
+   * Mirrored here rather than read from `audio/music.ts` per frame, because
+   * `render/` has no business importing the audio layer — main.ts pushes this
+   * value across, exactly as it does with mute.
+   */
+  musicVolume: number;
+  /** True while a volume knob is being dragged, so pointermove keeps tracking
+   *  it after the finger has left the slider's rect. */
+  draggingVolume: boolean;
   /** The combos reference sheet is open. Session state, not simulation — a
    *  replay does not care that you stopped to read the rules. */
   showCombos: boolean;
@@ -116,6 +127,8 @@ export function newUiState(): UiState {
     selectedTowerId: null,
     fullscreen: false,
     muted: false,
+    musicVolume: 0.55,
+    draggingVolume: false,
     showCombos: false,
     pauseTab: 'game',
     abilityMenuOpen: false,
