@@ -121,7 +121,8 @@ which is all of them: itch.io serves from something like
 default absolute `/assets/...` resolves to the domain root, 404s, and shows a
 black screen. Relative paths work from any depth.
 
-To upload: zip the CONTENTS of `dist-itch/` (index.html at the top level of the
+The build is ~155 KB of JS plus ~2.5 MB of soundtrack (both audio formats ship;
+each player downloads only one). To upload: zip the CONTENTS of `dist-itch/` (index.html at the top level of the
 zip, not inside a folder), and on itch tick "This file will be played in the
 browser". Viewport 1280x720, fullscreen button on — the game letterboxes itself
 to 16:9 at any size.

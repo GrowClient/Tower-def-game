@@ -20,7 +20,7 @@ import { newRun } from './core/state';
 import type { RunMode } from './core/types';
 import type { GameState } from './core/types';
 import { isMuted, playEvents, setMuted, unlockAudio } from './audio/sfx';
-import { setMusicPlaying } from './audio/music';
+import { musicLoaded, musicVolume, setMusicPlaying } from './audio/music';
 import { consumeEvents, newFx, trackEnemies, updateFx } from './fx/effects';
 import { attachInput } from './input/input';
 import {
@@ -242,6 +242,7 @@ if (import.meta.env.DEV) {
   (window as unknown as { __td: unknown }).__td = {
     state: () => state,
     ui: () => ui,
+    music: () => ({ loaded: musicLoaded(), volume: musicVolume() }),
     queue: (intent: Parameters<typeof queueIntent>[1]) => queueIntent(state, intent),
   };
 }

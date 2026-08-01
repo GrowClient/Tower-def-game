@@ -29,6 +29,17 @@
 const TRACK_BASE = 'audio/theme';
 
 /**
+ * The track's real musical length, in seconds.
+ *
+ * Needed because MP3 is not sample-exact: the encoder pads the file, and the
+ * shipped MP3 decodes to 90.04s against the OGG's exact 90.00s. Looping the
+ * whole decoded buffer would replay 40ms of padding at every seam — a tick, on
+ * a loop that was deliberately crossfaded to have none. Clamping `loopEnd` to
+ * the known length throws the padding away whatever the decoder did with it.
+ */
+const TRACK_SECONDS = 90;
+
+/**
  * Relative, not absolute. The game is served from a subdirectory on every web
  * game portal, so `/audio/theme.ogg` would resolve to the domain root and 404 —
  * the same trap that made the first itch build a black screen.
@@ -104,6 +115,8 @@ function start(): void {
   const source = ctx.createBufferSource();
   source.buffer = buffer;
   source.loop = true;
+  source.loopStart = 0;
+  source.loopEnd = Math.min(buffer.duration, TRACK_SECONDS);
   source.connect(gain);
   source.start();
   music.source = source;
