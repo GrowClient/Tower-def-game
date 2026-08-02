@@ -100,6 +100,8 @@ export function spawnEnemy(
   kind: EnemyKind,
   wave: number,
   startDist = 0,
+  /** Per-unit override from the spawn order — see SpawnOrder.hpMul. */
+  hpMul = 1,
 ): Enemy {
   const def = ENEMIES[kind];
   const mechanic = mechanicFor(kind);
@@ -118,7 +120,7 @@ export function spawnEnemy(
   const bossArmor = mechanic ? BOSS_SCALING.armorPerAppearance * (app - 1) : 0;
   const bossAura = mechanic && def.armorAura > 0 ? BOSS_SCALING.auraPerAppearance * (app - 1) : 0;
 
-  const hp = Math.round(def.maxHp * hpMultiplier(wave, state.mode) * bossHpMul);
+  const hp = Math.round(def.maxHp * hpMultiplier(wave, state.mode) * bossHpMul * hpMul);
 
   const start = sampleAt(state.path, startDist, 0);
   const enemy: Enemy = {

@@ -353,6 +353,15 @@ export interface SpawnOrder {
   kind: EnemyKind;
   /** Sim time at which this unit enters. */
   at: number;
+  /**
+   * Scales this one unit's HP at spawn. Absent means 1.
+   *
+   * Exists for the campaign finale, where the third boss of the procession is
+   * deliberately softer than its appearance number would make it. The decision
+   * belongs where the procession is BUILT (waves.ts), not inside the spawn
+   * code, which should not have to know what a finale is.
+   */
+  hpMul?: number;
 }
 
 export interface WaveState {

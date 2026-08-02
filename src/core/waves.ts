@@ -12,7 +12,7 @@
  * can be brutal and first impressions decide whether the loop gets a chance.
  */
 
-import { BOSSES, ENEMIES, SCALING, VETERANCY, WAVES } from '../config/balance';
+import { BOSSES, BOSS_SCALING, ENEMIES, SCALING, VETERANCY, WAVES } from '../config/balance';
 import { mintDiamonds } from './abilities';
 import { bossForWave, hpMultiplier } from './enemies';
 import { waveClearReward } from './economy';
@@ -45,7 +45,7 @@ export function updateWaves(state: GameState, dt: number): void {
   // so a group scheduled at the same instant all enters together.
   while (wave.queue.length > 0 && wave.queue[0]!.at <= state.time) {
     const order = wave.queue.shift()!;
-    spawnEnemy(state, order.kind, wave.number);
+    spawnEnemy(state, order.kind, wave.number, 0, order.hpMul ?? 1);
   }
 
   // The wave is only over once the board is clear, not once spawning stops.
@@ -156,7 +156,20 @@ function composeWave(state: GameState, waveNumber: number): SpawnOrder[] {
   // spawned.
   if (isFinalWave(state, waveNumber)) {
     BOSSES.forEach((b, i) => {
-      orders.push({ kind: b.kind, at: state.time + WAVES.bossSpawnDelay + i * WAVES.finaleBossGap });
+      // The one that arrives LAST is cut down, and only that one.
+      //
+      // Boss HP grows per appearance, so by wave 60 the third of the
+      // procession is the single toughest thing in the game — and it lands on
+      // a board that has already spent the whole wave killing the other two
+      // and their escort. Playtested as the wall the finale dies on rather
+      // than the finish it is meant to be. The first two are untouched: they
+      // are what makes the last stand a last stand.
+      const last = i === BOSSES.length - 1;
+      orders.push({
+        kind: b.kind,
+        at: state.time + WAVES.bossSpawnDelay + i * WAVES.finaleBossGap,
+        ...(last ? { hpMul: BOSS_SCALING.finaleLastBossHpMul } : {}),
+      });
     });
     orders.sort((a, b) => a.at - b.at);
   } else if (boss) {

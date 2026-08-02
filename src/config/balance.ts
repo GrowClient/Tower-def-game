@@ -1921,6 +1921,17 @@ export const BOSS_SCALING = {
   /** Regen interval shortens by this factor per appearance (Ancient). Barely,
    *  now that the repair is suppressed by taking fire at all. */
   regenIntervalDecay: 0.93,
+  /**
+   * How much of its HP the FINAL boss of the campaign finale keeps.
+   *
+   * Wave 60 sends all three bosses in a procession, and `hpGrowth` makes the
+   * third the toughest unit the game ever spawns — arriving at a board that
+   * has just spent ninety seconds killing the other two. Playtest verdict was
+   * that it stopped being a finish and became a wall. Only the last one is
+   * cut; the first two are what makes a last stand a last stand.
+   */
+  finaleLastBossHpMul: 0.8,
+
   /** Extra armor the Warlord's aura grants per appearance. */
   auraPerAppearance: 3,
 
