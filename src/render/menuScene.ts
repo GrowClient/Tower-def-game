@@ -43,9 +43,15 @@ const SCENE_SEED = 0x5cede0;
  * to sit on. The first version put the road at 0.66 and the buttons landed on
  * top of it, so the two most important things on the screen — what the game
  * looks like, and how to start it — were fighting for the same pixels.
+ *
+ * Raised again after a second report of the same thing. 0.46 was not enough:
+ * the near-side towers stand a fixed distance BELOW the road, which put them
+ * at y~490 with the button column starting at 500, so the Ballista and the
+ * Frost Tower — two of the nine the scene exists to show off — sat directly
+ * behind CONTINUE. The band has to clear the towers, not just the tarmac.
  */
-const HORIZON = 0.30;
-const ROAD_Y = 0.46;
+const HORIZON = 0.27;
+const ROAD_Y = 0.415;
 
 interface SceneCache {
   canvas: HTMLCanvasElement;
@@ -246,7 +252,7 @@ function paintAgeLabels(ctx: CanvasRenderingContext2D): void {
   ctx.save();
   ctx.textAlign = 'center';
   ctx.font = '700 21px "IBM Plex Mono", ui-monospace, monospace';
-  const y = 262;
+  const y = 238;
   for (const [text, x] of labels) {
     // Each label gets its own dark plate.
     //
@@ -427,12 +433,12 @@ function paintForeground(ctx: CanvasRenderingContext2D, rng: Rng): void {
   // Starts BELOW the tower line, not through it. At 420 the gradient began
   // right where the near-side towers stand and swallowed half the lineup the
   // scene exists to show off.
-  const g = ctx.createLinearGradient(0, WORLD.height - 330, 0, WORLD.height);
+  const g = ctx.createLinearGradient(0, WORLD.height - 390, 0, WORLD.height);
   g.addColorStop(0, 'rgba(48, 30, 12, 0)');
   g.addColorStop(0.4, 'rgba(44, 28, 11, 0.62)');
   g.addColorStop(1, 'rgba(28, 18, 7, 0.92)');
   ctx.fillStyle = g;
-  ctx.fillRect(0, WORLD.height - 330, WORLD.width, 330);
+  ctx.fillRect(0, WORLD.height - 390, WORLD.width, 390);
 
   // A few big out-of-focus rocks right at the bottom edge for depth.
   for (let i = 0; i < 9; i++) {

@@ -34,7 +34,7 @@ function sliderRect(y: number): Rect {
 }
 
 /** Under the three title-screen buttons, above the footer lines. */
-export const MENU_VOLUME_SLIDER = sliderRect(768);
+export const MENU_VOLUME_SLIDER = sliderRect(758);
 
 /** Under the six pause buttons, which end at y = 658. */
 export const PAUSE_VOLUME_SLIDER = sliderRect(682);

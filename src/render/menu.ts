@@ -25,10 +25,10 @@ import { MENU_VOLUME_SLIDER, drawVolumeSlider } from './volume';
 
 export type MenuButtonId = 'new' | 'continue' | 'endless';
 
-const BTN_W = 440;
-const BTN_H = 72;
-const BTN_GAP = 14;
-const FIRST_Y = 500;
+const BTN_W = 420;
+const BTN_H = 66;
+const BTN_GAP = 12;
+const FIRST_Y = 516;
 
 /**
  * Two buttons, deliberately. There was a HOW TO PLAY here and it was the wrong
@@ -52,6 +52,79 @@ export const MENU_BUTTONS: { id: MenuButtonId; rect: Rect }[] = (
     h: BTN_H,
   },
 }));
+
+/**
+ * The title, set as a lockup rather than as a line of text.
+ *
+ * It used to be the game's UI font — `ui-monospace` — at 76px. A monospace
+ * face is right for a HUD, where columns of numbers have to line up and a
+ * glyph has to be unmistakable at a glance, and it is wrong for a title, where
+ * it reads as a terminal prompt rather than as a name. A heavy serif carries
+ * the three-ages-of-history idea the whole game is built on, and Georgia is on
+ * essentially every machine, so this costs no download and breaks the project's
+ * no-assets rule not at all.
+ *
+ * Drawn glyph by glyph because the treatment needs it: canvas `letterSpacing`
+ * is recent enough to be missing on browsers people still use, and laying the
+ * characters out by hand also gives each one its own shadow, bevel and
+ * gradient rather than one gradient smeared across the whole string.
+ */
+const TITLE = 'AGES OF DEFENSE';
+const TITLE_SIZE = 82;
+const TITLE_TRACKING = 5;
+
+function drawTitle(ctx: CanvasRenderingContext2D, cx: number, baseline: number): void {
+  ctx.save();
+  ctx.font = `700 ${TITLE_SIZE}px Georgia, "Times New Roman", serif`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+
+  const widths = [...TITLE].map((ch) => ctx.measureText(ch).width);
+  const total = widths.reduce((a, b) => a + b, 0) + TITLE_TRACKING * (TITLE.length - 1);
+  let x = cx - total / 2;
+
+  // Warm gold, lit from above, in LOCAL coordinates so the ramp is the same
+  // for every glyph instead of stretching across the whole line.
+  const grad = ctx.createLinearGradient(0, baseline - TITLE_SIZE, 0, baseline + 6);
+  grad.addColorStop(0, '#FFF3D2');
+  grad.addColorStop(0.42, '#F2C368');
+  grad.addColorStop(1, '#B87B2C');
+
+  for (let i = 0; i < TITLE.length; i++) {
+    const ch = TITLE[i]!;
+    if (ch !== ' ') {
+      // Cast shadow first, offset down-right, so the letters sit ON the sky
+      // rather than floating in front of it.
+      ctx.fillStyle = 'rgba(46, 26, 6, 0.42)';
+      ctx.fillText(ch, x + 5, baseline + 6);
+
+      // A dark cut around every glyph. The sky behind runs from near-white at
+      // the sun to deep amber at the edges, and gold on either of those is
+      // gold on gold — the outline is what makes one treatment work across the
+      // whole width.
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = 7;
+      ctx.strokeStyle = '#2B1A06';
+      ctx.strokeText(ch, x, baseline);
+
+      ctx.fillStyle = grad;
+      ctx.fillText(ch, x, baseline);
+
+      // Top bevel: a sliver of near-white along the upper edge, the same
+      // carved-stone trick the HUD slabs use.
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x - 10, baseline - TITLE_SIZE - 10, widths[i]! + 20, TITLE_SIZE * 0.34);
+      ctx.clip();
+      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = 'rgba(255, 248, 226, 0.75)';
+      ctx.strokeText(ch, x, baseline - 1.5);
+      ctx.restore();
+    }
+    x += widths[i]! + TITLE_TRACKING;
+  }
+  ctx.restore();
+}
 
 export function drawMainMenu(
   ctx: CanvasRenderingContext2D,
@@ -85,15 +158,12 @@ export function drawMainMenu(
   ctx.fillStyle = pad;
   ctx.fillRect(0, 0, WORLD.width, 340);
 
-  ctx.font = font(76);
-  ctx.fillStyle = 'rgba(255, 240, 200, 0.5)';
-  ctx.fillText('AGES OF DEFENSE', WORLD.width / 2, 158);
-  ctx.fillStyle = '#33220E';
-  ctx.fillText('AGES OF DEFENSE', WORLD.width / 2, 161);
+  drawTitle(ctx, WORLD.width / 2, 152);
 
-  ctx.fillStyle = 'rgba(255, 240, 208, 0.85)';
-  ctx.font = font(20);
-  ctx.fillText('Three ages. One road. Hold it.', WORLD.width / 2, 201);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(58, 36, 12, 0.9)';
+  ctx.font = '600 19px Georgia, "Times New Roman", serif';
+  ctx.fillText('THREE AGES  ·  ONE ROAD  ·  HOLD IT', WORLD.width / 2, 196);
 
   for (const b of MENU_BUTTONS) {
     const enabled = b.id !== 'continue' || canContinue;
